@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier à mots fléchés</title>
+<style>
+  :root{
+    --paper:#E9EDF1;
+    --panel:#FFFFFF;
+    --ink:#1B2A41;
+    --ink-soft:#425067;
+    --block:#17212E;
+    --accent:#C97A2B;
+    --accent-soft:#F1DCBE;
+    --ok:#3F7D5C;
+    --danger:#B23A32;
+    --muted:#6B7684;
+    --line:rgba(27,42,65,0.15);
+    --cell:38px;
+    --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+  .app{max-width:1100px;margin:0 auto;padding:0 0 48px;}
+
+  header.top{
+    background:var(--ink);
+    color:var(--paper);
+    padding:22px 24px 20px;
+    border-bottom:4px solid var(--accent);
+  }
+  header.top h1{
+    margin:0;
+    font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;
+    font-weight:600;
+    font-size:26px;
+    letter-spacing:0.3px;
+  }
+  header.top p{
+    margin:6px 0 0;
+    color:#B9C4D4;
+    font-size:13.5px;
+  }
+
+  .titlebar{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:16px 24px 0;
+  }
+  .titlebar label{font-size:12.5px;color:var(--muted);white-space:nowrap;}
+  .titlebar input[type=text]{
+    flex:1;min-width:180px;
+    font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;
+    font-size:17px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--panel);
+    color:var(--ink);
+  }
+
+  .toolbar{
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:14px 24px;
+    margin:14px 24px 0;
+    background:var(--panel);
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+  }
+  .toolbar .group{display:flex;align-items:center;gap:8px;}
+  .toolbar .group.grow{flex:1;justify-content:flex-end;flex-wrap:wrap;}
+  .toolbar label{font-size:12px;color:var(--muted);}
+  .toolbar input[type=number]{
+    width:54px;padding:5px 6px;border:1px solid var(--line);border-radius:5px;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:14px;
+    background:var(--panel);color:var(--ink);
+  }
+  .pillgroup{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;}
+  .pillgroup button{
+    border:none;background:var(--panel);color:var(--ink-soft);
+    padding:7px 14px;font-size:13px;cursor:pointer;font-weight:600;
+  }
+  .pillgroup button.active{background:var(--ink);color:var(--paper);}
+  button{font-family:inherit;}
+  .btn{
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .btn:hover{border-color:var(--ink-soft);}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.05);}
+  .btn.small{padding:6px 10px;font-size:12px;}
+  .btn.danger{color:var(--danger);border-color:var(--danger);}
+  .btn:disabled{opacity:0.45;cursor:not-allowed;}
+
+  #dirIndicator{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-weight:700;font-size:16px;
+    border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;background:var(--panel);cursor:pointer;color:var(--ink);
+  }
+
+  .warnbar{
+    margin:12px 24px 0;padding:9px 14px;border-radius:6px;
+    background:#FCEFDD;border:1px solid #E8C48E;color:#7A4E12;
+    font-size:12.5px;display:none;
+  }
+  .warnbar.show{display:block;}
+
+  .workspace{
+    display:flex;gap:20px;align-items:flex-start;
+    padding:18px 24px 0;
+  }
+  .grid-panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;overflow:auto;
+  }
+
+  .clue-bar{
+    display:flex;flex-direction:column;gap:6px;
+    margin-bottom:12px;padding:8px 10px;
+    background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;
+    width:100%;min-width:260px;
+  }
+  .cb-row{display:flex;align-items:center;gap:8px;}
+  .cb-arrow{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:14px;
+    background:var(--accent);color:#fff;border-radius:5px;padding:3px 8px;flex:none;min-width:16px;text-align:center;
+  }
+  .cb-input{flex:1;border:none;background:transparent;font-size:13.5px;color:var(--ink);min-width:0;}
+  .cb-input:focus{outline:none;}
+  .cb-input[readonly]{color:var(--ink-soft);font-style:italic;}
+  .cb-warn{font-size:11px;color:var(--danger);flex:none;}
+  .cb-empty{font-size:12.5px;color:var(--muted);}
+  .cb-actions{display:flex;justify-content:flex-end;}
+
+  #grid{
+    display:grid;
+    gap:2px;
+    background:var(--line);
+    border:2px solid var(--ink);
+    outline:none;
+    width:max-content;
+  }
+  .cell{
+    width:var(--cell);height:var(--cell);
+    background:var(--panel);
+    position:relative;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    user-select:none;
+  }
+  .cell .letter{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-weight:700;
+    font-size:calc(var(--cell) * 0.5);
+    color:var(--ink);
+    text-transform:uppercase;
+  }
+  .cell.block{background:var(--block);}
+  .cell.block:hover{background:#26364a;}
+  .cell.inword{background:#DCE6F0;}
+  .cell.selected{background:var(--accent);}
+  .cell.selected .letter{color:#fff;}
+  .cell.isolated:not(.block):not(.def)::after{
+    content:"";position:absolute;inset:3px;border:1.5px dashed var(--danger);border-radius:3px;pointer-events:none;
+  }
+  .mode-letters .cell.def{cursor:pointer;}
+  .mode-block .cell:not(.block):hover{background:#dfe6ee;}
+  .mode-def .cell.letter:hover{background:var(--accent-soft);}
+
+  .cell.def{background:var(--accent-soft);}
+  .cell.def.selected{background:var(--accent);}
+  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc{
+    position:absolute;
+    font-size:calc(var(--cell) * 0.148);
+    line-height:1.16;
+    color:var(--ink);
+    overflow:hidden;
+    display:-webkit-box;
+    -webkit-line-clamp:3;
+    line-clamp:3;
+    -webkit-box-orient:vertical;
+    box-orient:vertical;
+    word-break:normal;
+    overflow-wrap:break-word;
+    -webkit-hyphens:auto;
+    hyphens:auto;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc{color:#fff;}
+  .cell.def .rc{top:2px;right:3px;width:60%;text-align:right;}
+  .cell.def .dc{bottom:2px;left:3px;width:60%;text-align:left;}
+  .cell.def .bc{bottom:2px;right:3px;width:56%;text-align:right;}
+  .cell.def .sc{top:2px;left:3px;width:56%;text-align:left;}
+  .cell.def.only-right .rc{position:static;width:90%;text-align:center;-webkit-line-clamp:5;line-clamp:5;}
+  .cell.def.only-down .dc{position:static;width:90%;text-align:center;-webkit-line-clamp:5;line-clamp:5;}
+  .cell.def.only-below .bc{position:static;width:90%;text-align:center;-webkit-line-clamp:5;line-clamp:5;}
+  .cell.def.only-beside .sc{position:static;width:90%;text-align:center;-webkit-line-clamp:5;line-clamp:5;}
+  .cell.def .arrow-glyph{font-weight:700;}
+
+  .clues-panel{
+    flex:1;min-width:260px;
+    display:flex;flex-direction:column;gap:16px;
+  }
+  .clue-col{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;
+  }
+  .clue-col h3{
+    margin:0 0 8px;font-size:13px;letter-spacing:0.4px;
+    color:var(--ink-soft);font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    border-bottom:1px solid var(--line);padding-bottom:6px;
+  }
+  .clue-row{
+    display:flex;align-items:flex-start;gap:8px;padding:6px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .clue-row:last-child{border-bottom:none;}
+  .clue-row .preview{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-size:12px;color:var(--muted);flex:none;min-width:60px;letter-spacing:1px;padding-top:2px;
+  }
+  .clue-row .clue-text{flex:1;font-size:13px;color:var(--ink);}
+  .clue-row .clue-text.empty{color:var(--muted);font-style:italic;}
+  .clue-row .edit-btn{
+    border:none;background:transparent;cursor:pointer;font-size:13px;flex:none;padding:0 2px;
+  }
+  .clue-empty{font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0;}
+
+  .actions{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:20px 24px 0;
+  }
+  .actions .status{font-size:12.5px;color:var(--muted);}
+  .actions .spacer{flex:1;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(23,33,46,0.55);
+    display:none;align-items:center;justify-content:center;z-index:50;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);border-radius:8px;padding:20px 22px;max-width:340px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.25);
+  }
+  .modal p{margin:0 0 16px;font-size:14px;color:var(--ink);}
+  .modal .row{display:flex;justify-content:flex-end;gap:8px;}
+
+  @media (max-width:760px){
+    .workspace{flex-direction:column;}
+    .grid-panel{width:100%;}
+    .clues-panel{width:100%;}
+    .toolbar .group.grow{justify-content:flex-start;}
+  }
+
+  .auth-screen{display:flex;justify-content:center;padding:60px 24px;}
+  .auth-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:28px 26px;max-width:340px;width:100%;}
+  .auth-card h2{margin:0 0 6px;font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;font-size:20px;color:var(--ink);}
+  .auth-hint{margin:0 0 18px;font-size:12.5px;color:var(--muted);}
+  .auth-card label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px;}
+  .auth-card input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--paper);color:var(--ink);}
+  .auth-actions{display:flex;gap:10px;margin-top:18px;}
+  .auth-actions .btn{flex:1;}
+  .auth-error{margin:12px 0 0;font-size:12.5px;color:var(--danger);min-height:1em;}
+
+  .gallery-screen{padding:20px 24px 40px;max-width:640px;margin:0 auto;}
+  .gallery-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;}
+  .gallery-user{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gallery-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+  .gallery-item{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;display:flex;align-items:center;gap:12px;
+  }
+  .gallery-item-info{flex:1;min-width:0;}
+  .gallery-item-title{font-weight:600;font-size:14.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .gallery-item-date{font-size:12px;color:var(--muted);margin-top:2px;}
+  .gallery-item-actions{display:flex;gap:6px;flex:none;}
+  .gallery-empty{font-size:13px;color:var(--muted);font-style:italic;margin-top:20px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <h1>Atelier à mots fléchés</h1>
+    <p>Les définitions vivent dans la grille, avec leurs flèches — comme dans un vrai mots fléchés.</p>
+  </header>
+
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <h2>Connexion</h2>
+      <p class="auth-hint">Connecte-toi pour retrouver tes grilles sur tous tes appareils.</p>
+      <label for="authEmail">Email</label>
+      <input type="email" id="authEmail" autocomplete="email">
+      <label for="authPassword">Mot de passe</label>
+      <input type="password" id="authPassword" autocomplete="current-password">
+      <div class="auth-actions">
+        <button class="btn primary" id="authSignInBtn">Se connecter</button>
+        <button class="btn" id="authSignUpBtn">Créer un compte</button>
+      </div>
+      <p class="auth-error" id="authError"></p>
+    </div>
+  </div>
+
+  <div id="galleryScreen" class="gallery-screen" style="display:none;">
+    <div class="gallery-header">
+      <span id="galleryUserEmail" class="gallery-user"></span>
+      <button class="btn small" id="signOutBtn">Se déconnecter</button>
+    </div>
+    <button class="btn primary" id="newGridFromGalleryBtn">+ Nouvelle grille</button>
+    <div id="galleryList" class="gallery-list"></div>
+    <p class="gallery-empty" id="galleryEmptyMsg" style="display:none;">Aucune grille enregistrée pour l'instant.</p>
+  </div>
+
+  <div id="editorScreen" style="display:none;">
+
+  <div class="titlebar">
+    <button class="btn small" id="backToGalleryBtn">← Mes grilles</button>
+    <label for="titleInput">Titre</label>
+    <input type="text" id="titleInput" placeholder="Sans titre" maxlength="80">
+  </div>
+
+  <div class="toolbar">
+    <div class="group">
+      <label>Lignes</label>
+      <input type="number" id="rowsInput" min="3" max="25" value="9">
+      <label>Colonnes</label>
+      <input type="number" id="colsInput" min="3" max="25" value="9">
+      <button class="btn small" id="newGridBtn">Nouvelle grille</button>
+    </div>
+    <div class="group">
+      <div class="pillgroup">
+        <button id="modeLettersBtn" class="active">✏️ Lettres</button>
+        <button id="modeDefBtn">📝 Définition</button>
+        <button id="modeBlockBtn">⬛ Case neutre</button>
+      </div>
+    </div>
+    <div class="group grow">
+      <span id="dirIndicator" title="Cliquer pour changer de sens">→</span>
+    </div>
+  </div>
+
+  <div class="warnbar" id="warnBar"></div>
+
+  <div class="workspace">
+    <div class="grid-panel">
+      <div class="clue-bar" id="clueBar">
+        <div class="cb-row" id="cbRowRight">
+          <span class="cb-arrow">→</span>
+          <input type="text" id="cbRightInput" class="cb-input" placeholder="Définition (sens →)">
+          <span class="cb-warn" id="cbRightWarn"></span>
+        </div>
+        <div class="cb-row" id="cbRowDown">
+          <span class="cb-arrow">↓</span>
+          <input type="text" id="cbDownInput" class="cb-input" placeholder="Définition (sens ↓)">
+          <span class="cb-warn" id="cbDownWarn"></span>
+        </div>
+        <div class="cb-row" id="cbRowBelow">
+          <span class="cb-arrow">↳</span>
+          <input type="text" id="cbBelowInput" class="cb-input" placeholder="Définition (horizontal, part de la case du dessous)">
+          <span class="cb-warn" id="cbBelowWarn"></span>
+        </div>
+        <div class="cb-row" id="cbRowBeside">
+          <span class="cb-arrow">⤵</span>
+          <input type="text" id="cbBesideInput" class="cb-input" placeholder="Définition (vertical, part de la case de droite)">
+          <span class="cb-warn" id="cbBesideWarn"></span>
+        </div>
+        <span class="cb-empty" id="cbEmptyMsg"></span>
+        <div class="cb-actions">
+          <button class="btn small danger" id="cbDeleteDef" style="display:none;">Supprimer cette définition</button>
+        </div>
+      </div>
+      <div id="grid" tabindex="0" class="mode-letters"></div>
+    </div>
+    <div class="clues-panel">
+      <div class="clue-col">
+        <h3>→ HORIZONTALES</h3>
+        <div id="rightList"></div>
+      </div>
+      <div class="clue-col">
+        <h3>↓ VERTICALES</h3>
+        <div id="downList"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn small" id="saveBtn">Enregistrer</button>
+    <button class="btn small" id="saveAsBtn">Enregistrer sous…</button>
+    <button class="btn small" id="resetBtn">Nouveau</button>
+    <span class="status" id="statusMsg"></span>
+    <div class="spacer"></div>
+    <button class="btn primary" id="exportBtn">Générer la grille à remplir ↓</button>
+  </div>
+
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <p id="modalMessage"></p>
+    <div class="row">
+      <button class="btn small" id="modalCancel">Annuler</button>
+      <button class="btn small primary" id="modalConfirm">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!--
+  ====== CONFIGURATION FIREBASE (à faire une seule fois) ======
+  1. Va sur https://console.firebase.google.com → crée un projet (gratuit).
+  2. "Authentication" → onglet "Sign-in method" → active "E-mail/Mot de passe".
+  3. "Firestore Database" → "Créer une base de données" (mode production), puis
+     onglet "Règles" → colle ceci à la place du contenu par défaut, et publie :
+
+       rules_version = '2';
+       service cloud.firestore {
+         match /databases/{database}/documents {
+           match /users/{userId}/grids/{gridId} {
+             allow read, write: if request.auth != null && request.auth.uid == userId;
+           }
+         }
+       }
+
+  4. "Paramètres du projet" (roue crantée) → "Général" → "Vos applications"
+     → ajoute une application Web → copie l'objet de config fourni,
+     et remplace FIREBASE_CONFIG ci-dessous avec.
+  5. Enregistre ce fichier et mets-le sur GitHub Pages (ou n'importe quel hébergement
+     statique) : la config n'est pas un secret, elle est protégée par les règles
+     Firestore ci-dessus (seul le propriétaire connecté d'une grille peut la lire/écrire).
+-->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyB_nC3jujrXPKlfbDbQfyEVKI5qVUnolZQ",
+    authDomain: "storagemf-10591.firebaseapp.com",
+    projectId: "storagemf-10591",
+    storageBucket: "storagemf-10591.firebasestorage.app",
+    messagingSenderId: "270031844951",
+    appId: "1:270031844951:web:589da557c403714eb61512"
+  };
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  // cell.type: 'letter' | 'def' | 'block'
+  let state = {
+    rows: 9,
+    cols: 9,
+    cells: [],       // {type, letter, rightClue, downClue}
+    selected: null,  // {r,c}
+    dir: 'R',        // 'R' (right) or 'D' (down) — current typing direction
+    mode: 'letters',
+    title: '',
+    words: { right: [], down: [] }
+  };
+  let cellEls = []; // [r][c] -> {root}
+
+  function newCells(rows, cols){
+    const arr = [];
+    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:''});
+    return arr;
+  }
+
+  function idx(r,c){ return r*state.cols + c; }
+  function get(r,c){ return state.cells[idx(r,c)]; }
+  function inBounds(r,c){ return r>=0 && r<state.rows && c>=0 && c<state.cols; }
+
+  function normalizeChar(ch){
+    return ch.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  }
+
+  // ---------- word extraction from definition arrows ----------
+  function recomputeWords(){
+    const {rows, cols} = state;
+    const right = [], down = [];
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cell = get(r,c);
+        if(cell.type !== 'def') continue;
+        if(cell.rightClue && cell.rightClue.trim() !== ''){
+          const wcells = []; let cc=c+1;
+          while(cc<cols && get(r,cc).type==='letter'){ wcells.push({r,c:cc}); cc++; }
+          right.push({r, c, cells:wcells, clue:cell.rightClue, field:'rightClue'});
+        }
+        if(cell.downClue && cell.downClue.trim() !== ''){
+          const wcells = []; let rr=r+1;
+          while(rr<rows && get(rr,c).type==='letter'){ wcells.push({r:rr,c}); rr++; }
+          down.push({r, c, cells:wcells, clue:cell.downClue, field:'downClue'});
+        }
+        if(cell.belowClue && cell.belowClue.trim() !== ''){
+          const wcells = [];
+          if(r+1<rows && get(r+1,c).type==='letter'){
+            let cc=c;
+            while(cc<cols && get(r+1,cc).type==='letter'){ wcells.push({r:r+1,c:cc}); cc++; }
+          }
+          right.push({r, c, cells:wcells, clue:cell.belowClue, field:'belowClue'});
+        }
+        if(cell.besideClue && cell.besideClue.trim() !== ''){
+          const wcells = [];
+          if(c+1<cols && get(r,c+1).type==='letter'){
+            let rr=r;
+            while(rr<rows && get(rr,c+1).type==='letter'){ wcells.push({r:rr,c:c+1}); rr++; }
+          }
+          down.push({r, c, cells:wcells, clue:cell.besideClue, field:'besideClue'});
+        }
+      }
+    }
+    state.words = {right, down};
+  }
+
+  function orderedWordStarts(){
+    const list = [];
+    state.words.right.forEach(w=>{ if(w.cells.length) list.push({r:w.cells[0].r, c:w.cells[0].c, dir:'R'}); });
+    state.words.down.forEach(w=>{ if(w.cells.length) list.push({r:w.cells[0].r, c:w.cells[0].c, dir:'D'}); });
+    list.sort((a,b)=> a.r-b.r || a.c-b.c || (a.dir==='R'?-1:1)-(b.dir==='R'?-1:1));
+    return list;
+  }
+
+  function hasCellsRight(r,c){ return c<state.cols-1 && get(r,c+1).type==='letter'; }
+  function hasCellsDown(r,c){ return r<state.rows-1 && get(r+1,c).type==='letter'; }
+
+  function belongsRight(r,c){ return state.words.right.some(w=>w.cells.some(cc=>cc.r===r&&cc.c===c)); }
+  function belongsDown(r,c){ return state.words.down.some(w=>w.cells.some(cc=>cc.r===r&&cc.c===c)); }
+
+  function wordContaining(r,c,dir){
+    const list = dir==='R' ? state.words.right : state.words.down;
+    return list.find(w => w.cells.some(cell=>cell.r===r && cell.c===c));
+  }
+
+  // ---------- grid build / render ----------
+  function computeCellSize(){
+    const avail = Math.min(window.innerWidth - 80, 620);
+    let size = Math.floor(avail / state.cols);
+    size = Math.max(26, Math.min(46, size));
+    document.documentElement.style.setProperty('--cell', size+'px');
+  }
+
+  function buildGrid(rows, cols, keepData){
+    if(!keepData){
+      state.rows = rows; state.cols = cols;
+      state.cells = newCells(rows, cols);
+    }
+    state.selected = null;
+    recomputeWords();
+    renderGrid();
+    renderClueLists();
+    updateWarnings();
+    updateClueBar();
+  }
+
+  function renderGrid(){
+    const gridEl = document.getElementById('grid');
+    gridEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = `repeat(${state.cols}, var(--cell))`;
+    computeCellSize();
+    cellEls = [];
+    for(let r=0;r<state.rows;r++){
+      const row = [];
+      for(let c=0;c<state.cols;c++){
+        const cell = get(r,c);
+        const div = document.createElement('div');
+        div.className = 'cell ' + cell.type;
+        div.dataset.r = r; div.dataset.c = c;
+        if(cell.type === 'letter'){
+          const letterEl = document.createElement('span');
+          letterEl.className = 'letter';
+          letterEl.textContent = cell.letter || '';
+          div.appendChild(letterEl);
+        } else if(cell.type === 'def'){
+          const hasR = cell.rightClue && cell.rightClue.trim()!=='';
+          const hasD = cell.downClue && cell.downClue.trim()!=='';
+          const hasB = cell.belowClue && cell.belowClue.trim()!=='';
+          const hasS = cell.besideClue && cell.besideClue.trim()!=='';
+          const count = [hasR,hasD,hasB,hasS].filter(Boolean).length;
+          if(count===1 && hasR) div.classList.add('only-right');
+          else if(count===1 && hasD) div.classList.add('only-down');
+          else if(count===1 && hasB) div.classList.add('only-below');
+          else if(count===1 && hasS) div.classList.add('only-beside');
+          if(hasR){
+            const rc = document.createElement('span');
+            rc.className = 'rc';
+            rc.textContent = cell.rightClue + ' \u2192';
+            div.appendChild(rc);
+          }
+          if(hasD){
+            const dc = document.createElement('span');
+            dc.className = 'dc';
+            dc.textContent = cell.downClue + ' \u2193';
+            div.appendChild(dc);
+          }
+          if(hasB){
+            const bc = document.createElement('span');
+            bc.className = 'bc';
+            bc.textContent = cell.belowClue + ' \u21B3';
+            div.appendChild(bc);
+          }
+          if(hasS){
+            const sc = document.createElement('span');
+            sc.className = 'sc';
+            sc.textContent = cell.besideClue + ' \u2935';
+            div.appendChild(sc);
+          }
+          if(hasR || hasD || hasB || hasS){
+            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null].filter(Boolean).join('  |  ');
+          }
+        }
+        div.addEventListener('click', onCellClick);
+        gridEl.appendChild(div);
+        row.push({root:div});
+      }
+      cellEls.push(row);
+    }
+    markIsolatedCells();
+    updateSelectionHighlight();
+  }
+
+  function markIsolatedCells(){
+    for(let r=0;r<state.rows;r++){
+      for(let c=0;c<state.cols;c++){
+        const cell = get(r,c);
+        const el = cellEls[r][c].root;
+        if(cell.type==='letter' && !belongsRight(r,c) && !belongsDown(r,c)) el.classList.add('isolated');
+        else el.classList.remove('isolated');
+      }
+    }
+  }
+
+  function updateWarnings(){
+    let isolated = 0, empty = 0, dangling = 0;
+    for(let r=0;r<state.rows;r++){
+      for(let c=0;c<state.cols;c++){
+        const cell = get(r,c);
+        if(cell.type==='letter'){
+          if(!belongsRight(r,c) && !belongsDown(r,c)) isolated++;
+          else if(!cell.letter) empty++;
+        } else if(cell.type==='def'){
+          if(cell.rightClue && cell.rightClue.trim()!=='' && !hasCellsRight(r,c)) dangling++;
+          if(cell.downClue && cell.downClue.trim()!=='' && !hasCellsDown(r,c)) dangling++;
+          if(cell.belowClue && cell.belowClue.trim()!=='' && !hasCellsDown(r,c)) dangling++;
+          if(cell.besideClue && cell.besideClue.trim()!=='' && !hasCellsRight(r,c)) dangling++;
+        }
+      }
+    }
+    const bar = document.getElementById('warnBar');
+    const msgs = [];
+    if(dangling>0) msgs.push(`${dangling} flèche${dangling>1?'s':''} sans case à remplir`);
+    if(isolated>0) msgs.push(`${isolated} case${isolated>1?'s':''} isolée${isolated>1?'s':''} (atteinte par aucune définition)`);
+    if(empty>0) msgs.push(`${empty} case${empty>1?'s':''} encore vide${empty>1?'s':''}`);
+    if(msgs.length){
+      bar.textContent = '⚠ ' + msgs.join(' · ');
+      bar.classList.add('show');
+    } else {
+      bar.classList.remove('show');
+    }
+  }
+
+  function wordPreview(w){
+    return w.cells.map(({r,c})=> get(r,c).letter || '\u00B7').join('') || '(vide)';
+  }
+
+  function renderClueLists(){
+    renderOneList('rightList', state.words.right, 'R');
+    renderOneList('downList', state.words.down, 'D');
+  }
+
+  function renderOneList(containerId, words, dir){
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if(words.length === 0){
+      const p = document.createElement('div');
+      p.className = 'clue-empty';
+      p.textContent = 'Aucune définition pour l\u2019instant.';
+      container.appendChild(p);
+      return;
+    }
+    words.slice().sort((a,b)=> a.r-b.r || a.c-b.c).forEach(w=>{
+      const row = document.createElement('div');
+      row.className = 'clue-row';
+
+      const preview = document.createElement('span');
+      preview.className = 'preview';
+      preview.textContent = wordPreview(w);
+
+      const text = document.createElement('span');
+      text.className = 'clue-text' + (w.clue ? '' : ' empty');
+      const marker = w.field==='belowClue' ? '\u21B3 ' : (w.field==='besideClue' ? '\u2935 ' : '');
+      text.textContent = marker + (w.clue || '(pas de définition)');
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-btn';
+      editBtn.textContent = '✏️';
+      editBtn.title = 'Modifier';
+      editBtn.addEventListener('click', ()=>{
+        setMode('def');
+        selectCellRaw(w.r, w.c);
+        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput'};
+        document.getElementById(inputIds[w.field]).focus();
+      });
+
+      row.appendChild(preview);
+      row.appendChild(text);
+      row.appendChild(editBtn);
+      container.appendChild(row);
+    });
+  }
+
+  // ---------- selection / highlighting ----------
+  function updateSelectionHighlight(){
+    for(let r=0;r<state.rows;r++){
+      for(let c=0;c<state.cols;c++){
+        cellEls[r][c].root.classList.remove('selected','inword');
+      }
+    }
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type === 'letter'){
+      const w = wordContaining(r,c,state.dir);
+      if(w){ w.cells.forEach(({r:wr,c:wc})=> cellEls[wr][wc].root.classList.add('inword')); }
+    }
+    cellEls[r][c].root.classList.add('selected');
+  }
+
+  function selectCellRaw(r,c){
+    if(!inBounds(r,c)) return;
+    state.selected = {r,c};
+    const cell = get(r,c);
+    if(cell.type==='letter'){
+      if(state.dir==='R' && !belongsRight(r,c) && belongsDown(r,c)) state.dir='D';
+      else if(state.dir==='D' && !belongsDown(r,c) && belongsRight(r,c)) state.dir='R';
+    }
+    updateDirIndicator();
+    updateSelectionHighlight();
+    updateClueBar();
+  }
+
+  function selectCell(r,c,preferredDir){
+    if(!inBounds(r,c) || get(r,c).type!=='letter') return;
+    if(preferredDir && ((preferredDir==='R' && belongsRight(r,c)) || (preferredDir==='D' && belongsDown(r,c)))){
+      state.dir = preferredDir;
+    }
+    selectCellRaw(r,c);
+  }
+
+  function updateDirIndicator(){
+    document.getElementById('dirIndicator').textContent = state.dir==='R' ? '→' : '↓';
+  }
+
+  function toggleDirection(){
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    if(get(r,c).type!=='letter') return;
+    const other = state.dir==='R' ? 'D' : 'R';
+    if((other==='R' && belongsRight(r,c)) || (other==='D' && belongsDown(r,c))){
+      state.dir = other;
+      updateDirIndicator();
+      updateSelectionHighlight();
+      updateClueBar();
+    }
+  }
+
+  // ---------- clue bar ----------
+  function updateClueBar(){
+    const rowR = document.getElementById('cbRowRight');
+    const rowD = document.getElementById('cbRowDown');
+    const rowB = document.getElementById('cbRowBelow');
+    const rowS = document.getElementById('cbRowBeside');
+    const rightInput = document.getElementById('cbRightInput');
+    const downInput = document.getElementById('cbDownInput');
+    const belowInput = document.getElementById('cbBelowInput');
+    const besideInput = document.getElementById('cbBesideInput');
+    const delBtn = document.getElementById('cbDeleteDef');
+    const emptyMsg = document.getElementById('cbEmptyMsg');
+    const rightWarn = document.getElementById('cbRightWarn');
+    const downWarn = document.getElementById('cbDownWarn');
+    const belowWarn = document.getElementById('cbBelowWarn');
+    const besideWarn = document.getElementById('cbBesideWarn');
+
+    rowR.style.display = 'none';
+    rowD.style.display = 'none';
+    rowB.style.display = 'none';
+    rowS.style.display = 'none';
+    delBtn.style.display = 'none';
+    emptyMsg.textContent = '';
+    rightWarn.textContent = '';
+    downWarn.textContent = '';
+    belowWarn.textContent = '';
+    besideWarn.textContent = '';
+
+    if(!state.selected){
+      emptyMsg.textContent = 'Sélectionne une case pour voir ou écrire une définition.';
+      return;
+    }
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+
+    if(cell.type === 'block'){
+      emptyMsg.textContent = 'Case neutre (inutilisée).';
+      return;
+    }
+
+    if(cell.type === 'def'){
+      rowR.style.display = 'flex';
+      rowD.style.display = 'flex';
+      rowB.style.display = 'flex';
+      rowS.style.display = 'flex';
+      rightInput.readOnly = false;
+      downInput.readOnly = false;
+      belowInput.readOnly = false;
+      besideInput.readOnly = false;
+      rightInput.value = cell.rightClue || '';
+      downInput.value = cell.downClue || '';
+      belowInput.value = cell.belowClue || '';
+      besideInput.value = cell.besideClue || '';
+      delBtn.style.display = 'inline-block';
+      rightWarn.textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      downWarn.textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
+      belowWarn.textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
+      besideWarn.textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      return;
+    }
+
+    // letter cell: read-only reference to whichever word(s) pass through it
+    const rw = wordContaining(r,c,'R');
+    const dw = wordContaining(r,c,'D');
+    rightInput.readOnly = true;
+    downInput.readOnly = true;
+    if(rw){ rowR.style.display='flex'; rightInput.value = (rw.field==='belowClue' ? '\u21B3 ' : '') + (rw.clue || '(pas de définition)'); }
+    if(dw){ rowD.style.display='flex'; downInput.value = (dw.field==='besideClue' ? '\u2935 ' : '') + (dw.clue || '(pas de définition)'); }
+    if(!rw && !dw){ emptyMsg.textContent = 'Case isolée : aucune définition ne mène ici.'; }
+  }
+
+  function refreshAfterClueEdit(){
+    recomputeWords();
+    renderGrid();
+    renderClueLists();
+    updateWarnings();
+    if(state.selected){
+      const {r,c} = state.selected;
+      const cell = get(r,c);
+      document.getElementById('cbRightWarn').textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      document.getElementById('cbDownWarn').textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
+      document.getElementById('cbBelowWarn').textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
+      document.getElementById('cbBesideWarn').textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+    }
+  }
+
+  document.getElementById('cbRightInput').addEventListener('input', (e)=>{
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.rightClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+  document.getElementById('cbDownInput').addEventListener('input', (e)=>{
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.downClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+  document.getElementById('cbBelowInput').addEventListener('input', (e)=>{
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.belowClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+  document.getElementById('cbBesideInput').addEventListener('input', (e)=>{
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.besideClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+  document.getElementById('cbDeleteDef').addEventListener('click', async ()=>{
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue;
+    if(hasContent){
+      const ok = await confirmModal('Supprimer cette définition et transformer la case en case à lettre ?');
+      if(!ok) return;
+    }
+    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.letter='';
+    recomputeWords();
+    renderGrid();
+    renderClueLists();
+    updateWarnings();
+    selectCellRaw(r,c);
+  });
+
+  // ---------- interactions ----------
+  function onCellClick(e){
+    const r = parseInt(e.currentTarget.dataset.r,10);
+    const c = parseInt(e.currentTarget.dataset.c,10);
+    if(state.mode === 'block'){ onCellClickBlockMode(r,c); }
+    else if(state.mode === 'def'){ onCellClickDefMode(r,c); }
+    else { onCellClickLettersMode(r,c); }
+  }
+
+  function onCellClickLettersMode(r,c){
+    const cell = get(r,c);
+    if(cell.type === 'block') return;
+    if(cell.type === 'def'){ selectCellRaw(r,c); return; }
+    const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
+    if(wasSelected){ toggleDirection(); }
+    else { selectCell(r,c); }
+    document.getElementById('grid').focus();
+  }
+
+  function onCellClickDefMode(r,c){
+    const cell = get(r,c);
+    if(cell.type === 'block') return;
+    if(cell.type === 'letter'){
+      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue='';
+      recomputeWords();
+      renderGrid();
+      renderClueLists();
+      updateWarnings();
+      selectCellRaw(r,c);
+      document.getElementById('cbRightInput').focus();
+      return;
+    }
+    if(cell.type === 'def'){
+      const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
+      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue;
+      if(wasSelected && isEmpty){
+        // quick undo: clicking an already-selected, still-empty definition cell
+        // reverts it straight back to a letter cell (fixes an accidental misclick)
+        cell.type = 'letter';
+        recomputeWords();
+        renderGrid();
+        renderClueLists();
+        updateWarnings();
+        selectCellRaw(r,c);
+        return;
+      }
+      selectCellRaw(r,c);
+      document.getElementById('cbRightInput').focus();
+    }
+  }
+
+  async function onCellClickBlockMode(r,c){
+    const cell = get(r,c);
+    if(cell.type === 'block'){
+      cell.type = 'letter';
+      state.selected = null;
+      recomputeWords();
+      renderGrid();
+      renderClueLists();
+      updateWarnings();
+      updateClueBar();
+      return;
+    }
+    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue)){
+      const ok = await confirmModal('Cette case contient une définition. La transformer en case neutre l\u2019effacera. Continuer ?');
+      if(!ok) return;
+    }
+    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue='';
+    state.selected = null;
+    recomputeWords();
+    renderGrid();
+    renderClueLists();
+    updateWarnings();
+    updateClueBar();
+  }
+
+  function handleGridKeydown(e){
+    if(state.mode !== 'letters') return;
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    if(get(r,c).type !== 'letter') return;
+
+    if(e.key === 'ArrowLeft'){ e.preventDefault(); skipMove(r,c,0,-1); return; }
+    if(e.key === 'ArrowRight'){ e.preventDefault(); skipMove(r,c,0,1); return; }
+    if(e.key === 'ArrowUp'){ e.preventDefault(); skipMove(r,c,-1,0); return; }
+    if(e.key === 'ArrowDown'){ e.preventDefault(); skipMove(r,c,1,0); return; }
+
+    if(e.key === ' '){ e.preventDefault(); toggleDirection(); return; }
+
+    if(e.key === 'Tab'){ e.preventDefault(); jumpWord(e.shiftKey ? -1 : 1); return; }
+
+    if(e.key === 'Backspace'){
+      e.preventDefault();
+      const cell = get(r,c);
+      if(cell.letter){
+        cell.letter = '';
+        cellEls[r][c].root.querySelector('.letter').textContent = '';
+        updateWarnings();
+        markIsolatedCells();
+      } else {
+        const dr = state.dir==='R' ? 0 : -1;
+        const dc = state.dir==='R' ? -1 : 0;
+        const nr=r+dr, nc=c+dc;
+        if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
+          selectCell(nr,nc,state.dir);
+          get(nr,nc).letter = '';
+          cellEls[nr][nc].root.querySelector('.letter').textContent = '';
+          updateWarnings();
+        }
+      }
+      return;
+    }
+
+    if(e.key.length === 1){
+      const norm = normalizeChar(e.key);
+      if(/^[A-Z0-9]$/.test(norm)){
+        e.preventDefault();
+        const cell = get(r,c);
+        cell.letter = norm;
+        cellEls[r][c].root.querySelector('.letter').textContent = norm;
+        updateWarnings();
+        markIsolatedCells();
+        const dr = state.dir==='R' ? 0 : 1;
+        const dc = state.dir==='R' ? 1 : 0;
+        const nr=r+dr, nc=c+dc;
+        if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
+          selectCell(nr,nc,state.dir);
+        } else {
+          jumpWord(1);
+        }
+      }
+    }
+  }
+
+  function skipMove(r,c,dr,dc){
+    let nr=r+dr, nc=c+dc;
+    while(inBounds(nr,nc) && get(nr,nc).type!=='letter'){ nr+=dr; nc+=dc; }
+    if(inBounds(nr,nc)) selectCell(nr,nc,state.dir);
+  }
+
+  function jumpWord(step){
+    const list = orderedWordStarts();
+    if(list.length===0) return;
+    let curIndex = list.findIndex(w => w.dir===state.dir && w.r===state.selected.r && w.c===state.selected.c);
+    if(curIndex === -1){
+      curIndex = list.findIndex(w=>{
+        const word = wordContaining(w.r,w.c,w.dir);
+        return word && word.cells.some(cell=>cell.r===state.selected.r && cell.c===state.selected.c);
+      });
+    }
+    let nextIndex = curIndex === -1 ? 0 : (curIndex + step + list.length) % list.length;
+    const next = list[nextIndex];
+    selectCell(next.r, next.c, next.dir);
+  }
+
+  // ---------- toolbar handlers ----------
+  document.getElementById('grid').addEventListener('keydown', handleGridKeydown);
+
+  function setMode(mode){
+    state.mode = mode;
+    document.getElementById('modeLettersBtn').classList.toggle('active', mode==='letters');
+    document.getElementById('modeDefBtn').classList.toggle('active', mode==='def');
+    document.getElementById('modeBlockBtn').classList.toggle('active', mode==='block');
+    const grid = document.getElementById('grid');
+    grid.classList.remove('mode-letters','mode-def','mode-block');
+    grid.classList.add('mode-'+mode);
+  }
+  document.getElementById('modeLettersBtn').addEventListener('click', ()=>setMode('letters'));
+  document.getElementById('modeDefBtn').addEventListener('click', ()=>setMode('def'));
+  document.getElementById('modeBlockBtn').addEventListener('click', ()=>setMode('block'));
+
+  document.getElementById('dirIndicator').addEventListener('click', ()=>{ toggleDirection(); document.getElementById('grid').focus(); });
+
+  document.getElementById('titleInput').addEventListener('input', (e)=>{ state.title = e.target.value; });
+
+  document.getElementById('newGridBtn').addEventListener('click', async ()=>{
+    const rows = Math.max(3, Math.min(25, parseInt(document.getElementById('rowsInput').value,10) || 9));
+    const cols = Math.max(3, Math.min(25, parseInt(document.getElementById('colsInput').value,10) || 9));
+    const hasContent = state.cells.some(c=>c.letter || c.rightClue || c.downClue || c.belowClue || c.besideClue || c.type!=='letter');
+    if(hasContent){
+      const ok = await confirmModal('Créer une nouvelle grille effacera la grille actuelle. Continuer ?');
+      if(!ok) return;
+    }
+    buildGrid(rows, cols, false);
+    setStatus('Nouvelle grille créée.');
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', async ()=>{
+    const ok = await confirmModal('Repartir de zéro ? La grille et les définitions actuelles seront perdues si elles ne sont pas enregistrées.');
+    if(!ok) return;
+    document.getElementById('titleInput').value = '';
+    state.title = '';
+    currentGridId = null;
+    buildGrid(state.rows, state.cols, false);
+    setStatus('Grille réinitialisée.');
+  });
+
+  // ---------- confirm modal ----------
+  function confirmModal(message){
+    return new Promise((resolve)=>{
+      const overlay = document.getElementById('modalOverlay');
+      document.getElementById('modalMessage').textContent = message;
+      overlay.classList.add('show');
+      function cleanup(result){
+        overlay.classList.remove('show');
+        confirmBtn.removeEventListener('click', onConfirm);
+        cancelBtn.removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      const confirmBtn = document.getElementById('modalConfirm');
+      const cancelBtn = document.getElementById('modalCancel');
+      function onConfirm(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      confirmBtn.addEventListener('click', onConfirm);
+      cancelBtn.addEventListener('click', onCancel);
+    });
+  }
+
+  // ---------- status ----------
+  let statusTimer = null;
+  function setStatus(msg){
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    if(statusTimer) clearTimeout(statusTimer);
+    statusTimer = setTimeout(()=>{ el.textContent=''; }, 4000);
+  }
+
+  // ---------- Firebase: auth + cloud storage ----------
+  let fbAuth = null, fbDb = null;
+  let currentUser = null;
+  let currentGridId = null;
+  let unsubscribeGalleryList = null;
+
+  function initFirebase(){
+    if(typeof firebase === 'undefined'){
+      setAuthError('Le SDK Firebase ne s\u2019est pas chargé (vérifie ta connexion internet).');
+      return;
+    }
+    if(!FIREBASE_CONFIG || FIREBASE_CONFIG.apiKey === 'REMPLACE_MOI'){
+      setAuthError('Configuration Firebase manquante : édite FIREBASE_CONFIG en haut du fichier HTML.');
+      return;
+    }
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth = firebase.auth();
+      fbDb = firebase.firestore();
+      fbAuth.onAuthStateChanged(onAuthStateChanged);
+    }catch(err){
+      setAuthError('Erreur d\u2019initialisation Firebase : ' + err.message);
+    }
+  }
+
+  function onAuthStateChanged(user){
+    currentUser = user;
+    if(unsubscribeGalleryList){ unsubscribeGalleryList(); unsubscribeGalleryList = null; }
+    if(user){
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('galleryUserEmail').textContent = user.email || '';
+      const lastId = localStorage.getItem('mf-last-grid-' + user.uid);
+      showGallery();
+      if(lastId){
+        openGrid(lastId).catch(()=>{ /* la grille a peut-être été supprimée ailleurs */ });
+      }
+    } else {
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('galleryScreen').style.display = 'none';
+      document.getElementById('editorScreen').style.display = 'none';
+      currentGridId = null;
+    }
+  }
+
+  function setAuthError(msg){ document.getElementById('authError').textContent = msg; }
+
+  function translateAuthError(err){
+    const map = {
+      'auth/invalid-email': 'Adresse email invalide.',
+      'auth/user-not-found': 'Aucun compte avec cet email.',
+      'auth/wrong-password': 'Mot de passe incorrect.',
+      'auth/email-already-in-use': 'Un compte existe déjà avec cet email.',
+      'auth/weak-password': 'Mot de passe trop court (6 caractères minimum).',
+      'auth/invalid-credential': 'Email ou mot de passe incorrect.',
+      'auth/missing-password': 'Mot de passe manquant.'
+    };
+    return map[err.code] || ('Erreur : ' + (err.message || err.code || 'inconnue'));
+  }
+
+  document.getElementById('authSignInBtn').addEventListener('click', async ()=>{
+    if(!fbAuth) return;
+    setAuthError('');
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    try{ await fbAuth.signInWithEmailAndPassword(email, password); }
+    catch(err){ setAuthError(translateAuthError(err)); }
+  });
+  document.getElementById('authSignUpBtn').addEventListener('click', async ()=>{
+    if(!fbAuth) return;
+    setAuthError('');
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    try{ await fbAuth.createUserWithEmailAndPassword(email, password); }
+    catch(err){ setAuthError(translateAuthError(err)); }
+  });
+  document.getElementById('signOutBtn').addEventListener('click', ()=>{ if(fbAuth) fbAuth.signOut(); });
+
+  function gridsCollection(){
+    return fbDb.collection('users').doc(currentUser.uid).collection('grids');
+  }
+
+  function showGallery(){
+    document.getElementById('galleryScreen').style.display = 'block';
+    document.getElementById('editorScreen').style.display = 'none';
+    subscribeGalleryList();
+  }
+
+  function showEditor(){
+    document.getElementById('galleryScreen').style.display = 'none';
+    document.getElementById('editorScreen').style.display = 'block';
+  }
+
+  function subscribeGalleryList(){
+    if(unsubscribeGalleryList || !currentUser) return;
+    unsubscribeGalleryList = gridsCollection().orderBy('updatedAt','desc').onSnapshot(
+      (snap)=>renderGalleryList(snap.docs),
+      (err)=>setStatus('Erreur de chargement des grilles : ' + err.message)
+    );
+  }
+
+  function formatUpdatedAt(ts){
+    if(!ts || !ts.toDate) return '';
+    const d = ts.toDate();
+    return d.toLocaleDateString('fr-FR', {day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function renderGalleryList(docs){
+    const list = document.getElementById('galleryList');
+    const emptyMsg = document.getElementById('galleryEmptyMsg');
+    list.innerHTML = '';
+    if(docs.length === 0){ emptyMsg.style.display = 'block'; return; }
+    emptyMsg.style.display = 'none';
+    docs.forEach(doc=>{
+      const data = doc.data();
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+
+      const info = document.createElement('div');
+      info.className = 'gallery-item-info';
+      const title = document.createElement('div');
+      title.className = 'gallery-item-title';
+      title.textContent = data.title || 'Sans titre';
+      const date = document.createElement('div');
+      date.className = 'gallery-item-date';
+      date.textContent = formatUpdatedAt(data.updatedAt) + (data.rows && data.cols ? ` · ${data.rows}\u00D7${data.cols}` : '');
+      info.appendChild(title); info.appendChild(date);
+
+      const actions = document.createElement('div');
+      actions.className = 'gallery-item-actions';
+      const openBtn = document.createElement('button');
+      openBtn.className = 'btn small'; openBtn.textContent = 'Ouvrir';
+      openBtn.addEventListener('click', ()=>openGrid(doc.id));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn small danger'; delBtn.textContent = 'Supprimer';
+      delBtn.addEventListener('click', ()=>deleteGrid(doc.id, data.title));
+      actions.appendChild(openBtn); actions.appendChild(delBtn);
+
+      item.appendChild(info); item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  async function deleteGrid(id, title){
+    const ok = await confirmModal(`Supprimer définitivement la grille "${title || 'Sans titre'}" ?`);
+    if(!ok) return;
+    try{
+      await gridsCollection().doc(id).delete();
+      if(currentGridId === id) currentGridId = null;
+      setStatus('Grille supprimée.');
+    }catch(err){
+      setStatus('Échec de la suppression : ' + err.message);
+    }
+  }
+
+  async function openGrid(id){
+    const doc = await gridsCollection().doc(id).get();
+    if(!doc.exists){ setStatus('Cette grille n\u2019existe plus.'); throw new Error('not-found'); }
+    const data = doc.data();
+    const cells = JSON.parse(data.cellsJson);
+    state.rows = data.rows; state.cols = data.cols;
+    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||''}));
+    state.title = data.title || '';
+    document.getElementById('titleInput').value = state.title;
+    document.getElementById('rowsInput').value = state.rows;
+    document.getElementById('colsInput').value = state.cols;
+    state.selected = null;
+    recomputeWords();
+    renderGrid();
+    renderClueLists();
+    updateWarnings();
+    updateClueBar();
+    currentGridId = id;
+    localStorage.setItem('mf-last-grid-' + currentUser.uid, id);
+    showEditor();
+    setStatus('Grille chargée ✓');
+  }
+
+  function gridPayloadForSave(){
+    return {
+      title: state.title || 'Sans titre',
+      rows: state.rows,
+      cols: state.cols,
+      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue}))),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    if(!currentUser){ setStatus('Connecte-toi pour enregistrer.'); return; }
+    try{
+      if(currentGridId){
+        await gridsCollection().doc(currentGridId).set(gridPayloadForSave(), {merge:true});
+      } else {
+        const ref = await gridsCollection().add(gridPayloadForSave());
+        currentGridId = ref.id;
+        localStorage.setItem('mf-last-grid-' + currentUser.uid, ref.id);
+      }
+      setStatus('Grille enregistrée ✓');
+    }catch(err){
+      setStatus('Échec de l\u2019enregistrement : ' + err.message);
+    }
+  });
+
+  document.getElementById('saveAsBtn').addEventListener('click', async ()=>{
+    if(!currentUser){ setStatus('Connecte-toi pour enregistrer.'); return; }
+    try{
+      const ref = await gridsCollection().add(gridPayloadForSave());
+      currentGridId = ref.id;
+      localStorage.setItem('mf-last-grid-' + currentUser.uid, ref.id);
+      setStatus('Copie enregistrée ✓');
+    }catch(err){
+      setStatus('Échec de l\u2019enregistrement : ' + err.message);
+    }
+  });
+
+  document.getElementById('newGridFromGalleryBtn').addEventListener('click', ()=>{
+    currentGridId = null;
+    document.getElementById('titleInput').value = '';
+    state.title = '';
+    document.getElementById('rowsInput').value = 9;
+    document.getElementById('colsInput').value = 9;
+    buildGrid(9, 9, false);
+    showEditor();
+  });
+
+  document.getElementById('backToGalleryBtn').addEventListener('click', ()=>{ showGallery(); });
+
+  // ---------- export playable file ----------
+  document.getElementById('exportBtn').addEventListener('click', exportPlayable);
+
+  function exportPlayable(){
+    const title = state.title.trim() || 'Mots fléchés';
+    const types = state.cells.map(c=>c.type);
+    const rightClue = state.cells.map(c=>c.type==='def' ? (c.rightClue||'') : '');
+    const downClue = state.cells.map(c=>c.type==='def' ? (c.downClue||'') : '');
+    const belowClue = state.cells.map(c=>c.type==='def' ? (c.belowClue||'') : '');
+    const besideClue = state.cells.map(c=>c.type==='def' ? (c.besideClue||'') : '');
+    const solution = state.cells.map(c=>c.type==='letter' ? (c.letter||'') : '');
+    const rightWords = state.words.right.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
+    const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
+    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, solution, rightWords, downWords };
+    let dataJson = JSON.stringify(payload).replace(/</g, '\\u003c');
+    const html = buildPlayerHtml(dataJson, title);
+    const blob = new Blob([html], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = title.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'mots-fleches';
+    a.href = url;
+    a.download = safeName + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    setStatus('Grille à remplir téléchargée ✓');
+  }
+
+  function buildPlayerHtml(dataJson, title){
+    const esc = title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return [
+      '<!DOCTYPE html>',
+      '<html lang="fr"><head><meta charset="UTF-8">',
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+      '<title>' + esc + '</title>',
+      '<style>', playerCss(), '</style></head><body>',
+      '<div class="wrap">',
+      '<h1 id="pTitle"></h1>',
+      '<div class="board">',
+      '<div class="gridwrap">',
+      '<div class="clue-bar" id="pClueBar">',
+      '<div class="cb-row" id="pRowRight"><span class="cb-arrow">→</span><span id="pRightText"></span></div>',
+      '<div class="cb-row" id="pRowDown"><span class="cb-arrow">↓</span><span id="pDownText"></span></div>',
+      '<span class="cb-empty" id="pEmptyMsg">Sélectionne une case pour voir sa définition</span>',
+      '</div>',
+      '<div id="pGrid" class="pgrid"></div>',
+      '</div>',
+      '<div class="pclues">',
+      '<div class="pcol"><h3>→ Horizontales</h3><div id="pRight"></div></div>',
+      '<div class="pcol"><h3>↓ Verticales</h3><div id="pDown"></div></div>',
+      '</div>',
+      '</div>',
+      '<div class="pactions">',
+      '<button id="pVerify" class="pbtn">Vérifier</button>',
+      '<button id="pSolve" class="pbtn">Voir la solution</button>',
+      '<button id="pReset" class="pbtn">Réinitialiser</button>',
+      '<span id="pStatus" class="pstatus"></span>',
+      '</div>',
+      '</div>',
+      '<script id="puzzleData" type="application/json">' + dataJson + '<\/script>',
+      '<script>', playerJs(), '<\/script>',
+      '</body></html>'
+    ].join('\n');
+  }
+
+  function playerCss(){
+    return [
+      ':root{--paper:#E9EDF1;--panel:#fff;--ink:#1B2A41;--ink-soft:#425067;--block:#17212E;--accent:#C97A2B;--accent-soft:#F1DCBE;--ok:#3F7D5C;--danger:#B23A32;--muted:#6B7684;--line:rgba(27,42,65,0.15);--cell:38px;}',
+      '*{box-sizing:border-box;}',
+      'body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
+      '.wrap{max-width:1000px;margin:0 auto;padding:24px;}',
+      'h1{font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;font-size:24px;margin:0 0 18px;}',
+      '.board{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}',
+      '.gridwrap{display:flex;flex-direction:column;gap:10px;}',
+      '.clue-bar{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;width:100%;box-sizing:border-box;font-size:13.5px;min-height:20px;}',
+      '.cb-row{display:none;align-items:center;gap:8px;}',
+      '.cb-arrow{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:13px;background:var(--accent);color:#fff;border-radius:5px;padding:3px 8px;flex:none;min-width:16px;text-align:center;}',
+      '.cb-empty{font-size:12.5px;color:var(--muted);}',
+      '.pgrid{display:grid;gap:2px;background:var(--line);border:2px solid var(--ink);width:max-content;}',
+      '.pcell{width:var(--cell);height:var(--cell);position:relative;background:var(--block);}',
+      '.pcell.letter{background:var(--panel);}',
+      '.pcell.def{background:var(--accent-soft);}',
+      '.pcell input{width:100%;height:100%;border:none;background:transparent;text-align:center;font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:calc(var(--cell)*0.5);text-transform:uppercase;color:var(--ink);padding:0;}',
+      '.pcell input:focus{outline:2px solid var(--accent);outline-offset:-2px;}',
+      '.pcell.active-word{background:#DCE6F0;}',
+      '.pcell.correct input{color:var(--ok);}',
+      '.pcell.incorrect input{background:#FBEAE8;}',
+      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc{position:absolute;font-size:calc(var(--cell)*0.148);line-height:1.16;color:var(--ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;line-clamp:3;-webkit-box-orient:vertical;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
+      '.pcell.def .rc{top:2px;right:3px;width:60%;text-align:right;}',
+      '.pcell.def .dc{bottom:2px;left:3px;width:60%;text-align:left;}',
+      '.pcell.def .bc{bottom:2px;right:3px;width:56%;text-align:right;}',
+      '.pcell.def .sc{top:2px;left:3px;width:56%;text-align:left;}',
+      '.pcell.def.only-right .rc{position:static;width:90%;text-align:center;margin:0 auto;-webkit-line-clamp:5;line-clamp:5;}',
+      '.pcell.def.only-down .dc{position:static;width:90%;text-align:center;margin:0 auto;-webkit-line-clamp:5;line-clamp:5;}',
+      '.pcell.def.only-below .bc{position:static;width:90%;text-align:center;margin:0 auto;-webkit-line-clamp:5;line-clamp:5;}',
+      '.pcell.def.only-beside .sc{position:static;width:90%;text-align:center;margin:0 auto;-webkit-line-clamp:5;line-clamp:5;}',
+      '.pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}',
+      '.pcol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}',
+      '.pcol h3{margin:0 0 8px;font-size:13px;color:var(--ink-soft);border-bottom:1px solid var(--line);padding-bottom:6px;font-family:ui-monospace,"SF Mono",Consolas,monospace;}',
+      '.pclue{display:flex;gap:8px;padding:4px 0;font-size:13.5px;cursor:pointer;}',
+      '.pclue .pw{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:var(--muted);min-width:56px;flex:none;letter-spacing:1px;}',
+      '.pclue.active{background:var(--accent-soft);border-radius:4px;}',
+      '.pactions{margin-top:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}',
+      '.pbtn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);}',
+      '.pbtn:hover{border-color:var(--ink-soft);}',
+      '.pstatus{font-size:12.5px;color:var(--muted);}',
+      '@media print{.pactions{display:none;}}',
+      '@media (max-width:720px){.board{flex-direction:column;}}'
+    ].join('\n');
+  }
+
+  function playerJs(){
+    return [
+      'var data = JSON.parse(document.getElementById("puzzleData").textContent);',
+      'document.getElementById("pTitle").textContent = data.title;',
+      'document.title = data.title;',
+      'var rows = data.rows, cols = data.cols;',
+      'function idx(r,c){ return r*cols+c; }',
+      'var cellRefs = [];',
+      'var dir = "R";',
+      'function normalize(ch){ return ch.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase(); }',
+      'function wordAt(r,c,d){ var list = d==="R"?data.rightWords:data.downWords; for(var k=0;k<list.length;k++){ var w=list[k]; for(var j=0;j<w.cells.length;j++){ if(w.cells[j][0]===r && w.cells[j][1]===c) return w; } } return null; }',
+      'function canDir(r,c,d){ return !!wordAt(r,c,d); }',
+      'var gridEl = document.getElementById("pGrid");',
+      'var cw = Math.max(26, Math.min(46, Math.floor(Math.min(window.innerWidth-60,620)/cols)));',
+      'document.documentElement.style.setProperty("--cell", cw+"px");',
+      'gridEl.style.gridTemplateColumns = "repeat(" + cols + ", var(--cell))";',
+      'for(var r=0;r<rows;r++){ var row=[]; for(var c=0;c<cols;c++){',
+      '  var i = idx(r,c);',
+      '  var div = document.createElement("div");',
+      '  div.className = "pcell " + data.types[i];',
+      '  if(data.types[i]==="letter"){',
+      '    var inp = document.createElement("input"); inp.setAttribute("maxlength","1"); inp.setAttribute("autocomplete","off");',
+      '    inp.dataset.r=r; inp.dataset.c=c;',
+      '    inp.addEventListener("focus", onFocusCell);',
+      '    inp.addEventListener("keydown", onKeyCell);',
+      '    inp.addEventListener("input", onInputCell);',
+      '    div.appendChild(inp);',
+      '    row.push(inp);',
+      '  } else if(data.types[i]==="def"){',
+      '    var hasR = data.rightClue[i] && data.rightClue[i].trim()!=="";',
+      '    var hasD = data.downClue[i] && data.downClue[i].trim()!=="";',
+      '    var hasB = data.belowClue[i] && data.belowClue[i].trim()!=="";',
+      '    var hasS = data.besideClue[i] && data.besideClue[i].trim()!=="";',
+      '    var cnt = (hasR?1:0)+(hasD?1:0)+(hasB?1:0)+(hasS?1:0);',
+      '    if(cnt===1 && hasR) div.classList.add("only-right");',
+      '    if(cnt===1 && hasD) div.classList.add("only-down");',
+      '    if(cnt===1 && hasB) div.classList.add("only-below");',
+      '    if(cnt===1 && hasS) div.classList.add("only-beside");',
+      '    if(hasR){ var rc=document.createElement("span"); rc.className="rc"; rc.textContent=data.rightClue[i]+" \\u2192"; div.appendChild(rc); }',
+      '    if(hasD){ var dc=document.createElement("span"); dc.className="dc"; dc.textContent=data.downClue[i]+" \\u2193"; div.appendChild(dc); }',
+      '    if(hasB){ var bc=document.createElement("span"); bc.className="bc"; bc.textContent=data.belowClue[i]+" \\u21B3"; div.appendChild(bc); }',
+      '    if(hasS){ var sc=document.createElement("span"); sc.className="sc"; sc.textContent=data.besideClue[i]+" \\u2935"; div.appendChild(sc); }',
+      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]);',
+      '    if(titleParts.length) div.title = titleParts.join("  |  ");',
+      '    row.push(null);',
+      '  } else { row.push(null); }',
+      '  gridEl.appendChild(div);',
+      '} cellRefs.push(row); }',
+      'function clearHighlight(){ document.querySelectorAll(".pcell.active-word").forEach(function(el){el.classList.remove("active-word");}); document.querySelectorAll(".pclue.active").forEach(function(el){el.classList.remove("active");}); }',
+      'function highlight(r,c){ clearHighlight(); var w = wordAt(r,c,dir); if(!w) return; w.cells.forEach(function(cc){ var el=cellRefs[cc[0]][cc[1]]; if(el) el.parentElement.classList.add("active-word"); }); var sel = document.querySelector(\'[data-key="\' + dir + "_" + w.cells[0][0] + "_" + w.cells[0][1] + \'"]\'); if(sel) sel.classList.add("active"); }',
+      'function updateClueBar(r,c){',
+      '  var rw = wordAt(r,c,"R"), dw = wordAt(r,c,"D");',
+      '  var rowR=document.getElementById("pRowRight"), rowD=document.getElementById("pRowDown"), emptyMsg=document.getElementById("pEmptyMsg");',
+      '  rowR.style.display = rw ? "flex" : "none";',
+      '  rowD.style.display = dw ? "flex" : "none";',
+      '  if(rw) document.getElementById("pRightText").textContent = (rw.field==="belowClue"?"\\u21B3 ":"") + (rw.clue || "(pas de définition)");',
+      '  if(dw) document.getElementById("pDownText").textContent = (dw.field==="besideClue"?"\\u2935 ":"") + (dw.clue || "(pas de définition)");',
+      '  emptyMsg.style.display = (!rw && !dw) ? "block" : "none";',
+      '}',
+      'function onFocusCell(e){ var r=+e.target.dataset.r, c=+e.target.dataset.c; if(!canDir(r,c,dir)){ dir = dir==="R"?"D":"R"; } highlight(r,c); updateClueBar(r,c); }',
+      'function moveTo(r,c){ if(r<0||c<0||r>=rows||c>=cols) return; var el = cellRefs[r][c]; if(el){ el.focus(); } }',
+      'function skipMove(r,c,dr,dc){ var nr=r+dr, nc=c+dc; while(nr>=0&&nc>=0&&nr<rows&&nc<cols&&data.types[idx(nr,nc)]!=="letter"){ nr+=dr; nc+=dc; } moveTo(nr,nc); }',
+      'function onKeyCell(e){',
+      '  var r=+e.target.dataset.r, c=+e.target.dataset.c;',
+      '  if(e.key==="ArrowLeft"){ e.preventDefault(); skipMove(r,c,0,-1); return; }',
+      '  if(e.key==="ArrowRight"){ e.preventDefault(); skipMove(r,c,0,1); return; }',
+      '  if(e.key==="ArrowUp"){ e.preventDefault(); skipMove(r,c,-1,0); return; }',
+      '  if(e.key==="ArrowDown"){ e.preventDefault(); skipMove(r,c,1,0); return; }',
+      '  if(e.key===" "){ e.preventDefault(); if(canDir(r,c, dir==="R"?"D":"R")){ dir = dir==="R"?"D":"R"; highlight(r,c); updateClueBar(r,c);} return; }',
+      '  if(e.key==="Backspace" && !e.target.value){ e.preventDefault(); var dr=dir==="R"?0:-1, dc=dir==="R"?-1:0; var nr=r+dr, nc=c+dc; if(nr>=0&&nc>=0&&nr<rows&&nc<cols&&data.types[idx(nr,nc)]==="letter"){ cellRefs[nr][nc].value=""; moveTo(nr,nc);} }',
+      '}',
+      'function onInputCell(e){',
+      '  var r=+e.target.dataset.r, c=+e.target.dataset.c;',
+      '  var v = e.target.value; if(v){ v = normalize(v).slice(-1); e.target.value = v; }',
+      '  e.target.parentElement.classList.remove("correct","incorrect");',
+      '  var dr=dir==="R"?0:1, dc=dir==="R"?1:0; var nr=r+dr, nc=c+dc;',
+      '  if(v){ if(nr<rows && nc<cols && data.types[idx(nr,nc)]==="letter"){ moveTo(nr,nc); } }',
+      '}',
+      'function renderClues(){',
+      '  var rEl = document.getElementById("pRight"), dEl = document.getElementById("pDown");',
+      '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
+      '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
+      '}',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var marker = w.field==="belowClue" ? "\\u21B3 " : (w.field==="besideClue" ? "\\u2935 " : ""); t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
+      'renderClues();',
+      'document.getElementById("pVerify").addEventListener("click", function(){',
+      '  var total=0, correct=0;',
+      '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; total++; var el=cellRefs[r][c]; var sol=data.solution[idx(r,c)]; el.parentElement.classList.remove("correct","incorrect"); if(!el.value) continue; if(normalize(el.value)===sol){ el.parentElement.classList.add("correct"); correct++; } else { el.parentElement.classList.add("incorrect"); } } }',
+      '  document.getElementById("pStatus").textContent = correct + " / " + total + " cases correctes";',
+      '});',
+      'document.getElementById("pSolve").addEventListener("click", function(){',
+      '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value = data.solution[idx(r,c)]; el.disabled = true; el.parentElement.classList.remove("incorrect"); el.parentElement.classList.add("correct"); } }',
+      '  document.getElementById("pStatus").textContent = "Solution affichée";',
+      '});',
+      'document.getElementById("pReset").addEventListener("click", function(){',
+      '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value=""; el.disabled=false; el.parentElement.classList.remove("correct","incorrect"); } }',
+      '  document.getElementById("pStatus").textContent = "";',
+      '});'
+    ].join('\n');
+  }
+
+  // ---------- init ----------
+  window.addEventListener('resize', ()=>{ if(state.cols) computeCellSize(); });
+  buildGrid(state.rows, state.cols, false);
+  initFirebase();
+
+})();
+</script>
+</body>
+</html>
