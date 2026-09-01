@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Votre enfant préféré</title>
+<style>
+  :root{
+    --encre:#0e1a2b;
+    --ivoire:#f3ece0;
+    --or:#c9a227;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--encre);
+    color:var(--ivoire);
+    font-family:"Hoefler Text",Georgia,"Times New Roman",serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px 22px calc(28px + env(safe-area-inset-bottom));
+    text-align:center;
+  }
+  main{width:100%;max-width:520px}
+
+  .intro{
+    font-size:17px;
+    line-height:1.6;
+    color:#bfae90;
+    margin:0 0 40px;
+    font-style:italic;
+  }
+
+  button{
+    font-family:inherit;
+    font-size:21px;
+    letter-spacing:.08em;
+    padding:20px 34px;
+    color:var(--encre);
+    background:var(--ivoire);
+    border:1px solid var(--or);
+    border-radius:2px;
+    cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  button:hover{background:var(--or);color:var(--encre)}
+  button:focus-visible{outline:2px solid var(--or);outline-offset:6px}
+
+  #reveal{margin-top:8px}
+  .nom{
+    font-size:clamp(64px,22vw,140px);
+    line-height:1;
+    color:var(--ivoire);
+    margin:0;
+    font-weight:400;
+    animation:apparition 1.1s ease-out both;
+  }
+  .trait{
+    width:64px;
+    height:1px;
+    background:var(--or);
+    margin:32px auto 0;
+    animation:apparition 1.1s .35s ease-out both;
+  }
+  .legende{
+    font-size:14px;
+    letter-spacing:.04em;
+    color:#8f8067;
+    margin:20px 0 0;
+    animation:apparition 1.1s .5s ease-out both;
+  }
+  @keyframes apparition{from{opacity:0;transform:translateY(12px)}}
+  @media (prefers-reduced-motion:reduce){
+    .nom,.trait,.legende{animation:none}
+    button{transition:none}
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="intro" id="intro">Vous hésitez depuis des années.<br>Appuyez, on s'en occupe.</p>
+  <button id="btn" type="button">Révéler mon enfant préféré</button>
+  <div id="reveal" aria-live="polite"></div>
+</main>
+
+<script>
+  var btn = document.getElementById("btn");
+  var intro = document.getElementById("intro");
+  var reveal = document.getElementById("reveal");
+
+  btn.addEventListener("click", function(){
+    intro.style.display = "none";
+    btn.style.display = "none";
+    reveal.innerHTML =
+      '<p class="nom">Aurore</p>' +
+      '<div class="trait"></div>' +
+      '<p class="legende">Sans surprise.</p>';
+  });
+</script>
+</body>
+</html>
