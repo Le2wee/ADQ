@@ -138,8 +138,8 @@
 <main>
   <h1>Est-ce que vous êtes une bonne personne&nbsp;?</h1>
 
-  <label for="nom">Votre nom</label>
-  <input id="nom" type="text" autocomplete="off" autocapitalize="words"
+  <label for="prenom">Votre prénom</label>
+  <input id="prenom" type="text" autocomplete="off" autocapitalize="words"
          spellcheck="false" placeholder="Tapez ici">
 
   <button id="btn" type="button">Tester</button>
@@ -166,7 +166,7 @@
     { noms:["mathilde"],            texte:"Femme à marier ! Indubitablement", ton:"sang" }
   ];
 
-  var champ   = document.getElementById("nom");
+  var champ   = document.getElementById("prenom");
   var sortie  = document.getElementById("resultat");
 
   function normalise(s){
@@ -195,7 +195,7 @@
   function tester(){
     var brut = champ.value;
     if (!brut.trim()){
-      affiche("Un nom", "nul", "Il en faut un pour tester. C'est le principe.");
+      affiche("Un prénom", "nul", "Il en faut un pour tester. C'est le principe.");
       champ.focus();
       return;
     }
@@ -206,7 +206,7 @@
         return;
       }
     }
-    affiche("Nullos", "nul", "Le test a parlé. Réessayez avec un meilleur nom.");
+    affiche("Nullos", "nul", "Le test a parlé. Réessayez avec un meilleur prénom.");
   }
 
   document.getElementById("btn").addEventListener("click", tester);
