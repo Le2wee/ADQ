@@ -147,6 +147,20 @@
     border:2px solid var(--ink);
     outline:none;
     width:max-content;
+    position:relative;
+  }
+  #hiddenKeyInput{
+    position:absolute;
+    display:none;
+    opacity:0;
+    z-index:5;
+    border:0;
+    padding:0;
+    margin:0;
+    background:transparent;
+    color:transparent;
+    caret-color:transparent;
+    font-size:16px; /* below 16px iOS zooms the page on focus */
   }
   .cell{
     width:var(--cell);height:var(--cell);
@@ -709,6 +723,9 @@
     }
     markIsolatedCells();
     updateSelectionHighlight();
+    // renderGrid wipes the container, so the input has to be re-attached
+    gridEl.appendChild(ensureKeyInput());
+    placeKeyInput();
   }
 
   function markIsolatedCells(){
@@ -829,6 +846,7 @@
     updateDirIndicator();
     updateSelectionHighlight();
     updateClueBar();
+    placeKeyInput();
   }
 
   function selectCell(r,c,preferredDir){
@@ -1013,12 +1031,15 @@
 
   function onCellClickLettersMode(r,c){
     const cell = get(r,c);
-    if(cell.type === 'block') return;
-    if(cell.type === 'def'){ selectCellRaw(r,c); return; }
+    if(cell.type === 'block'){ blurKeyInput(); return; }
+    if(cell.type === 'def'){ blurKeyInput(); selectCellRaw(r,c); return; }
     const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
     if(wasSelected){ toggleDirection(); }
     else { selectCell(r,c); }
-    document.getElementById('grid').focus();
+    // Focusing has to happen synchronously inside the tap handler, otherwise
+    // mobile browsers refuse to bring the keyboard up.
+    placeKeyInput();
+    focusKeyInput();
   }
 
   function onCellClickDefMode(r,c){
@@ -1078,6 +1099,50 @@
     updateClueBar();
   }
 
+  // Applies one character to the selected cell and advances, shared by the
+  // physical-keyboard path and the mobile hidden-input path.
+  function typeLetter(norm){
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    if(get(r,c).type !== 'letter') return;
+    const cell = get(r,c);
+    cell.letter = norm;
+    cellEls[r][c].root.querySelector('.letter').textContent = norm;
+    updateWarnings();
+    markIsolatedCells();
+    const dr = state.dir==='R' ? 0 : 1;
+    const dc = state.dir==='R' ? 1 : 0;
+    const nr=r+dr, nc=c+dc;
+    if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
+      selectCell(nr,nc,state.dir);
+    } else {
+      jumpWord(1);
+    }
+  }
+
+  function handleBackspace(){
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    if(get(r,c).type !== 'letter') return;
+    const cell = get(r,c);
+    if(cell.letter){
+      cell.letter = '';
+      cellEls[r][c].root.querySelector('.letter').textContent = '';
+      updateWarnings();
+      markIsolatedCells();
+    } else {
+      const dr = state.dir==='R' ? 0 : -1;
+      const dc = state.dir==='R' ? -1 : 0;
+      const nr=r+dr, nc=c+dc;
+      if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
+        selectCell(nr,nc,state.dir);
+        get(nr,nc).letter = '';
+        cellEls[nr][nc].root.querySelector('.letter').textContent = '';
+        updateWarnings();
+      }
+    }
+  }
+
   function handleGridKeydown(e){
     if(state.mode !== 'letters') return;
     if(!state.selected) return;
@@ -1093,47 +1158,89 @@
 
     if(e.key === 'Tab'){ e.preventDefault(); jumpWord(e.shiftKey ? -1 : 1); return; }
 
-    if(e.key === 'Backspace'){
-      e.preventDefault();
-      const cell = get(r,c);
-      if(cell.letter){
-        cell.letter = '';
-        cellEls[r][c].root.querySelector('.letter').textContent = '';
-        updateWarnings();
-        markIsolatedCells();
-      } else {
-        const dr = state.dir==='R' ? 0 : -1;
-        const dc = state.dir==='R' ? -1 : 0;
-        const nr=r+dr, nc=c+dc;
-        if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
-          selectCell(nr,nc,state.dir);
-          get(nr,nc).letter = '';
-          cellEls[nr][nc].root.querySelector('.letter').textContent = '';
-          updateWarnings();
-        }
-      }
-      return;
-    }
+    if(e.key === 'Backspace'){ e.preventDefault(); handleBackspace(); return; }
 
     if(e.key.length === 1){
       const norm = normalizeChar(e.key);
       if(/^[A-Z0-9]$/.test(norm)){
         e.preventDefault();
-        const cell = get(r,c);
-        cell.letter = norm;
-        cellEls[r][c].root.querySelector('.letter').textContent = norm;
-        updateWarnings();
-        markIsolatedCells();
-        const dr = state.dir==='R' ? 0 : 1;
-        const dc = state.dir==='R' ? 1 : 0;
-        const nr=r+dr, nc=c+dc;
-        if(inBounds(nr,nc) && get(nr,nc).type==='letter'){
-          selectCell(nr,nc,state.dir);
-        } else {
-          jumpWord(1);
-        }
+        typeLetter(norm);
       }
     }
+  }
+
+  // ---------- mobile text entry ----------
+  // Letter cells are plain divs, so tapping one never opens a phone keyboard.
+  // A real (invisible) input is parked over the selected cell and focused on tap;
+  // the OS keyboard then targets it, and we route its characters into the grid.
+  let keyInput = null;
+
+  function ensureKeyInput(){
+    if(keyInput) return keyInput;
+    keyInput = document.createElement('input');
+    keyInput.type = 'text';
+    keyInput.id = 'hiddenKeyInput';
+    keyInput.setAttribute('autocomplete','off');
+    keyInput.setAttribute('autocorrect','off');
+    keyInput.setAttribute('autocapitalize','characters');
+    keyInput.setAttribute('spellcheck','false');
+    keyInput.setAttribute('inputmode','text');
+    keyInput.setAttribute('aria-label','Saisie des lettres');
+
+    keyInput.addEventListener('keydown', handleGridKeydown);
+
+    // Phone keyboards often report key="Unidentified" on keydown, so the actual
+    // character has to be read from the input event instead.
+    keyInput.addEventListener('input', (e)=>{
+      const raw = e.target.value;
+      e.target.value = '';
+      if(!raw) return;
+      const norm = normalizeChar(raw.slice(-1));
+      if(/^[A-Z0-9]$/.test(norm)) typeLetter(norm);
+    });
+
+    // The field is kept empty, so a phone backspace produces no input event.
+    keyInput.addEventListener('beforeinput', (e)=>{
+      if(e.inputType === 'deleteContentBackward'){
+        e.preventDefault();
+        handleBackspace();
+      }
+    });
+
+    // The input covers the selected cell, so a tap on that cell lands here
+    // rather than on the cell div: reproduce the "tap again to switch direction"
+    // behaviour, and keep the keyboard up.
+    keyInput.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      toggleDirection();
+      placeKeyInput();
+      focusKeyInput();
+    });
+
+    return keyInput;
+  }
+
+  function placeKeyInput(){
+    const inp = ensureKeyInput();
+    if(state.mode !== 'letters' || !state.selected){ inp.style.display = 'none'; return; }
+    const {r,c} = state.selected;
+    if(!cellEls[r] || !cellEls[r][c] || get(r,c).type !== 'letter'){ inp.style.display = 'none'; return; }
+    const el = cellEls[r][c].root;
+    inp.style.display = 'block';
+    inp.style.left = el.offsetLeft + 'px';
+    inp.style.top = el.offsetTop + 'px';
+    inp.style.width = el.offsetWidth + 'px';
+    inp.style.height = el.offsetHeight + 'px';
+  }
+
+  function focusKeyInput(){
+    const inp = ensureKeyInput();
+    if(inp.style.display === 'none') return;
+    try{ inp.focus({preventScroll:true}); }catch(err){ inp.focus(); }
+  }
+
+  function blurKeyInput(){
+    if(keyInput && document.activeElement === keyInput) keyInput.blur();
   }
 
   function skipMove(r,c,dr,dc){
@@ -1158,7 +1265,11 @@
   }
 
   // ---------- toolbar handlers ----------
-  document.getElementById('grid').addEventListener('keydown', handleGridKeydown);
+  // The hidden input sits inside #grid, so its keydown bubbles here too; only
+  // handle events that targeted the grid itself to avoid processing twice.
+  document.getElementById('grid').addEventListener('keydown', (e)=>{
+    if(e.target === e.currentTarget) handleGridKeydown(e);
+  });
 
   function setMode(mode){
     state.mode = mode;
@@ -1168,6 +1279,9 @@
     const grid = document.getElementById('grid');
     grid.classList.remove('mode-letters','mode-def','mode-block');
     grid.classList.add('mode-'+mode);
+    // Leaving letter mode should dismiss the phone keyboard
+    if(mode !== 'letters') blurKeyInput();
+    placeKeyInput();
   }
   document.getElementById('modeLettersBtn').addEventListener('click', ()=>setMode('letters'));
   document.getElementById('modeDefBtn').addEventListener('click', ()=>setMode('def'));
