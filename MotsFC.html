@@ -198,6 +198,7 @@
     padding:2px;
   }
   .cell.def.selected{background:var(--accent);}
+  .cell.def .mf-text{max-width:100%;min-width:0;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;}
   .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc{
     flex:1 1 0;
     min-height:0;
@@ -594,11 +595,28 @@
   // instead of truncating text with an ellipsis. Stops at minPx as an absolute floor.
   // Shrinks an element's font-size (in px) until its content fits its box height,
   // instead of truncating text with an ellipsis. Stops at minPx as an absolute floor.
+  // The clue text goes in an inner span: a bare text node inside a centred flex
+  // box is laid out at max-content width and never wraps, so long words spill out
+  // of both sides and get clipped. An element child with min-width:0 wraps properly.
+  function addBand(cellDiv, kind, text){
+    const band = document.createElement('span');
+    band.className = kind;
+    const inner = document.createElement('span');
+    inner.className = 'mf-text';
+    inner.textContent = text;
+    band.appendChild(inner);
+    cellDiv.appendChild(band);
+    return band;
+  }
+
   function fitDefText(el, maxPx, minPx){
     let size = maxPx;
     el.style.fontSize = size + 'px';
     let guard = 0;
-    while(el.scrollHeight > el.clientHeight + 0.5 && size > minPx && guard < 60){
+    // A long unbreakable word overflows sideways, which a height-only test misses,
+    // so both directions have to be checked.
+    while((el.scrollHeight > el.clientHeight + 0.5 || el.scrollWidth > el.clientWidth + 0.5)
+          && size > minPx && guard < 80){
       size -= 0.5;
       el.style.fontSize = size + 'px';
       guard++;
@@ -680,34 +698,10 @@
           // Display order is fixed: clues whose word starts in the cell to the
           // RIGHT (\u2192 and \u2935) always sit above clues whose word starts in the cell
           // BELOW (\u2193 and \u21B3), so the reader's eye follows the arrow's origin.
-          if(hasR){
-            const rc = document.createElement('span');
-            rc.className = 'rc';
-            rc.textContent = cell.rightClue + ' \u2192';
-            div.appendChild(rc);
-            slots.push(rc);
-          }
-          if(hasS){
-            const sc = document.createElement('span');
-            sc.className = 'sc';
-            sc.textContent = cell.besideClue + ' \u2935';
-            div.appendChild(sc);
-            slots.push(sc);
-          }
-          if(hasD){
-            const dc = document.createElement('span');
-            dc.className = 'dc';
-            dc.textContent = cell.downClue + ' \u2193';
-            div.appendChild(dc);
-            slots.push(dc);
-          }
-          if(hasB){
-            const bc = document.createElement('span');
-            bc.className = 'bc';
-            bc.textContent = cell.belowClue + ' \u21B3';
-            div.appendChild(bc);
-            slots.push(bc);
-          }
+          if(hasR) slots.push(addBand(div, 'rc', cell.rightClue + ' \u2192'));
+          if(hasS) slots.push(addBand(div, 'sc', cell.besideClue + ' \u2935'));
+          if(hasD) slots.push(addBand(div, 'dc', cell.downClue + ' \u2193'));
+          if(hasB) slots.push(addBand(div, 'bc', cell.belowClue + ' \u21B3'));
           // fit AFTER every sibling slot exists, so flex has already divided the
           // final space between them (fitting too early sizes against a
           // temporary single-child layout that shrinks once siblings are added)
@@ -1775,6 +1769,7 @@
       '.pcell.active-word{background:#DCE6F0;}',
       '.pcell.correct input{color:var(--ok);}',
       '.pcell.incorrect input{background:#FBEAE8;}',
+      '.pcell.def .mf-text{max-width:100%;min-width:0;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;}',
       '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc{flex:1 1 0;min-height:0;min-width:0;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
       '.pcell.def > *:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}',
       '.pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}',
@@ -1816,7 +1811,7 @@
       'function normalize(ch){ return ch.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase(); }',
       'function wordAt(r,c,d){ var list = d==="R"?data.rightWords:data.downWords; for(var k=0;k<list.length;k++){ var w=list[k]; for(var j=0;j<w.cells.length;j++){ if(w.cells[j][0]===r && w.cells[j][1]===c) return w; } } return null; }',
       'function canDir(r,c,d){ return !!wordAt(r,c,d); }',
-      'function fitDefText(el, maxPx, minPx){ var size=maxPx; el.style.fontSize=size+"px"; var guard=0; while(el.scrollHeight > el.clientHeight+0.5 && size>minPx && guard<60){ size-=0.5; el.style.fontSize=size+"px"; guard++; } }',
+      'function fitDefText(el, maxPx, minPx){ var size=maxPx; el.style.fontSize=size+"px"; var guard=0; while((el.scrollHeight > el.clientHeight+0.5 || el.scrollWidth > el.clientWidth+0.5) && size>minPx && guard<80){ size-=0.5; el.style.fontSize=size+"px"; guard++; } }',
       'var gridEl = document.getElementById("pGrid");',
       'var cw = Math.max(34, Math.min(48, Math.floor(Math.min(window.innerWidth-40,620)/cols)));',
       'document.documentElement.style.setProperty("--cell", cw+"px");',
@@ -1827,7 +1822,7 @@
       '  div.className = "pcell " + data.types[i];',
       '  gridEl.appendChild(div);',
       '  if(data.types[i]==="letter"){',
-      '    var inp = document.createElement("input"); inp.setAttribute("maxlength","1"); inp.setAttribute("autocomplete","off");',
+      '    var inp = document.createElement("input"); inp.setAttribute("autocomplete","off");',
       '    inp.dataset.r=r; inp.dataset.c=c;',
       '    inp.addEventListener("focus", onFocusCell);',
       '    inp.addEventListener("keydown", onKeyCell);',
@@ -1841,10 +1836,11 @@
       '    var hasS = data.besideClue[i] && data.besideClue[i].trim()!=="";',
       '    var maxPx = cw*0.32, minPx = 3.8;',
       '    var slots = [];',
-      '    if(hasR){ var rc=document.createElement("span"); rc.className="rc"; rc.textContent=data.rightClue[i]+" \\u2192"; div.appendChild(rc); slots.push(rc); }',
-      '    if(hasS){ var sc=document.createElement("span"); sc.className="sc"; sc.textContent=data.besideClue[i]+" \\u2935"; div.appendChild(sc); slots.push(sc); }',
-      '    if(hasD){ var dc=document.createElement("span"); dc.className="dc"; dc.textContent=data.downClue[i]+" \\u2193"; div.appendChild(dc); slots.push(dc); }',
-      '    if(hasB){ var bc=document.createElement("span"); bc.className="bc"; bc.textContent=data.belowClue[i]+" \\u21B3"; div.appendChild(bc); slots.push(bc); }',
+      '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=text; band.appendChild(inner); div.appendChild(band); return band; }',
+      '    if(hasR) slots.push(addBand("rc", data.rightClue[i]+" \\u2192"));',
+      '    if(hasS) slots.push(addBand("sc", data.besideClue[i]+" \\u2935"));',
+      '    if(hasD) slots.push(addBand("dc", data.downClue[i]+" \\u2193"));',
+      '    if(hasB) slots.push(addBand("bc", data.belowClue[i]+" \\u21B3"));',
       '    slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });',
       '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]);',
       '    if(titleParts.length) div.title = titleParts.join("  |  ");',
