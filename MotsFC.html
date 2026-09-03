@@ -199,7 +199,7 @@
   }
   .cell.def.selected{background:var(--accent);}
   .cell.def .mf-text{max-width:100%;min-width:0;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;}
-  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc{
+  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc, .cell.def .lc, .cell.def .uc{
     flex:1 1 0;
     min-height:0;
     min-width:0;
@@ -218,7 +218,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   }
   .cell.def > *:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}
-  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc{color:#fff;}
+  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc, .cell.def.selected .lc, .cell.def.selected .uc{color:#fff;}
   .cell.def.selected > *:not(:first-child){border-top-color:rgba(255,255,255,0.35);}
 
   .clues-panel{
@@ -398,6 +398,16 @@
           <textarea id="cbBelowInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessous)"></textarea>
           <span class="cb-warn" id="cbBelowWarn"></span>
         </div>
+        <div class="cb-row" id="cbRowLeft">
+          <span class="cb-arrow">←</span>
+          <textarea id="cbLeftInput" class="cb-input" rows="1" placeholder="Définition (mot à gauche, se lit normalement)"></textarea>
+          <span class="cb-warn" id="cbLeftWarn"></span>
+        </div>
+        <div class="cb-row" id="cbRowUp">
+          <span class="cb-arrow">↑</span>
+          <textarea id="cbUpInput" class="cb-input" rows="1" placeholder="Définition (mot au-dessus, se lit normalement)"></textarea>
+          <span class="cb-warn" id="cbUpWarn"></span>
+        </div>
         <span class="cb-empty" id="cbEmptyMsg"></span>
         <div class="cb-actions">
           <button class="btn small danger" id="cbDeleteDef" style="display:none;">Supprimer cette définition</button>
@@ -511,7 +521,7 @@
 
   function newCells(rows, cols){
     const arr = [];
-    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:''});
+    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:''});
     return arr;
   }
 
@@ -557,6 +567,23 @@
           }
           down.push({r, c, cells:wcells, clue:cell.besideClue, field:'besideClue'});
         }
+        // The definition sits AFTER the answer: the word occupies the cells to
+        // the left and still reads left-to-right, so the run is collected
+        // backwards and then reversed.
+        if(cell.leftClue && cell.leftClue.trim() !== ''){
+          const wcells = []; let cc=c-1;
+          while(cc>=0 && get(r,cc).type==='letter'){ wcells.push({r,c:cc}); cc--; }
+          wcells.reverse();
+          right.push({r, c, cells:wcells, clue:cell.leftClue, field:'leftClue'});
+        }
+        // Same idea vertically: the answer is above the definition cell and
+        // still reads top-to-bottom.
+        if(cell.upClue && cell.upClue.trim() !== ''){
+          const wcells = []; let rr=r-1;
+          while(rr>=0 && get(rr,c).type==='letter'){ wcells.push({r:rr,c}); rr--; }
+          wcells.reverse();
+          down.push({r, c, cells:wcells, clue:cell.upClue, field:'upClue'});
+        }
       }
     }
     state.words = {right, down};
@@ -572,6 +599,8 @@
 
   function hasCellsRight(r,c){ return c<state.cols-1 && get(r,c+1).type==='letter'; }
   function hasCellsDown(r,c){ return r<state.rows-1 && get(r+1,c).type==='letter'; }
+  function hasCellsLeft(r,c){ return c>0 && get(r,c-1).type==='letter'; }
+  function hasCellsUp(r,c){ return r>0 && get(r-1,c).type==='letter'; }
 
   function belongsRight(r,c){ return state.words.right.some(w=>w.cells.some(cc=>cc.r===r&&cc.c===c)); }
   function belongsDown(r,c){ return state.words.down.some(w=>w.cells.some(cc=>cc.r===r&&cc.c===c)); }
@@ -641,7 +670,7 @@
       for(let c=0;c<state.cols;c++){
         if(r>=newRows || c>=newCols){
           const cell = get(r,c);
-          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.type!=='letter') return true;
+          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.type!=='letter') return true;
         }
       }
     }
@@ -655,7 +684,7 @@
     for(let r=0;r<newRows;r++){
       for(let c=0;c<newCols;c++){
         if(r<oldRows && c<oldCols) newCellsArr.push(oldGet(r,c));
-        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:''});
+        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:''});
       }
     }
     state.rows = newRows; state.cols = newCols;
@@ -692,22 +721,27 @@
           const hasD = cell.downClue && cell.downClue.trim()!=='';
           const hasB = cell.belowClue && cell.belowClue.trim()!=='';
           const hasS = cell.besideClue && cell.besideClue.trim()!=='';
+          const hasL = cell.leftClue && cell.leftClue.trim()!=='';
+          const hasU = cell.upClue && cell.upClue.trim()!=='';
           const maxPx = currentCellPx * 0.32;
           const minPx = 3.8;
           const slots = [];
           // Display order is fixed: clues whose word starts in the cell to the
-          // RIGHT (\u2192 and \u2935) always sit above clues whose word starts in the cell
-          // BELOW (\u2193 and \u21B3), so the reader's eye follows the arrow's origin.
+          // RIGHT (\u2192 and \u2935) sit above clues whose word starts in the cell
+          // BELOW (\u2193 and \u21B3); the two "definition after the answer" clues
+          // (\u2190 and \u2191) come last.
           if(hasR) slots.push(addBand(div, 'rc', cell.rightClue + ' \u2192'));
           if(hasS) slots.push(addBand(div, 'sc', cell.besideClue + ' \u2935'));
           if(hasD) slots.push(addBand(div, 'dc', cell.downClue + ' \u2193'));
           if(hasB) slots.push(addBand(div, 'bc', cell.belowClue + ' \u21B3'));
+          if(hasL) slots.push(addBand(div, 'lc', cell.leftClue + ' \u2190'));
+          if(hasU) slots.push(addBand(div, 'uc', cell.upClue + ' \u2191'));
           // fit AFTER every sibling slot exists, so flex has already divided the
           // final space between them (fitting too early sizes against a
           // temporary single-child layout that shrinks once siblings are added)
           slots.forEach(el => fitDefText(el, maxPx, minPx));
-          if(hasR || hasD || hasB || hasS){
-            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null].filter(Boolean).join('  |  ');
+          if(hasR || hasD || hasB || hasS || hasL || hasU){
+            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasU ? ('\u2191 ' + cell.upClue) : null].filter(Boolean).join('  |  ');
           }
         }
         div.addEventListener('click', onCellClick);
@@ -746,6 +780,8 @@
           if(cell.downClue && cell.downClue.trim()!=='' && !hasCellsDown(r,c)) dangling++;
           if(cell.belowClue && cell.belowClue.trim()!=='' && !hasCellsDown(r,c)) dangling++;
           if(cell.besideClue && cell.besideClue.trim()!=='' && !hasCellsRight(r,c)) dangling++;
+          if(cell.leftClue && cell.leftClue.trim()!=='' && !hasCellsLeft(r,c)) dangling++;
+          if(cell.upClue && cell.upClue.trim()!=='' && !hasCellsUp(r,c)) dangling++;
         }
       }
     }
@@ -771,6 +807,14 @@
     renderOneList('downList', state.words.down, 'D');
   }
 
+  // Updates just the letter previews in the side lists; called while typing so
+  // they don't stay stuck showing dots until the next full re-render.
+  function refreshCluePreviews(){
+    document.querySelectorAll('#rightList .preview, #downList .preview').forEach(el=>{
+      if(el._word) el.textContent = wordPreview(el._word);
+    });
+  }
+
   function renderOneList(containerId, words, dir){
     const container = document.getElementById(containerId);
     container.innerHTML = '';
@@ -788,10 +832,12 @@
       const preview = document.createElement('span');
       preview.className = 'preview';
       preview.textContent = wordPreview(w);
+      preview._word = w;   // kept so typing can refresh it without rebuilding the list
 
       const text = document.createElement('span');
       text.className = 'clue-text' + (w.clue ? '' : ' empty');
-      const marker = w.field==='belowClue' ? '\u21B3 ' : (w.field==='besideClue' ? '\u2935 ' : '');
+      const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 '};
+      const marker = markers[w.field] || '';
       text.textContent = marker + (w.clue || '(pas de définition)');
 
       const editBtn = document.createElement('button');
@@ -801,7 +847,7 @@
       editBtn.addEventListener('click', ()=>{
         setMode('def');
         selectCellRaw(w.r, w.c);
-        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput'};
+        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput', leftClue:'cbLeftInput', upClue:'cbUpInput'};
         document.getElementById(inputIds[w.field]).focus();
       });
 
@@ -879,27 +925,37 @@
     const rowD = document.getElementById('cbRowDown');
     const rowB = document.getElementById('cbRowBelow');
     const rowS = document.getElementById('cbRowBeside');
+    const rowL = document.getElementById('cbRowLeft');
+    const rowU = document.getElementById('cbRowUp');
     const rightInput = document.getElementById('cbRightInput');
     const downInput = document.getElementById('cbDownInput');
     const belowInput = document.getElementById('cbBelowInput');
     const besideInput = document.getElementById('cbBesideInput');
+    const leftInput = document.getElementById('cbLeftInput');
+    const upInput = document.getElementById('cbUpInput');
     const delBtn = document.getElementById('cbDeleteDef');
     const emptyMsg = document.getElementById('cbEmptyMsg');
     const rightWarn = document.getElementById('cbRightWarn');
     const downWarn = document.getElementById('cbDownWarn');
     const belowWarn = document.getElementById('cbBelowWarn');
     const besideWarn = document.getElementById('cbBesideWarn');
+    const leftWarn = document.getElementById('cbLeftWarn');
+    const upWarn = document.getElementById('cbUpWarn');
 
     rowR.style.display = 'none';
     rowD.style.display = 'none';
     rowB.style.display = 'none';
     rowS.style.display = 'none';
+    rowL.style.display = 'none';
+    rowU.style.display = 'none';
     delBtn.style.display = 'none';
     emptyMsg.textContent = '';
     rightWarn.textContent = '';
     downWarn.textContent = '';
     belowWarn.textContent = '';
     besideWarn.textContent = '';
+    leftWarn.textContent = '';
+    upWarn.textContent = '';
 
     if(!state.selected){
       emptyMsg.textContent = 'Sélectionne une case pour voir ou écrire une définition.';
@@ -918,20 +974,28 @@
       rowD.style.display = 'flex';
       rowB.style.display = 'flex';
       rowS.style.display = 'flex';
+      rowL.style.display = 'flex';
+      rowU.style.display = 'flex';
       rightInput.readOnly = false;
       downInput.readOnly = false;
       belowInput.readOnly = false;
       besideInput.readOnly = false;
+      leftInput.readOnly = false;
+      upInput.readOnly = false;
       rightInput.value = cell.rightClue || '';
       downInput.value = cell.downClue || '';
       belowInput.value = cell.belowClue || '';
       besideInput.value = cell.besideClue || '';
-      [rightInput, downInput, belowInput, besideInput].forEach(autoGrow);
+      leftInput.value = cell.leftClue || '';
+      upInput.value = cell.upClue || '';
+      [rightInput, downInput, belowInput, besideInput, leftInput, upInput].forEach(autoGrow);
       delBtn.style.display = 'inline-block';
       rightWarn.textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
       downWarn.textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       belowWarn.textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       besideWarn.textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      leftWarn.textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
+      upWarn.textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
       return;
     }
 
@@ -940,8 +1004,9 @@
     const dw = wordContaining(r,c,'D');
     rightInput.readOnly = true;
     downInput.readOnly = true;
-    if(rw){ rowR.style.display='flex'; rightInput.value = (rw.field==='belowClue' ? '\u21B3 ' : '') + (rw.clue || '(pas de définition)'); autoGrow(rightInput); }
-    if(dw){ rowD.style.display='flex'; downInput.value = (dw.field==='besideClue' ? '\u2935 ' : '') + (dw.clue || '(pas de définition)'); autoGrow(downInput); }
+    const MARK = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 '};
+    if(rw){ rowR.style.display='flex'; rightInput.value = (MARK[rw.field] || '') + (rw.clue || '(pas de définition)'); autoGrow(rightInput); }
+    if(dw){ rowD.style.display='flex'; downInput.value = (MARK[dw.field] || '') + (dw.clue || '(pas de définition)'); autoGrow(downInput); }
     if(!rw && !dw){ emptyMsg.textContent = 'Case isolée : aucune définition ne mène ici.'; }
   }
 
@@ -957,6 +1022,8 @@
       document.getElementById('cbDownWarn').textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       document.getElementById('cbBelowWarn').textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       document.getElementById('cbBesideWarn').textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      document.getElementById('cbLeftWarn').textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
+      document.getElementById('cbUpWarn').textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
     }
   }
 
@@ -996,17 +1063,36 @@
     cell.besideClue = e.target.value;
     refreshAfterClueEdit();
   });
+  document.getElementById('cbLeftInput').addEventListener('input', (e)=>{
+    autoGrow(e.target);
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.leftClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+  document.getElementById('cbUpInput').addEventListener('input', (e)=>{
+    autoGrow(e.target);
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.upClue = e.target.value;
+    refreshAfterClueEdit();
+  });
+
   document.getElementById('cbDeleteDef').addEventListener('click', async ()=>{
     if(!state.selected) return;
     const {r,c} = state.selected;
     const cell = get(r,c);
     if(cell.type !== 'def') return;
-    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue;
+    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue;
     if(hasContent){
       const ok = await confirmModal('Supprimer cette définition et transformer la case en case à lettre ?');
       if(!ok) return;
     }
-    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.letter='';
+    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.letter='';
     recomputeWords();
     renderGrid();
     renderClueLists();
@@ -1040,7 +1126,7 @@
     const cell = get(r,c);
     if(cell.type === 'block') return;
     if(cell.type === 'letter'){
-      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue='';
+      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue='';
       recomputeWords();
       renderGrid();
       renderClueLists();
@@ -1051,7 +1137,7 @@
     }
     if(cell.type === 'def'){
       const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
-      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue;
+      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue && !cell.leftClue && !cell.upClue;
       if(wasSelected && isEmpty){
         // quick undo: clicking an already-selected, still-empty definition cell
         // reverts it straight back to a letter cell (fixes an accidental misclick)
@@ -1080,11 +1166,11 @@
       updateClueBar();
       return;
     }
-    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue)){
+    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue)){
       const ok = await confirmModal('Cette case contient une définition. La transformer en case neutre l\u2019effacera. Continuer ?');
       if(!ok) return;
     }
-    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue='';
+    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue='';
     state.selected = null;
     recomputeWords();
     renderGrid();
@@ -1104,6 +1190,7 @@
     cellEls[r][c].root.querySelector('.letter').textContent = norm;
     updateWarnings();
     markIsolatedCells();
+    refreshCluePreviews();
     const dr = state.dir==='R' ? 0 : 1;
     const dc = state.dir==='R' ? 1 : 0;
     const nr=r+dr, nc=c+dc;
@@ -1124,6 +1211,7 @@
       cellEls[r][c].root.querySelector('.letter').textContent = '';
       updateWarnings();
       markIsolatedCells();
+      refreshCluePreviews();
     } else {
       const dr = state.dir==='R' ? 0 : -1;
       const dc = state.dir==='R' ? -1 : 0;
@@ -1133,6 +1221,7 @@
         get(nr,nc).letter = '';
         cellEls[nr][nc].root.querySelector('.letter').textContent = '';
         updateWarnings();
+        refreshCluePreviews();
       }
     }
   }
@@ -1501,7 +1590,7 @@
     const data = doc.data();
     const cells = JSON.parse(data.cellsJson);
     state.rows = data.rows; state.cols = data.cols;
-    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||''}));
+    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||''}));
     state.title = data.title || '';
     // Grids saved before the built-in sound existed have no audioMode: treat a
     // stored file as a custom sound, and anything else as the default.
@@ -1529,7 +1618,7 @@
       title: state.title || 'Sans titre',
       rows: state.rows,
       cols: state.cols,
-      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue}))),
+      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue}))),
       audioMode: state.audioMode || 'default',
       audioData: state.audioMode === 'custom' ? (state.audioData || null) : null,
       audioName: state.audioMode === 'custom' ? (state.audioName || '') : '',
@@ -1671,10 +1760,12 @@
     const downClue = state.cells.map(c=>c.type==='def' ? (c.downClue||'') : '');
     const belowClue = state.cells.map(c=>c.type==='def' ? (c.belowClue||'') : '');
     const besideClue = state.cells.map(c=>c.type==='def' ? (c.besideClue||'') : '');
+    const leftClue = state.cells.map(c=>c.type==='def' ? (c.leftClue||'') : '');
+    const upClue = state.cells.map(c=>c.type==='def' ? (c.upClue||'') : '');
     const solution = state.cells.map(c=>c.type==='letter' ? (c.letter||'') : '');
     const rightWords = state.words.right.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
     const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
-    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, solution, rightWords, downWords, audioData: effectiveAudio() || null };
+    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, solution, rightWords, downWords, audioData: effectiveAudio() || null };
     let dataJson = JSON.stringify(payload).replace(/</g, '\\u003c');
     const html = buildPlayerHtml(dataJson, title);
     const blob = new Blob([html], {type:'text/html'});
@@ -1770,7 +1861,7 @@
       '.pcell.correct input{color:var(--ok);}',
       '.pcell.incorrect input{background:#FBEAE8;}',
       '.pcell.def .mf-text{max-width:100%;min-width:0;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;}',
-      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc{flex:1 1 0;min-height:0;min-width:0;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
+      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc,.pcell.def .lc,.pcell.def .uc{flex:1 1 0;min-height:0;min-width:0;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
       '.pcell.def > *:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}',
       '.pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}',
       '.pcol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}',
@@ -1834,6 +1925,8 @@
       '    var hasD = data.downClue[i] && data.downClue[i].trim()!=="";',
       '    var hasB = data.belowClue[i] && data.belowClue[i].trim()!=="";',
       '    var hasS = data.besideClue[i] && data.besideClue[i].trim()!=="";',
+      '    var hasL = data.leftClue && data.leftClue[i] && data.leftClue[i].trim()!=="";',
+      '    var hasU = data.upClue && data.upClue[i] && data.upClue[i].trim()!=="";',
       '    var maxPx = cw*0.32, minPx = 3.8;',
       '    var slots = [];',
       '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=text; band.appendChild(inner); div.appendChild(band); return band; }',
@@ -1841,8 +1934,10 @@
       '    if(hasS) slots.push(addBand("sc", data.besideClue[i]+" \\u2935"));',
       '    if(hasD) slots.push(addBand("dc", data.downClue[i]+" \\u2193"));',
       '    if(hasB) slots.push(addBand("bc", data.belowClue[i]+" \\u21B3"));',
+      '    if(hasL) slots.push(addBand("lc", data.leftClue[i]+" \\u2190"));',
+      '    if(hasU) slots.push(addBand("uc", data.upClue[i]+" \\u2191"));',
       '    slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });',
-      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]);',
+      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\\u2191 "+data.upClue[i]);',
       '    if(titleParts.length) div.title = titleParts.join("  |  ");',
       '    row.push(null);',
       '  } else { row.push(null); }',
@@ -1854,8 +1949,9 @@
       '  var rowR=document.getElementById("pRowRight"), rowD=document.getElementById("pRowDown"), emptyMsg=document.getElementById("pEmptyMsg");',
       '  rowR.style.display = rw ? "flex" : "none";',
       '  rowD.style.display = dw ? "flex" : "none";',
-      '  if(rw) document.getElementById("pRightText").textContent = (rw.field==="belowClue"?"\\u21B3 ":"") + (rw.clue || "(pas de définition)");',
-      '  if(dw) document.getElementById("pDownText").textContent = (dw.field==="besideClue"?"\\u2935 ":"") + (dw.clue || "(pas de définition)");',
+      '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 "};',
+      '  if(rw) document.getElementById("pRightText").textContent = (MARK[rw.field]||"") + (rw.clue || "(pas de définition)");',
+      '  if(dw) document.getElementById("pDownText").textContent = (MARK[dw.field]||"") + (dw.clue || "(pas de définition)");',
       '  emptyMsg.style.display = (!rw && !dw) ? "block" : "none";',
       '}',
       'function onFocusCell(e){ var r=+e.target.dataset.r, c=+e.target.dataset.c; if(!canDir(r,c,dir)){ dir = dir==="R"?"D":"R"; } highlight(r,c); updateClueBar(r,c); }',
@@ -1918,7 +2014,7 @@
       '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
       '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
       '}',
-      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var marker = w.field==="belowClue" ? "\\u21B3 " : (w.field==="besideClue" ? "\\u2935 " : ""); t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
       'renderClues();',
       'document.getElementById("pVerify").addEventListener("click", function(){',
       '  var total=0, correct=0;',
