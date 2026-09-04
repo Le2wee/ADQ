@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparaison — mise en page du signalement</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E6ECE3; --panel:#F6F8F2; --panel-line:#C6D0BE;
+  --ink:#16211C; --ink-soft:#4C574C;
+  --accent:#2F5D46; --accent-soft:#DCE6D6;
+  --data:#2B4A6F; --warn:#9A2B2B; --amber:#AD7C2C; --amber-soft:#F0E3C6;
+  --brand-pink:#B14474; --brand-pink-soft:#F3DCE6;
+  --radius:10px;
+  --font-display:'IBM Plex Sans Condensed',sans-serif;
+  --font-body:'IBM Plex Sans',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);}
+.wrap{max-width:1080px;margin:0 auto;padding:22px 20px 60px;}
+h1{font-family:var(--font-display);font-size:22px;margin:0 0 6px;color:var(--accent);}
+.title-underline{display:block;width:64px;height:3px;background:var(--brand-pink);border-radius:2px;margin-bottom:14px;}
+:focus-visible{outline:2px solid var(--brand-pink);outline-offset:2px;border-radius:4px;}
+
+.switch{display:flex;gap:0;margin-bottom:20px;border:1px solid var(--panel-line);border-radius:999px;
+        overflow:hidden;width:fit-content;background:var(--panel);}
+.switch button{font-family:var(--font-display);font-weight:700;font-size:13px;padding:9px 22px;
+        border:none;background:transparent;color:var(--ink-soft);cursor:pointer;transition:all .15s;}
+.switch button:hover{color:var(--brand-pink);}
+.switch button[aria-selected="true"]{background:var(--accent);color:#fff;}
+
+.opt-titre{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+        color:var(--ink-soft);margin-bottom:8px;}
+
+.signalement-panel{background:var(--panel);border:1px solid var(--panel-line);border-left:3px solid var(--accent);
+        border-radius:var(--radius);padding:14px 16px 12px;margin:0 0 14px;}
+.signalement-head{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--accent);margin-bottom:11px;}
+
+.pillgroup{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.pillgroup-label{font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--ink-soft);
+        text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--panel-line);
+        padding-bottom:2px;white-space:nowrap;}
+.lab-fixe{min-width:116px;}
+.pill{font-size:12.5px;font-weight:500;padding:5px 15px;border-radius:999px;border:1px solid var(--panel-line);
+      background:transparent;color:var(--ink);cursor:pointer;transition:all .12s;white-space:nowrap;font-family:var(--font-body);}
+.pill:not([aria-pressed="true"]):hover{border-color:var(--brand-pink);color:var(--brand-pink);}
+.pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+.pill-cond{border-style:dashed;}
+.pill-cond[aria-pressed="true"]{border-style:solid;}
+.pill-off{opacity:.34;cursor:not-allowed;border-style:dashed;}
+.pill-off:hover{border-color:var(--panel-line);color:inherit;}
+
+/* ---------- OPTION 1 : ancienne mise en page, deux bandeaux empilés ---------- */
+.v1 .pillbar{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-bottom:10px;
+        padding:12px 14px;background:#fff;border:1px solid var(--panel-line);border-radius:8px;}
+
+/* ---------- OPTION 2 : deux colonnes ---------- */
+.v2 .bandeau{display:grid;grid-template-columns:1fr 1px 1fr;gap:22px;align-items:start;}
+.v2 .bandeau-sep{background:var(--panel-line);align-self:stretch;}
+.v2 .pillbar{display:flex;flex-direction:column;align-items:flex-start;gap:11px;}
+.signalement-sep{height:1px;background:var(--panel-line);margin:14px 0 12px;}
+.age-grille{display:grid;grid-template-columns:repeat(2,168px);gap:6px;}
+.age-grille .pill{width:100%;}
+.ligne-retrait{padding-left:124px;}
+.check{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;user-select:none;}
+.check .box{width:15px;height:15px;border:1.5px solid var(--panel-line);border-radius:3px;
+      display:inline-flex;align-items:center;justify-content:center;background:#fff;transition:all .12s;}
+.check:hover .box{border-color:var(--brand-pink);}
+.check[aria-checked="true"] .box{background:var(--accent);border-color:var(--accent);}
+.check[aria-checked="true"] .box::after{content:'✓';color:#fff;font-size:11px;line-height:1;}
+.checkline{display:flex;gap:24px;flex-wrap:wrap;}
+.sous{margin-left:22px;margin-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.fleche{color:var(--ink-soft);font-size:14px;}
+.pill-vac{font-size:11.5px;padding:4px 12px;border-style:dashed;}
+.pill-vac[aria-pressed="true"]{border-style:solid;}
+
+/* ---------- zone 3, commune ---------- */
+.section{margin-bottom:12px;}
+.section:last-child{margin-bottom:0;}
+.section-title{font-family:var(--font-mono);font-size:10.5px;font-weight:600;text-transform:uppercase;
+        letter-spacing:.05em;color:var(--ink-soft);margin-bottom:5px;}
+.subrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sublabel{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);}
+select,input[type=number]{font-family:var(--font-body);font-size:12.5px;padding:6px 9px;
+        border:1px solid var(--panel-line);border-radius:7px;background:#fff;color:var(--ink);}
+select{min-width:200px;}
+input[type=number]{width:92px;}
+.chiprow{display:flex;gap:6px;flex-wrap:wrap;}
+.gabarit-auto{font-family:var(--font-mono);font-size:10.5px;color:var(--brand-pink);}
+.numresult{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);}
+
+.notes{margin-top:20px;padding:12px 14px;border:1px dashed var(--amber);background:var(--amber-soft);
+        border-radius:var(--radius);font-size:12px;line-height:1.65;}
+.notes b{color:var(--amber);}
+@media (max-width:900px){ .v2 .bandeau{grid-template-columns:1fr;} .v2 .bandeau-sep{display:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Comparaison — mise en page du signalement</h1>
+  <span class="title-underline"></span>
+
+  <div class="switch" role="tablist">
+    <button id="b1" aria-selected="false">Option 1 — ancienne</button>
+    <button id="b2" aria-selected="true">Option 2 — actuelle</button>
+  </div>
+
+  <!-- ============ OPTION 1 ============ -->
+  <div id="opt1" style="display:none">
+    <div class="opt-titre">Deux bandeaux empilés · groupes à la suite · trois états partout</div>
+    <div class="signalement-panel v1">
+      <div class="signalement-head">Signalement</div>
+
+      <div class="pillbar">
+        <div class="pillgroup"><span class="pillgroup-label">Espèce</span>
+          <button class="pill" aria-pressed="true">Chien</button><button class="pill" aria-pressed="false">Chat</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Âge</span>
+          <button class="pill" aria-pressed="false">Nouveau-né (&lt;3 sem.)</button>
+          <button class="pill" aria-pressed="false">Junior (&lt;1 an)</button>
+          <button class="pill" aria-pressed="true">Adulte (1–7 ans)</button>
+          <button class="pill" aria-pressed="false">Sénior (&gt;7 ans)</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Sexe</span>
+          <button class="pill" aria-pressed="true">Mâle</button><button class="pill" aria-pressed="false">Femelle</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Statut repro.</span>
+          <button class="pill" aria-pressed="true">Entier(e)</button><button class="pill" aria-pressed="false">Stérilisé(e)</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Gabarit</span>
+          <button class="pill" aria-pressed="false">Petit</button><button class="pill" aria-pressed="true">Moyen</button><button class="pill" aria-pressed="false">Grand</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">État reproducteur</span>
+          <button class="pill pill-cond" aria-pressed="false">Cryptorchide</button>
+          <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Gestante</button>
+          <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Allaitante</button></div>
+      </div>
+
+      <div class="pillbar">
+        <div class="pillgroup"><span class="pillgroup-label">Vaccination</span>
+          <button class="pill" aria-pressed="false">Oui</button><button class="pill" aria-pressed="false">Non</button><button class="pill" aria-pressed="true">Inconnu</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Mode de vie</span>
+          <button class="pill" aria-pressed="false">Ville</button><button class="pill" aria-pressed="true">Jardin</button><button class="pill" aria-pressed="false">Chasse / rural</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Vermifuge récent</span>
+          <button class="pill" aria-pressed="false">Oui</button><button class="pill" aria-pressed="false">Non</button><button class="pill" aria-pressed="true">Inconnu</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Antiparasitaire externe</span>
+          <button class="pill" aria-pressed="false">Oui</button><button class="pill" aria-pressed="false">Non</button><button class="pill" aria-pressed="true">Inconnu</button></div>
+        <div class="pillgroup"><span class="pillgroup-label">Tiques (6 mois)</span>
+          <button class="pill" aria-pressed="false">Oui</button><button class="pill" aria-pressed="false">Non</button><button class="pill" aria-pressed="true">Inconnu</button></div>
+      </div>
+
+      <div id="zone3-a"></div>
+    </div>
+  </div>
+
+  <!-- ============ OPTION 2 ============ -->
+  <div id="opt2">
+    <div class="opt-titre">Deux colonnes séparées · âge en grille · cases à cocher · valences en retrait</div>
+    <div class="signalement-panel v2">
+      <div class="signalement-head">Signalement</div>
+      <div class="bandeau">
+        <div class="pillbar">
+          <div class="pillgroup"><span class="pillgroup-label">Espèce</span>
+            <button class="pill" aria-pressed="true">Chien</button><button class="pill" aria-pressed="false">Chat</button>
+            <span class="pillgroup-label" style="margin-left:12px">Sexe</span>
+            <button class="pill" aria-pressed="true">Mâle</button><button class="pill" aria-pressed="false">Femelle</button></div>
+          <div class="pillgroup"><span class="pillgroup-label lab-fixe">Statut repro.</span>
+            <button class="pill" aria-pressed="true">Entier(e)</button><button class="pill" aria-pressed="false">Stérilisé(e)</button></div>
+          <div class="pillgroup ligne-retrait">
+            <button class="pill pill-cond" aria-pressed="false">Cryptorchide</button>
+            <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Gestante</button>
+            <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Allaitante</button></div>
+          <div class="pillgroup"><span class="pillgroup-label lab-fixe">Chaleurs il y a</span>
+            <input type="number" placeholder="jours" style="width:82px" disabled class="pill-off">
+            <span class="numresult"></span></div>
+          <div class="pillgroup" style="align-items:flex-start"><span class="pillgroup-label lab-fixe">Âge</span>
+            <div class="age-grille">
+              <button class="pill" aria-pressed="false">Nouveau-né (&lt;3 sem.)</button>
+              <button class="pill" aria-pressed="false">Junior (&lt;1 an)</button>
+              <button class="pill" aria-pressed="true">Adulte (1–7 ans)</button>
+              <button class="pill" aria-pressed="false">Sénior (&gt;7 ans)</button></div></div>
+        </div>
+        <div class="bandeau-sep"></div>
+        <div class="pillbar">
+          <div class="pillgroup"><span class="pillgroup-label lab-fixe">Mode de vie</span>
+            <button class="pill" aria-pressed="false">Ville</button><button class="pill" aria-pressed="true">Jardin</button><button class="pill" aria-pressed="false">Chasse / rural</button></div>
+          <div class="pillgroup checkline">
+            <span class="check" role="checkbox" aria-checked="false" tabindex="0"><span class="box"></span> APE à jour</span>
+            <span class="check" role="checkbox" aria-checked="false" tabindex="0"><span class="box"></span> API à jour</span></div>
+          <div class="pillgroup" style="flex-direction:column;align-items:flex-start">
+            <span class="check" id="vac2" role="checkbox" aria-checked="false" tabindex="0"><span class="box"></span> Vaccination à jour</span>
+            <div class="sous" id="val2" style="display:none"><span class="fleche">&#8627;</span>
+              <button class="pill pill-vac" aria-pressed="false">CHPPi</button>
+              <button class="pill pill-vac" aria-pressed="false">L4</button>
+              <button class="pill pill-vac" aria-pressed="false">Toux de chenil</button>
+              <button class="pill pill-vac" aria-pressed="false">Piroplasmose</button>
+              <button class="pill pill-vac" aria-pressed="false">Lyme</button></div></div>
+          <div class="pillgroup"><span class="pillgroup-label lab-fixe">Tiques (6 mois)</span>
+            <button class="pill" aria-pressed="false">Oui</button><button class="pill" aria-pressed="false">Non</button><button class="pill" aria-pressed="true">Inconnu</button></div>
+        </div>
+      </div>
+      <div class="signalement-sep"></div>
+      <div id="zone3-b"></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <b>Ce qui distingue les deux.</b>
+    L'option 1 aligne tous les groupes à la suite dans deux bandeaux empilés : la lecture est horizontale,
+    la hauteur faible, mais rien ne distingue l'identité de l'animal de son mode de vie.
+    L'option 2 sépare les deux domaines en colonnes, met l'âge en grille pour gagner en lisibilité,
+    remplace trois pastilles par une case à cocher pour les antiparasitaires, et masque les valences
+    vaccinales tant qu'elles ne servent pas.
+    <br><br>
+    <b>Le coût.</b> L'option 2 est plus haute et plus large : elle suppose un écran large,
+    et repasse en une seule colonne sous 900 px. L'option 1 tient sur moins de hauteur.
+  </div>
+</div>
+
+<script>
+(function(){
+  // zone 3, identique dans les deux options
+  const zone3 = `
+    <div class="section">
+      <div class="section-title">Race</div>
+      <div class="subrow">
+        <span class="sublabel">Race</span>
+        <select><option>Non renseignée</option><option>Croisé</option><option>Cavalier King Charles</option><option>Labrador</option><option>Teckel</option></select>
+        <span class="sublabel" style="margin-left:16px">Gabarit</span>
+        <button class="pill" aria-pressed="false">Petit</button>
+        <button class="pill" aria-pressed="true">Moyen</button>
+        <button class="pill" aria-pressed="false">Grand</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Zones d'endémie</div>
+      <div class="chiprow">
+        <button class="pill pill-cond" aria-pressed="false">Aucune</button>
+        <button class="pill pill-cond" aria-pressed="false">Méditerranée FR</button>
+        <button class="pill pill-cond" aria-pressed="false">Sud-Ouest / Rhône</button>
+        <button class="pill pill-cond" aria-pressed="false">Europe du Sud</button>
+        <button class="pill pill-cond" aria-pressed="false">Europe de l'Est</button>
+        <button class="pill pill-cond" aria-pressed="false">Afrique / tropiques</button>
+        <button class="pill pill-cond" aria-pressed="false">Animal importé</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Poids &amp; corpulence</div>
+      <div class="subrow">
+        <input type="number" placeholder="kg">
+        <select><option>Corpulence — non précisée</option><option>Maigre</option><option>Idéale</option><option>Surpoids</option><option>Obèse</option></select>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Traitement en cours</div>
+      <div class="chiprow">
+        <button class="pill" aria-pressed="false">Oui</button>
+        <button class="pill" aria-pressed="true">Non</button>
+      </div>
+    </div>`;
+  document.getElementById('zone3-a').innerHTML=zone3;
+  document.getElementById('zone3-b').innerHTML=zone3;
+
+  // bascule entre les options
+  const b1=document.getElementById('b1'), b2=document.getElementById('b2');
+  const o1=document.getElementById('opt1'), o2=document.getElementById('opt2');
+  function montre(n){
+    o1.style.display = n===1?'':'none';
+    o2.style.display = n===2?'':'none';
+    b1.setAttribute('aria-selected', n===1?'true':'false');
+    b2.setAttribute('aria-selected', n===2?'true':'false');
+  }
+  b1.addEventListener('click',()=>montre(1));
+  b2.addEventListener('click',()=>montre(2));
+
+  // pastilles : bascule dans leur groupe
+  document.querySelectorAll('.pillgroup, .chiprow, .subrow, .age-grille').forEach(g=>{
+    const pills=[...g.querySelectorAll('.pill')].filter(p=>!p.classList.contains('pill-vac'));
+    pills.forEach(p=>p.addEventListener('click',()=>{
+      if(p.disabled) return;
+      if(p.classList.contains('pill-cond')){ p.setAttribute('aria-pressed', p.getAttribute('aria-pressed')==='true'?'false':'true'); return; }
+      pills.forEach(x=>x.setAttribute('aria-pressed','false'));
+      p.setAttribute('aria-pressed','true');
+    }));
+  });
+  document.querySelectorAll('.pill-vac').forEach(p=>p.addEventListener('click',()=>
+    p.setAttribute('aria-pressed', p.getAttribute('aria-pressed')==='true'?'false':'true')));
+
+  // cases à cocher
+  document.querySelectorAll('.check').forEach(c=>{
+    const f=()=>{
+      c.setAttribute('aria-checked', c.getAttribute('aria-checked')==='true'?'false':'true');
+      if(c.id==='vac2') document.getElementById('val2').style.display = c.getAttribute('aria-checked')==='true'?'flex':'none';
+    };
+    c.addEventListener('click',f);
+    c.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); f(); } });
+  });
+})();
+</script>
+</body>
+</html>
