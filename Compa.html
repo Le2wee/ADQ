@@ -115,22 +115,22 @@ input[type=number]{width:92px;}
 
       <div class="pillbar">
         <div class="pillgroup"><span class="pillgroup-label">Espèce</span>
-          <button class="pill" aria-pressed="true">Chien</button><button class="pill" aria-pressed="false">Chat</button></div>
+          <button class="pill" data-grp="espece1" aria-pressed="true">Chien</button><button class="pill" data-grp="espece1" aria-pressed="false">Chat</button></div>
         <div class="pillgroup"><span class="pillgroup-label">Âge</span>
           <button class="pill" aria-pressed="false">Nouveau-né (&lt;3 sem.)</button>
           <button class="pill" aria-pressed="false">Junior (&lt;1 an)</button>
           <button class="pill" aria-pressed="true">Adulte (1–7 ans)</button>
           <button class="pill" aria-pressed="false">Sénior (&gt;7 ans)</button></div>
         <div class="pillgroup"><span class="pillgroup-label">Sexe</span>
-          <button class="pill" aria-pressed="true">Mâle</button><button class="pill" aria-pressed="false">Femelle</button></div>
+          <button class="pill" data-grp="sexe1" aria-pressed="true">Mâle</button><button class="pill" data-grp="sexe1" aria-pressed="false">Femelle</button></div>
         <div class="pillgroup"><span class="pillgroup-label">Statut repro.</span>
-          <button class="pill" aria-pressed="true">Entier(e)</button><button class="pill" aria-pressed="false">Stérilisé(e)</button></div>
+          <button class="pill" data-grp="statut1" aria-pressed="true">Entier(e)</button><button class="pill" data-grp="statut1" aria-pressed="false">Stérilisé(e)</button></div>
         <div class="pillgroup"><span class="pillgroup-label">Gabarit</span>
           <button class="pill" aria-pressed="false">Petit</button><button class="pill" aria-pressed="true">Moyen</button><button class="pill" aria-pressed="false">Grand</button></div>
         <div class="pillgroup"><span class="pillgroup-label">État reproducteur</span>
-          <button class="pill pill-cond" aria-pressed="false">Cryptorchide</button>
-          <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Gestante</button>
-          <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Allaitante</button></div>
+          <button class="pill pill-cond" id="c1" aria-pressed="false">Cryptorchide</button>
+          <button class="pill pill-cond" id="g1" aria-pressed="false">Gestante</button>
+          <button class="pill pill-cond" id="l1" aria-pressed="false">Allaitante</button></div>
       </div>
 
       <div class="pillbar">
@@ -158,18 +158,18 @@ input[type=number]{width:92px;}
       <div class="bandeau">
         <div class="pillbar">
           <div class="pillgroup"><span class="pillgroup-label">Espèce</span>
-            <button class="pill" aria-pressed="true">Chien</button><button class="pill" aria-pressed="false">Chat</button>
+            <button class="pill" data-grp="espece2" aria-pressed="true">Chien</button><button class="pill" data-grp="espece2" aria-pressed="false">Chat</button>
             <span class="pillgroup-label" style="margin-left:12px">Sexe</span>
-            <button class="pill" aria-pressed="true">Mâle</button><button class="pill" aria-pressed="false">Femelle</button></div>
+            <button class="pill" data-grp="sexe2" aria-pressed="true">Mâle</button><button class="pill" data-grp="sexe2" aria-pressed="false">Femelle</button></div>
           <div class="pillgroup"><span class="pillgroup-label lab-fixe">Statut repro.</span>
-            <button class="pill" aria-pressed="true">Entier(e)</button><button class="pill" aria-pressed="false">Stérilisé(e)</button></div>
+            <button class="pill" data-grp="statut2" aria-pressed="true">Entier(e)</button><button class="pill" data-grp="statut2" aria-pressed="false">Stérilisé(e)</button></div>
           <div class="pillgroup ligne-retrait">
-            <button class="pill pill-cond" aria-pressed="false">Cryptorchide</button>
-            <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Gestante</button>
-            <button class="pill pill-cond pill-off" aria-pressed="false" disabled>Allaitante</button></div>
+            <button class="pill pill-cond" id="c2" aria-pressed="false">Cryptorchide</button>
+            <button class="pill pill-cond" id="g2" aria-pressed="false">Gestante</button>
+            <button class="pill pill-cond" id="l2" aria-pressed="false">Allaitante</button></div>
           <div class="pillgroup"><span class="pillgroup-label lab-fixe">Chaleurs il y a</span>
-            <input type="number" placeholder="jours" style="width:82px" disabled class="pill-off">
-            <span class="numresult"></span></div>
+            <input type="number" id="ch2" placeholder="jours" style="width:82px">
+            <span class="numresult" id="ph2"></span></div>
           <div class="pillgroup" style="align-items:flex-start"><span class="pillgroup-label lab-fixe">Âge</span>
             <div class="age-grille">
               <button class="pill" aria-pressed="false">Nouveau-né (&lt;3 sem.)</button>
@@ -270,9 +270,16 @@ input[type=number]{width:92px;}
   b1.addEventListener('click',()=>montre(1));
   b2.addEventListener('click',()=>montre(2));
 
-  // pastilles : bascule dans leur groupe
+  // pastilles portant un data-grp : choix unique à l'intérieur de ce groupe
+  document.querySelectorAll('[data-grp]').forEach(p=>p.addEventListener('click',()=>{
+    document.querySelectorAll('[data-grp="'+p.dataset.grp+'"]').forEach(x=>x.setAttribute('aria-pressed','false'));
+    p.setAttribute('aria-pressed','true');
+    majRepro();
+  }));
+
+  // pastilles sans data-grp : choix unique dans leur conteneur immédiat
   document.querySelectorAll('.pillgroup, .chiprow, .subrow, .age-grille').forEach(g=>{
-    const pills=[...g.querySelectorAll('.pill')].filter(p=>!p.classList.contains('pill-vac'));
+    const pills=[...g.querySelectorAll('.pill')].filter(p=>!p.classList.contains('pill-vac') && !p.dataset.grp);
     pills.forEach(p=>p.addEventListener('click',()=>{
       if(p.disabled) return;
       if(p.classList.contains('pill-cond')){ p.setAttribute('aria-pressed', p.getAttribute('aria-pressed')==='true'?'false':'true'); return; }
@@ -280,6 +287,39 @@ input[type=number]{width:92px;}
       p.setAttribute('aria-pressed','true');
     }));
   });
+
+  // état reproducteur : dépend du sexe et du statut, dans chaque option
+  function majRepro(){
+    [['1','espece1','sexe1','statut1'],['2','espece2','sexe2','statut2']].forEach(([n,,gs,gt])=>{
+      const sel=g=>{const b=[...document.querySelectorAll('[data-grp="'+g+'"]')].find(x=>x.getAttribute('aria-pressed')==='true'); return b?b.textContent.trim():'';};
+      const femelle = sel(gs)==='Femelle';
+      const entier  = sel(gt)==='Entier(e)';
+      const set=(id,ok)=>{
+        const b=document.getElementById(id); if(!b) return;
+        b.disabled=!ok; b.classList.toggle('pill-off',!ok);
+        b.title = ok?'':'sans objet pour ce signalement';
+        if(!ok) b.setAttribute('aria-pressed','false');
+      };
+      set('c'+n, entier && !femelle);
+      set('g'+n, entier && femelle);
+      set('l'+n, entier && femelle);
+      if(n==='2'){
+        const ch=document.getElementById('ch2'), ph=document.getElementById('ph2');
+        const ok = entier && femelle;
+        ch.disabled=!ok; ch.classList.toggle('pill-off',!ok);
+        if(!ok){ ch.value=''; ph.textContent=''; }
+      }
+    });
+  }
+  const ch2=document.getElementById('ch2');
+  if(ch2) ch2.addEventListener('input', ()=>{
+    const j=parseInt(ch2.value,10), ph=document.getElementById('ph2');
+    ph.textContent = isNaN(j) ? '' :
+      j<=21 ? '→ œstrus / métœstrus précoce' :
+      j<=70 ? '→ dioestrus — risque de pyomètre' :
+      j<=100 ? '→ fin de dioestrus' : '→ anœstrus';
+  });
+  majRepro();
   document.querySelectorAll('.pill-vac').forEach(p=>p.addEventListener('click',()=>
     p.setAttribute('aria-pressed', p.getAttribute('aria-pressed')==='true'?'false':'true')));
 
