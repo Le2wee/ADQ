@@ -237,6 +237,17 @@ const S={ prurit:null, pruritInt:null, pruritChrono:null,
   raclageP:null, raclageS:null, tricho:null, calque:null, wood:null,
   zones:new Set(), zonesDetail:{} };
 
+// Remise à zéro : une seule fonction pour les deux boutons. Chaque champ doit
+// retrouver son TYPE d'origine — un Set reste un Set, zonesDetail reste un objet.
+function remiseAZero(){
+  Object.keys(S).forEach(k=>{
+    if(S[k] instanceof Set) S[k]=new Set();
+    else if(k==='zonesDetail') S[k]={};
+    else S[k]=null;
+  });
+  rendre();
+}
+
 // ============ DONNÉES ============
 const LES_PRIM=[
   ['papule','Papule',"Élevure solide de moins de 1 cm : inflammation folliculaire ou allergique."],
@@ -908,10 +919,7 @@ function recap(){
   dit('Tests', tests.length ? tests.map(([n,v])=>n+' : '+lib(v)).join(' · ') : null);
   document.getElementById('recap').innerHTML='<h2>Ce que la saisie décrit</h2>'+L.join('')+
     '<button class="reset" id="btn-reset">↺ Réinitialiser</button>';
-  document.getElementById('btn-reset').addEventListener('click', ()=>{
-    Object.keys(S).forEach(k=>{ S[k] = (S[k] instanceof Set) ? new Set() : null; });
-    rendre();
-  });
+  document.getElementById('btn-reset').addEventListener('click', remiseAZero);
 }
 
 // ============ TESTS À RÉALISER ============
@@ -1000,14 +1008,7 @@ function hypotheses(){
   z.innerHTML=h;
 }
 
-document.getElementById('btn-raz').addEventListener('click', ()=>{
-  Object.keys(S).forEach(k=>{
-    if(S[k] instanceof Set) S[k]=new Set();
-    else if(k==='zonesDetail') S[k]={};
-    else S[k]=null;
-  });
-  rendre();
-});
+document.getElementById('btn-raz').addEventListener('click', remiseAZero);
 
 rendre();
 </script>
