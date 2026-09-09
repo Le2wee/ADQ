@@ -251,7 +251,62 @@ function onInputCell(e){
   checkCompletion();
 }
 var solvedAlready = false, solutionRevealed = false;
-var winAudio = data.audioData ? new Audio(data.audioData) : null;
+// Android browsers choke on very long data: URLs, so the clip is turned into
+// a Blob URL, and playback is unlocked on the first touch because Chrome
+// refuses to play anything that was not primed by a user gesture.
+function b64ToBytes(dataUrl){
+  var parts = String(dataUrl).split(",");
+  var bin = atob(parts[1]); var bytes = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+function toBlobUrl(dataUrl){
+  try{
+    var mime = (String(dataUrl).match(/:(.*?);/) || [])[1] || "audio/mpeg";
+    return URL.createObjectURL(new Blob([b64ToBytes(dataUrl)], {type: mime}));
+  }catch(e){ return dataUrl; }
+}
+var winAudio = null;
+if(data.audioData){
+  winAudio = new Audio(toBlobUrl(data.audioData));
+  winAudio.preload = "auto";
+  try{ winAudio.load(); }catch(e){}
+}
+var audioPrimed = false;
+function primeAudio(){
+  if(audioPrimed || !winAudio) return;
+  audioPrimed = true;
+  var vol = winAudio.volume;
+  winAudio.volume = 0;
+  var pr = winAudio.play();
+  if(pr && pr.then){
+    pr.then(function(){ winAudio.pause(); winAudio.currentTime = 0; winAudio.volume = vol; })
+      .catch(function(){ winAudio.volume = vol; });
+  } else {
+    try{ winAudio.pause(); winAudio.currentTime = 0; }catch(e){}
+    winAudio.volume = vol;
+  }
+}
+document.addEventListener("pointerdown", primeAudio, true);
+document.addEventListener("keydown", primeAudio, true);
+// Last resort when the <audio> element is refused: decode and play through
+// Web Audio, which some Android browsers accept where the element fails.
+var actx = null, decodedBuf = null;
+function playViaWebAudio(){
+  try{
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC || !data.audioData) return;
+    if(!actx) actx = new AC();
+    if(actx.state === "suspended" && actx.resume) actx.resume();
+    if(decodedBuf){ fireBuf(); return; }
+    actx.decodeAudioData(b64ToBytes(data.audioData).buffer,
+      function(buf){ decodedBuf = buf; fireBuf(); }, function(){});
+  }catch(e){}
+}
+function fireBuf(){
+  try{ var src = actx.createBufferSource(); src.buffer = decodedBuf;
+       src.connect(actx.destination); src.start(0); }catch(e){}
+}
 var soundMuted = false;
 (function initSoundBadge(){
   var badge = document.getElementById("pSoundBadge");
@@ -294,7 +349,11 @@ function checkCompletion(){
   document.getElementById("pWinTime").textContent = tFormat(tElapsed());
   document.getElementById("pWin").classList.add("show");
   document.getElementById("pStatus").textContent = "";
-  if(winAudio && !soundMuted){ winAudio.currentTime = 0; winAudio.play().catch(function(){}); }
+  if(winAudio && !soundMuted){
+    try{ winAudio.currentTime = 0; }catch(e){}
+    var pr = winAudio.play();
+    if(pr && pr.catch) pr.catch(function(){ playViaWebAudio(); });
+  }
 }
 function renderClues(){
   var rEl = document.getElementById("pRight"), dEl = document.getElementById("pDown");
