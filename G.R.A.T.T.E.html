@@ -32,12 +32,22 @@ h1{font-family:var(--font-display);font-size:23px;margin:0;color:var(--accent);l
 .layout{display:grid;grid-template-columns:1fr 330px;gap:16px;align-items:start;}
 @media (max-width:940px){ .layout{grid-template-columns:1fr;} }
 
+.signalement{background:#fff;border:1px solid var(--panel-line);border-left:3px solid var(--brand-pink);
+  border-radius:var(--radius);padding:11px 15px;margin-bottom:14px;}
+.sig-titre{font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--brand-pink);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.selrace{font-family:var(--font-body);font-size:12px;padding:4px 9px;border:1px solid var(--panel-line);
+  border-radius:7px;background:#fff;color:var(--ink);min-width:210px;}
+.selrace:focus{border-color:var(--brand-pink);}
 .etape{background:#fff;border:1px solid var(--panel-line);border-left:3px solid var(--accent);
   border-radius:var(--radius);padding:13px 15px;margin-bottom:13px;}
 .etape-titre{font-family:var(--font-display);font-weight:700;font-size:13px;color:var(--accent);
   text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;display:flex;align-items:center;gap:9px;}
 .etape-num{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;
   border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-family:var(--font-mono);}
+.etape-second{border-left-color:var(--data);opacity:.94;}
+.etape-second .etape-titre{color:var(--data);}
+.etape-second .etape-num{background:var(--data);}
 .etape-aide{font-size:11.5px;color:var(--ink-soft);font-style:italic;margin:0 0 10px 28px;}
 
 .axe{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--panel-line);}
@@ -102,6 +112,8 @@ h1{font-family:var(--font-display);font-size:23px;margin:0;color:var(--accent);l
 .suite-item:last-child{border-bottom:none;}
 .suite-item b{color:var(--data);}
 .suite-qui{font-family:var(--font-mono);font-size:10px;color:var(--data);opacity:.75;margin-top:2px;}
+.suite-sep{font-family:var(--font-mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--data);opacity:.7;margin:8px 0 2px;padding-top:6px;border-top:1px dashed rgba(43,74,111,.3);}
 .suite-epreuve{font-style:normal;}
 .btn-raz{float:right;margin-top:-30px;background:#fff;border:1px solid var(--panel-line);border-radius:999px;
   font-family:var(--font-mono);font-size:11px;padding:5px 14px;color:var(--ink-soft);cursor:pointer;}
@@ -143,6 +155,14 @@ h1{font-family:var(--font-display);font-size:23px;margin:0;color:var(--accent);l
   <div class="brandrow"><h1>G.R.A.T.T.E.</h1><span class="brandline"></span></div>
   <button class="btn-raz" id="btn-raz" title="Effacer toute la saisie">↺ Remise à zéro</button>
   <p class="subtitle">Guide de Recueil et d'Analyse des Troubles Tégumentaires Externes</p>
+
+  <div class="signalement">
+    <div class="sig-titre">Signalement</div>
+    <div class="axe"><span class="axe-nom">Espèce</span><span id="ax-espece"></span></div>
+    <div class="axe"><span class="axe-nom">Race</span><select id="sel-race" class="selrace"></select></div>
+    <div class="axe"><span class="axe-nom">Âge</span><span id="ax-age"></span></div>
+    <div class="axe"><span class="axe-nom">Robe</span><span id="ax-robe"></span></div>
+  </div>
 
   <div class="layout">
     <div>
@@ -206,6 +226,18 @@ h1{font-family:var(--font-display);font-size:23px;margin:0;color:var(--accent);l
         <div class="axe"><span class="axe-nom">Lampe de Wood</span><span id="ax-wood"></span></div>
       </div>
 
+      <div class="etape etape-second">
+        <div class="etape-titre"><span class="etape-num">7</span>Examens de confirmation</div>
+        <p class="etape-aide">Ils confirment plutôt qu'ils n'orientent : à renseigner s'ils ont déjà été faits. L'outil raisonne d'abord sur les signes et l'anamnèse.</p>
+        <div class="axe"><span class="axe-nom">T4 / TSH</span><span id="ax-t4"></span></div>
+        <div class="axe"><span class="axe-nom">Cortisol</span><span id="ax-cortisol"></span></div>
+        <div class="axe"><span class="axe-nom">Culture fongique</span><span id="ax-culture-f"></span></div>
+        <div class="axe"><span class="axe-nom">Culture bactérienne</span><span id="ax-culture-b"></span></div>
+        <div class="axe"><span class="axe-nom">Biopsie cutanée</span><span id="ax-biopsie"></span></div>
+        <div class="axe"><span class="axe-nom">Cytoponction</span><span id="ax-cyto"></span></div>
+        <div class="axe"><span class="axe-nom">Leishmania</span><span id="ax-leish"></span></div>
+      </div>
+
     </div>
 
     <div>
@@ -235,7 +267,9 @@ const S={ prurit:null, pruritInt:null, pruritChrono:null,
   odeur:null, alimChange:null, evictionEnCours:null, evictionDuree:null,
   otite:null, otiteLat:null, otiteCerumen:null,
   raclageP:null, raclageS:null, tricho:null, calque:null, wood:null,
-  zones:new Set(), zonesDetail:{} };
+  zones:new Set(), zonesDetail:{},
+  espece:null, race:null, age:null, robe:null,
+  t4:null, cortisol:null, culture_f:null, biopsie:null, leish:null, cyto:null, cultureB:null };
 
 // Remise à zéro : une seule fonction pour les deux boutons. Chaque champ doit
 // retrouver son TYPE d'origine — un Set reste un Set, zonesDetail reste un objet.
@@ -249,6 +283,25 @@ function remiseAZero(){
 }
 
 // ============ DONNÉES ============
+// Races retenues pour leur pertinence dermatologique : celles qui portent une
+// prédisposition documentée dans au moins une entité.
+const RACES={
+  chien:[
+    ['akita','Akita'],['airedale','Airedale'],['basset','Basset hound'],['beauceron','Beauceron'],
+    ['berger_allemand','Berger allemand'],['bichon','Bichon'],['border_collie','Border collie'],
+    ['bouledogue','Bouledogue français'],['boxer','Boxer'],['bulldog','Bulldog anglais'],
+    ['caniche','Caniche'],['carlin','Carlin'],['chihuahua','Chihuahua'],['chow_chow','Chow-chow'],
+    ['cocker','Cocker'],['colley','Colley'],['dalmatien','Dalmatien'],['doberman','Dobermann'],
+    ['golden','Golden retriever'],['husky','Husky'],['jack_russell','Jack Russell'],
+    ['labrador','Labrador'],['malamute','Malamute'],['pomeranien','Poméranien'],
+    ['rottweiler','Rottweiler'],['samoyede','Samoyède'],['schnauzer','Schnauzer'],
+    ['setter','Setter'],['shar_pei','Shar Peï'],['shetland','Shetland'],['shih_tzu','Shih Tzu'],
+    ['spitz','Spitz'],['springer','Springer'],['teckel','Teckel'],['westie','West Highland white terrier'],
+    ['yorkshire','Yorkshire'],['croise_chien','Croisé ou autre race']],
+  chat:[
+    ['persan','Persan'],['siamois','Siamois'],['maine_coon','Maine Coon'],['sphynx','Sphynx'],
+    ['devon_rex','Devon Rex'],['europeen','Européen'],['croise_chat','Croisé ou autre race']]
+};
 const LES_PRIM=[
   ['papule','Papule',"Élevure solide de moins de 1 cm : inflammation folliculaire ou allergique."],
   ['pustule','Pustule',"Élevure contenant du pus : pyodermite superficielle ou pemphigus foliacé."],
@@ -270,7 +323,8 @@ const LES_SEC=[
   ['hyperpigmentation','Hyperpigmentation',"Assombrissement post-inflammatoire ou endocrinien."],
   ['ulcere','Ulcère',"Perte de substance dépassant la membrane basale : vascularite, auto-immun, néoplasie."],
   ['fistule','Fistule',"Trajet drainant : furonculose, corps étranger, mycobactérie, panniculite."],
-  ['cal','Callosité / hyperkératose',"Épaississement des points d'appui ou des coussinets : mécanique, leishmaniose, maladie de Carré."]
+  ['cal','Callosité / hyperkératose',"Épaississement des points d'appui ou des coussinets : mécanique, leishmaniose, maladie de Carré."],
+  ['manchon','Manchon folliculaire',"Gaine de kératine engainant la base du poil arraché : très évocatrice d'une adénite sébacée, aussi vue en démodécie et dermatophytose."]
 ];
 // Zones : x, y, largeur, hauteur, libellé court, libellé complet
 const ZONES=[
@@ -336,7 +390,7 @@ const MOTIFS=[
 // Chaque entité déclare ce qu'elle ATTEND. Un critère non renseigné est neutre ;
 // un critère renseigné et discordant pénalise. C'est le même principe que C.A.C.A.
 const DERM=[
-{id:'dapp', nom:'Dermatite par allergie aux piqûres de puces', rarete:'courante', esp:'both',
+{id:'dapp', nom:'Dermatite par allergie aux piqûres de puces', rarete:'courante', esp:'both', age:['junior','adulte','senior'],
  mech:"Hypersensibilité aux antigènes salivaires de la puce : une seule piqûre suffit chez un animal sensibilisé.",
  prurit:['oui'], pruritInt:['modere','intense','incoercible'], pruritChrono:['demblee'],
  symetrie:['symetrique'], alopecie:['oui'], alopMec:['autotrauma'],
@@ -346,7 +400,7 @@ const DERM=[
  contagion:['congeneres'],
  conduite:"La réponse à un antiparasitaire rigoureux sur TOUS les animaux du foyer vaut diagnostic. Première cause de prurit, et la moins souvent recherchée sérieusement."},
 
-{id:'atopie', nom:'Dermatite atopique', rarete:'courante', esp:'both',
+{id:'atopie', nom:'Dermatite atopique', rarete:'courante', esp:'both', age:['junior','adulte'], races:['westie','labrador','berger_allemand','bouledogue','shar_pei','boxer','golden','bulldog','shih_tzu','carlin'],
  mech:"Prédisposition génétique à produire des IgE contre les allergènes environnementaux, sur une barrière cutanée défaillante.",
  prurit:['oui'], pruritInt:['modere','intense'], pruritChrono:['demblee'],
  symetrie:['symetrique'], alopecie:['oui'], alopMec:['autotrauma'],
@@ -358,7 +412,7 @@ const DERM=[
  eviction:['termine_sans_effet'],
  conduite:"Diagnostic d'EXCLUSION, critères de Favrot. Débute entre 6 mois et 3 ans. L'otite érythémato-cérumineuse bilatérale récidivante en est souvent le premier signe. Écarter d'abord puces et allergie alimentaire."},
 
-{id:'allergie_alimentaire', nom:'Dermatite par allergie alimentaire', rarete:'peu_frequente', esp:'both',
+{id:'allergie_alimentaire', nom:'Dermatite par allergie alimentaire', rarete:'peu_frequente', esp:'both', age:['junior','adulte'],
  mech:"Hypersensibilité à une protéine alimentaire — bœuf, poulet, produits laitiers le plus souvent.",
  prurit:['oui'], pruritInt:['modere','intense'], pruritChrono:['demblee'],
  symetrie:['symetrique'], alopecie:['oui'], alopMec:['autotrauma'],
@@ -376,7 +430,7 @@ const DERM=[
  prim:['erytheme','papule','vesicule'],
  conduite:"Distribution strictement limitée aux zones de contact glabres. Régression à l'éviction du produit."},
 
-{id:'gale_sarcoptique', nom:'Gale sarcoptique', rarete:'peu_frequente', esp:'chien',
+{id:'gale_sarcoptique', nom:'Gale sarcoptique', rarete:'peu_frequente', esp:'chien', age:['junior','adulte'],
  mech:"Infestation par Sarcoptes scabiei var. canis, très contagieuse et ZOONOTIQUE.",
  prurit:['oui'], pruritInt:['intense','incoercible'], pruritChrono:['demblee'],
  symetrie:['symetrique','asymetrique'], alopecie:['oui'], alopMec:['autotrauma'],
@@ -388,16 +442,16 @@ const DERM=[
  raclageS:['sarcoptes'],
  conduite:"Le prurit le plus intense de toute la dermatologie. RACLAGE POSITIF DANS 30 À 50 % DES CAS SEULEMENT : un raclage négatif ne l'écarte pas. Réflexe otopodal évocateur. Traiter à l'isoxazoline sans attendre le raclage devant un tableau compatible."},
 
-{id:'demodecie_juvenile', nom:'Démodécie juvénile localisée', rarete:'peu_frequente', esp:'chien',
+{id:'demodecie_juvenile', nom:'Démodécie juvénile localisée', rarete:'peu_frequente', esp:'chien', age:['junior'], races:['shar_pei','bouledogue','westie','carlin','boxer'],
  mech:"Prolifération de Demodex canis sur immaturité immunitaire localisée du jeune.",
  prurit:['non'], symetrie:['asymetrique','focale'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['face','perioculaire','pieds_ant'], zonesFortes:['face','perioculaire'],
- prim:['comedon','erytheme'], sec:['squame'],
+ prim:['comedon','erytheme'], sec:['squame','manchon'],
  cortico:['aggrave','ne_repond_pas'],
  raclageP:['demodex'],
  conduite:"Prurit ABSENT ou discret, ce qui l'oppose aux allergies. Forme localisée à moins de cinq lésions : guérison spontanée dans 90 % des cas. Raclage PROFOND indispensable."},
 
-{id:'demodecie_generalisee', nom:'Démodécie généralisée', rarete:'rare', esp:'both',
+{id:'demodecie_generalisee', nom:'Démodécie généralisée', rarete:'rare', esp:'both', age:['adulte','senior'],
  mech:"Forme extensive, révélant souvent une immunodépression sous-jacente chez l'adulte.",
  prurit:['non','oui'], symetrie:['symetrique','asymetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['face','dos','thorax_v','abdomen','pieds_ant','pieds_post'],
@@ -406,7 +460,7 @@ const DERM=[
  raclageP:['demodex'],
  conduite:"Chez un ADULTE sans antécédent, c'est un SIGNE D'APPEL SYSTÉMIQUE : rechercher Cushing, hypothyroïdie, néoplasie, immunosuppresseurs. Furonculose démodécique possible."},
 
-{id:'cheyletiellose', nom:'Cheyletiellose', rarete:'rare', esp:'both',
+{id:'cheyletiellose', nom:'Cheyletiellose', rarete:'rare', esp:'both', age:['junior'],
  mech:"Infestation par Cheyletiella, l'« acarien qui marche ». Zoonotique.",
  prurit:['oui'], pruritInt:['discret','modere'],
  zones:['dos','croupe'], prim:[], sec:['squame'],
@@ -414,7 +468,7 @@ const DERM=[
  raclageS:['cheyletiella'], tricho:['spores'],
  conduite:"Squames abondantes et MOBILES sur le dos, chez un jeune animal de collectivité. Scotch-test ou raclage superficiel."},
 
-{id:'gale_oreille', nom:"Gale d'oreille", rarete:'peu_frequente', esp:'both',
+{id:'gale_oreille', nom:"Gale d'oreille", rarete:'peu_frequente', esp:'both', age:['junior'],
  mech:"Infestation du conduit auditif par Otodectes cynotis, très contagieuse entre animaux.",
  prurit:['oui'], pruritInt:['intense'],
  zones:['oreilles','cou'], zonesFortes:['oreilles'], zonesDetail:{oreilles:['conduit']},
@@ -432,7 +486,7 @@ const DERM=[
  saison:['saisonniere'],
  conduite:"Amas orangés visibles à l'œil nu dans les espaces interdigités. STRICTEMENT SAISONNIER : fin d'été et automne."},
 
-{id:'pyodermite_superficielle', nom:'Pyodermite superficielle', rarete:'courante', esp:'chien',
+{id:'pyodermite_superficielle', nom:'Pyodermite superficielle', rarete:'courante', esp:'chien', age:['adulte','senior'],
  mech:"Infection folliculaire et épidermique à Staphylococcus pseudintermedius, presque toujours SECONDAIRE.",
  prurit:['oui'], pruritInt:['discret','modere'], pruritChrono:['secondaire'],
  symetrie:['symetrique','asymetrique'], alopecie:['oui'], alopMec:['spontanee'],
@@ -441,7 +495,7 @@ const DERM=[
  cortico:['partiel'], calque:['cocci'],
  conduite:"La COLLERETTE ÉPIDERMIQUE est sa signature. CHERCHER SYSTÉMATIQUEMENT LA CAUSE SOUS-JACENTE : allergie, endocrinopathie, parasitose. Une pyodermite qui récidive est une pyodermite dont la cause n'a pas été traitée."},
 
-{id:'pyodermite_profonde', nom:'Pyodermite profonde et furonculose', rarete:'peu_frequente', esp:'chien',
+{id:'pyodermite_profonde', nom:'Pyodermite profonde et furonculose', rarete:'peu_frequente', esp:'chien', cultureB:['positif'],
  mech:"Rupture folliculaire avec réaction pyogranulomateuse et extension dermique.",
  prurit:['non','oui'], pruritChrono:['secondaire'], symetrie:['asymetrique','focale'],
  zones:['babines','pieds_ant','pieds_post','dos','coudes'],
@@ -450,7 +504,7 @@ const DERM=[
  odeur:['putride'], calque:['cocci'],
  conduite:"Douleur plutôt que prurit, atteinte de l'état général possible. Culture et antibiogramme INDISPENSABLES, traitement de plusieurs semaines au-delà de la guérison clinique."},
 
-{id:'malassezia', nom:'Dermatite à Malassezia', rarete:'courante', esp:'both',
+{id:'malassezia', nom:'Dermatite à Malassezia', rarete:'courante', esp:'both', races:['westie','basset','cocker','shar_pei','teckel','bouledogue'],
  mech:"Prolifération de la levure commensale Malassezia pachydermatis sur peau altérée.",
  prurit:['oui'], pruritInt:['modere','intense'], pruritChrono:['secondaire'],
  symetrie:['symetrique'], alopecie:['oui'], alopMec:['autotrauma'],
@@ -462,16 +516,16 @@ const DERM=[
  calque:['malassezia'], cortico:['partiel'],
  conduite:"ODEUR RANCE très évocatrice, souvent perçue avant l'examen. TOUJOURS SECONDAIRE : atopie, endocrinien, plis excessifs. Calque montrant les levures en empreinte de pas."},
 
-{id:'dermatophytose', nom:'Dermatophytose (teigne)', rarete:'peu_frequente', esp:'both',
+{id:'dermatophytose', nom:'Dermatophytose (teigne)', rarete:'peu_frequente', esp:'both', culture_f:['positif'], age:['junior'], races:['persan','maine_coon','yorkshire'],
  mech:"Infection kératinophile, à Microsporum canis dans la grande majorité des cas. ZOONOTIQUE.",
  prurit:['non'], symetrie:['asymetrique','focale'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['face','oreilles','pieds_ant','pieds_post','dos'],
- prim:['erytheme'], sec:['squame','croute'],
+ prim:['erytheme'], sec:['squame','croute','manchon'],
  contagion:['congeneres','proprietaire'],
  wood:['fluorescence'], tricho:['spores'],
  conduite:"Alopécie en plages circulaires, SANS prurit. Lampe de Wood positive dans la MOITIÉ des M. canis seulement : une lampe négative n'écarte rien. Culture sur Sabouraud = référence. TOUTE ALOPÉCIE NON PRURIGINEUSE CHEZ UN JEUNE CHAT DOIT LA FAIRE ÉVOQUER."},
 
-{id:'intertrigo', nom:'Intertrigo des plis', rarete:'peu_frequente', esp:'chien',
+{id:'intertrigo', nom:'Intertrigo des plis', rarete:'peu_frequente', esp:'chien', races:['bouledogue','bulldog','carlin','shar_pei','shih_tzu','boxer'],
  mech:"Macération et surinfection dans les plis cutanés par frottement et humidité.",
  prurit:['oui'], pruritChrono:['secondaire'], symetrie:['symetrique'],
  zones:['plis'], zonesFortes:['plis'],
@@ -479,7 +533,7 @@ const DERM=[
  odeur:['putride','rance'], calque:['cocci','malassezia'],
  conduite:"Brachycéphales, Shar Peï, races à queue en tire-bouchon, obésité. Traitement local ; chirurgie des plis dans les formes récidivantes."},
 
-{id:'hypothyroidie_cut', nom:"Manifestations cutanées de l'hypothyroïdie", rarete:'courante', esp:'chien', consequence:true,
+{id:'hypothyroidie_cut', nom:"Manifestations cutanées de l'hypothyroïdie", rarete:'courante', esp:'chien', t4:['bas'], age:['adulte','senior'], races:['labrador','golden','doberman','cocker','setter','boxer'], consequence:true,
  mech:"Ralentissement du cycle folliculaire et de la kératinisation par carence en hormones thyroïdiennes.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['dos','thorax_v','croupe','queue'],
@@ -487,7 +541,7 @@ const DERM=[
  cortico:['ne_repond_pas'],
  conduite:"Alopécie tronculaire ÉPARGNANT la tête et les membres, poil terne et sec, cicatrisation retardée. Signes généraux : prise de poids, léthargie, intolérance au froid. Doser T4 et TSH."},
 
-{id:'cushing_cut', nom:"Manifestations cutanées de l'hyperadrénocorticisme", rarete:'courante', esp:'chien', consequence:true,
+{id:'cushing_cut', nom:"Manifestations cutanées de l'hyperadrénocorticisme", rarete:'courante', esp:'chien', cortisol:['eleve'], age:['senior'], races:['teckel','caniche','yorkshire','boxer','bouledogue'], consequence:true,
  mech:"Atrophie cutanée et arrêt folliculaire par excès chronique de cortisol.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['dos','thorax_v','abdomen'],
@@ -495,28 +549,28 @@ const DERM=[
  cortico:['ne_repond_pas'],
  conduite:"Peau fine, comédons, phlébectasies, CALCINOSE CUTANÉE très évocatrice. Signes généraux : PU/PD, polyphagie, abdomen distendu. Test de freination ou stimulation ACTH."},
 
-{id:'alopecie_x', nom:'Alopécie X', rarete:'rare', esp:'chien',
+{id:'alopecie_x', nom:'Alopécie X', rarete:'rare', esp:'chien', t4:['normal'], cortisol:['normal'], age:['adulte'], races:['spitz','pomeranien','husky','malamute','chow_chow','samoyede'], raceStricte:true,
  mech:"Dysplasie folliculaire des races nordiques, d'origine hormonale mal élucidée.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['dos','croupe','queue','cou'],
  prim:[], sec:['hyperpigmentation'],
  conduite:"Alopécie tronculaire ÉPARGNANT la tête et les membres, hyperpigmentation intense, seuls les poils secondaires repoussent. Spitz, Poméranien, Husky, Malamute, Chow-chow. DIAGNOSTIC D'EXCLUSION après hypothyroïdie, Cushing et tumeur sertolienne."},
 
-{id:'alopecie_flancs', nom:'Alopécie récurrente des flancs', rarete:'rare', esp:'chien',
+{id:'alopecie_flancs', nom:'Alopécie récurrente des flancs', rarete:'rare', esp:'chien', age:['adulte'], races:['boxer','bouledogue','airedale','schnauzer','bulldog'], raceStricte:true,
  mech:"Alopécie saisonnière liée à la photopériode, par arrêt folliculaire transitoire.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['dos'], zonesFortes:['dos'],
  sec:['hyperpigmentation'], saison:['saisonniere'],
  conduite:"Alopécie STRICTEMENT BILATÉRALE DES FLANCS, très bien délimitée et hyperpigmentée. Automne-hiver, repousse spontanée au printemps. Boxer, Bouledogue, Airedale, Schnauzer."},
 
-{id:'dermatose_oestrogenique', nom:'Dermatose œstrogénique', rarete:'rare', esp:'chien', consequence:true,
+{id:'dermatose_oestrogenique', nom:'Dermatose œstrogénique', rarete:'rare', esp:'chien', age:['adulte','senior'], consequence:true,
  mech:"Effet des œstrogènes sur le follicule pileux : tumeur sertolienne chez le mâle, kystes ovariens ou rémanence chez la femelle.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['perinee','inguinal','abdomen'],
  sec:['hyperpigmentation'],
  conduite:"Alopécie périnéale et inguinale avec hyperpigmentation. Chercher gynécomastie, tumeur testiculaire, cryptorchidie chez le mâle ; kystes ovariens ou rémanence chez la femelle."},
 
-{id:'pemphigus_foliace', nom:'Pemphigus foliacé', rarete:'rare', esp:'both',
+{id:'pemphigus_foliace', nom:'Pemphigus foliacé', rarete:'rare', esp:'both', biopsie:['auto_immune'], age:['adulte','senior'], races:['akita','chow_chow','doberman','cocker'],
  mech:"Auto-anticorps dirigés contre les desmosomes, provoquant une acantholyse superficielle.",
  prurit:['non','oui'], pruritInt:['discret','modere'], symetrie:['symetrique'],
  zones:['truffe','face','perioculaire','oreilles','pieds_ant','pieds_post'],
@@ -526,14 +580,14 @@ const DERM=[
  cortico:['repond'], calque:['acantholytiques'],
  conduite:"Pustules fugaces puis croûtes épaisses du chanfrein, HYPERKÉRATOSE DES COUSSINETS, dépigmentation de la truffe. NE RÉPOND PAS AUX ANTIBIOTIQUES. Calque montrant des cellules acantholytiques en amas ; biopsie pour confirmer. Dermatose auto-immune la plus fréquente."},
 
-{id:'lupus_discoide', nom:'Lupus érythémateux cutané (discoïde)', rarete:'rare', esp:'chien',
+{id:'lupus_discoide', nom:'Lupus érythémateux cutané (discoïde)', rarete:'rare', esp:'chien', biopsie:['auto_immune'], age:['adulte'], races:['colley','shetland','berger_allemand','husky'], raceStricte:true,
  mech:"Réaction auto-immune de l'interface dermo-épidermique, aggravée par les ultraviolets.",
  prurit:['non'], symetrie:['symetrique'], zones:['truffe','face'], zonesFortes:['truffe'],
  prim:['depigmentation','erytheme','macule'], sec:['croute','ulcere'],
  cortico:['repond'],
  conduite:"DÉPIGMENTATION DE LA TRUFFE avec perte de l'architecture pavimenteuse, puis érosions et croûtes. Aggravation solaire. Colley, Shetland, Berger allemand, Husky. Biopsie ; pronostic bon, forme purement cutanée."},
 
-{id:'granulome_eosinophilique', nom:'Complexe granulome éosinophilique félin', rarete:'peu_frequente', esp:'chat',
+{id:'granulome_eosinophilique', nom:'Complexe granulome éosinophilique félin', rarete:'peu_frequente', esp:'chat', age:['junior','adulte'],
  mech:"Mode de réaction éosinophilique cutanée, presque toujours secondaire à une allergie sous-jacente.",
  prurit:['oui','non'], symetrie:['symetrique','focale'],
  zones:['abdomen','babines','inguinal','pieds_post'],
@@ -541,7 +595,7 @@ const DERM=[
  cortico:['repond'], calque:['eosinophiles'],
  conduite:"Trois formes : plaque éosinophilique ventrale, granulome linéaire de la cuisse, ulcère atone de la lèvre supérieure. CE N'EST PAS UN DIAGNOSTIC MAIS UN MODE DE RÉACTION : chercher DAPP, atopie, allergie alimentaire."},
 
-{id:'vascularite', nom:'Vascularite cutanée', rarete:'rare', esp:'chien',
+{id:'vascularite', nom:'Vascularite cutanée', rarete:'rare', esp:'chien', biopsie:['vascularite'],
  mech:"Inflammation de la paroi vasculaire dermique avec ischémie et nécrose des territoires distaux.",
  prurit:['non'], symetrie:['symetrique'],
  zones:['oreilles','queue','truffe','pieds_ant','pieds_post'],
@@ -550,14 +604,14 @@ const DERM=[
  cortico:['repond','partiel'],
  conduite:"ULCÈRES À L'EMPORTE-PIÈCE et nécrose des extrémités : pointes d'oreilles, coussinets, queue, truffe. Idiopathique, médicamenteuse, vaccinale ou infectieuse. Biopsie profonde nécessaire."},
 
-{id:'mastocytome', nom:'Mastocytome cutané', rarete:'peu_frequente', esp:'both',
+{id:'mastocytome', nom:'Mastocytome cutané', rarete:'peu_frequente', esp:'both', cyto:['mastocytes'], age:['adulte','senior'], races:['boxer','carlin','bouledogue','labrador','golden','shar_pei'],
  mech:"Prolifération de mastocytes néoplasiques, d'aspect clinique extrêmement variable.",
  prurit:['non','oui'], symetrie:['focale'],
  zones:['dos','thorax_v','abdomen','inguinal','perinee'],
  prim:['nodule','plaque','erytheme'], sec:['ulcere'],
  conduite:"LE GRAND SIMULATEUR : peut ressembler à tout. SIGNE DE DARIER — érythème et gonflement à la palpation par dégranulation. CYTOPONCTION AVANT TOUTE EXÉRÈSE : jamais d'exérèse à l'aveugle d'un nodule cutané chez le chien. Boxer, Carlin, Bouledogue, Labrador."},
 
-{id:'lymphome_cutane', nom:'Lymphome cutané épithéliotrope', rarete:'rare', esp:'chien',
+{id:'lymphome_cutane', nom:'Lymphome cutané épithéliotrope', rarete:'rare', esp:'chien', biopsie:['neoplasique'], cyto:['lymphocytes'], age:['senior'],
  mech:"Prolifération de lymphocytes T épidermotropes, d'évolution progressive.",
  prurit:['oui','non'], symetrie:['symetrique'],
  zones:['truffe','babines','pieds_ant','pieds_post','dos','abdomen'],
@@ -566,7 +620,7 @@ const DERM=[
  cortico:['partiel','ne_repond_pas'],
  conduite:"Mime une dermatose auto-immune ou une pyodermite rebelle. Dépigmentation des jonctions cutanéo-muqueuses, squames, puis plaques et nodules. BIOPSIER TOUTE DERMATOSE ATYPIQUE ET REBELLE DU SÉNIOR."},
 
-{id:'carcinome_epidermoide_cut', nom:'Carcinome épidermoïde cutané', rarete:'peu_frequente', esp:'chat',
+{id:'carcinome_epidermoide_cut', nom:'Carcinome épidermoïde cutané', rarete:'peu_frequente', esp:'chat', biopsie:['neoplasique'], age:['senior'], robe:['claire'],
  mech:"Tumeur maligne des kératinocytes induite par l'exposition solaire chronique sur peau peu pigmentée.",
  prurit:['non'], symetrie:['focale','asymetrique'],
  zones:['oreilles','truffe','perioculaire','face'],
@@ -574,7 +628,7 @@ const DERM=[
  prim:['erytheme','plaque'], sec:['ulcere','croute'],
  conduite:"Ulcère croûteux chronique des pointes d'oreilles, de la truffe ou des paupières. CHAT BLANC OU PEU PIGMENTÉ, exposition solaire. Le pronostic dépend entièrement de la précocité de l'exérèse."},
 
-{id:'leishmaniose_cut', nom:'Leishmaniose, forme cutanée', rarete:'peu_frequente', esp:'chien',
+{id:'leishmaniose_cut', nom:'Leishmaniose, forme cutanée', rarete:'peu_frequente', esp:'chien', leish:['positif'], age:['adulte','senior'],
  mech:"Infection par Leishmania infantum transmise par le phlébotome, avec dépôt de complexes immuns.",
  prurit:['non'], symetrie:['symetrique'],
  zones:['face','perioculaire','oreilles','coudes','jarrets','pieds_ant','pieds_post'],
@@ -583,14 +637,14 @@ const DERM=[
  cortico:['ne_repond_pas'],
  conduite:"SQUAMES ARGENTÉES NON PRURIGINEUSES, alopécie périoculaire en lunettes, ulcères des points d'appui, ONYCHOGRYPHOSE. Zones d'endémie : pourtour méditerranéen, Europe du Sud, animal importé. Sérologie et PCR ; chercher adénomégalie, perte de poids, épistaxis, atteinte rénale."},
 
-{id:'otite_externe', nom:'Otite externe', rarete:'courante', esp:'both',
+{id:'otite_externe', nom:'Otite externe', rarete:'courante', esp:'both', age:['junior','adulte'],
  mech:"Inflammation du conduit auditif externe, presque toujours secondaire à une cause primaire.",
  prurit:['oui'], zones:['oreilles'], zonesFortes:['oreilles'], zonesDetail:{oreilles:['conduit']},
  prim:['erytheme'], sec:['excoriation'],
  otite:['oui'],
  conduite:"TOUJOURS CHERCHER LA CAUSE PRIMAIRE : atopie, allergie alimentaire, corps étranger, gale d'oreille, polype, endocrinopathie. Une otite BILATÉRALE RÉCIDIVANTE chez un jeune chien, c'est de l'atopie jusqu'à preuve du contraire."},
 
-{id:'seborrhee_primaire', nom:'Séborrhée primaire', rarete:'rare', esp:'chien',
+{id:'seborrhee_primaire', nom:'Séborrhée primaire', rarete:'rare', esp:'chien', age:['junior','adulte'], races:['cocker','westie','basset','springer','shar_pei'], raceStricte:true,
  mech:"Trouble héréditaire de la kératinisation, avec renouvellement épidermique accéléré.",
  prurit:['non','oui'], pruritChrono:['secondaire'], symetrie:['symetrique'],
  zones:['dos','thorax_v','plis'],
@@ -598,21 +652,21 @@ const DERM=[
  odeur:['grasse','rance'],
  conduite:"Cocker, Westie, Basset, Springer. Squames, peau grasse et odeur. Se complique constamment de Malassezia et de pyodermite : traiter les surinfections avant de conclure au primaire."},
 
-{id:'adenite_sebacee', nom:'Adénite sébacée', rarete:'rare', esp:'chien',
+{id:'adenite_sebacee', nom:'Adénite sébacée', rarete:'rare', esp:'chien', biopsie:['adenite'], age:['adulte'], races:['caniche','akita','samoyede'], raceStricte:true,
  mech:"Destruction immunomédiée des glandes sébacées avec rétention kératinique folliculaire.",
  prurit:['non'], symetrie:['symetrique'], alopecie:['oui'], alopMec:['spontanee'],
  zones:['dos','cou','face','oreilles'],
- prim:[], sec:['squame'],
+ prim:[], sec:['squame','manchon'],
  conduite:"MANCHONS FOLLICULAIRES et squames adhérentes en cimier le long du dos. Caniche, Akita, Samoyède, Braque. Biopsie pour confirmer ; traitement kératomodulateur au long cours."},
 
-{id:'calcinose_cutis', nom:'Calcinose cutanée', rarete:'rare', esp:'chien', consequence:true,
+{id:'calcinose_cutis', nom:'Calcinose cutanée', rarete:'rare', esp:'chien', cortisol:['eleve'], age:['adulte','senior'], consequence:true,
  mech:"Dépôts de sels de calcium dans le derme, secondaires à un hyperadrénocorticisme ou à une corticothérapie.",
  prurit:['non'], symetrie:['symetrique'],
  zones:['dos','cou','inguinal'],
  prim:['plaque','papule'], sec:['croute','ulcere'],
  conduite:"Plaques dures et crayeuses du dos et du cou, d'aspect blanchâtre. PRESQUE TOUJOURS sur hyperadrénocorticisme ou corticothérapie prolongée : chercher la cause avant de traiter la peau."},
 
-{id:'syndrome_hepatocutane', nom:'Syndrome hépatocutané', rarete:'exceptionnelle', esp:'chien', consequence:true,
+{id:'syndrome_hepatocutane', nom:'Syndrome hépatocutané', rarete:'exceptionnelle', esp:'chien', age:['senior'], consequence:true,
  mech:"Carence en acides aminés par hépatopathie dégénérative ou tumeur pancréatique, avec nécrose épidermique superficielle.",
  prurit:['non'], symetrie:['symetrique'],
  zones:['pieds_ant','pieds_post','babines','perioculaire','coudes','jarrets'],
@@ -626,13 +680,35 @@ const DERM=[
 // Un critère non renseigné est NEUTRE. Un critère renseigné qui concorde
 // renforce ; renseigné et discordant pénalise. Les zones fortes pèsent double.
 function scorer(d){
-  let points=0, total=0, contre=[], pour=[];
-  const cmp=(attendu, valeur, poids, nom)=>{
+  let points=0, total=0, clinique=0, contre=[], pour=[];
+  // `clinique` ne compte que ce qui décrit la PEAU : un examen de laboratoire
+  // ne doit pas créer une hypothèse dermatologique en l'absence de lésion.
+  const cmp=(attendu, valeur, poids, nom, labo)=>{
     if(!attendu || !attendu.length || valeur===null || valeur===undefined) return;
-    total+=poids;
+    total+=poids; if(!labo) clinique+=poids;
     if(attendu.includes(valeur)){ points+=poids; pour.push(nom); }
     else contre.push(nom);
   };
+  // Espèce : filtre dur, comme dans C.A.C.A.
+  if(d.esp!=='both' && S.espece && d.esp!==S.espece) return null;
+
+  // Le signalement ne fournit AUCUNE preuve clinique : il module un score qui
+  // doit d'abord exister. Sans cela, une race prédisposée ferait à elle seule
+  // ressortir une maladie chez un animal qui n'a rien.
+  let mod=1;
+  if(d.races && S.race && S.race!=='croise_chien' && S.race!=='croise_chat'){
+    if(d.races.includes(S.race)){ mod*=1.22; pour.push('race prédisposée'); }
+    else { contre.push('race'); mod *= d.raceStricte ? 0.25 : 0.88; }
+  }
+  if(d.age && S.age){
+    if(d.age.includes(S.age)){ mod*=1.12; pour.push('âge'); }
+    else { mod*=0.80; contre.push('âge'); }
+  }
+  if(d.robe && S.robe){
+    if(d.robe.includes(S.robe)){ mod*=1.15; pour.push('robe'); }
+    else { mod*=0.88; contre.push('robe'); }
+  }
+
   cmp(d.prurit, S.prurit, 3, 'prurit');
   cmp(d.pruritInt, S.pruritInt, 1.5, 'intensité du prurit');
   cmp(d.pruritChrono, S.pruritChrono, 2, 'chronologie du prurit');
@@ -647,11 +723,19 @@ function scorer(d){
   cmp(d.otite, S.otite, 1, 'otite');
   cmp(d.otiteLat, S.otiteLat, 1, "latéralité de l'otite");
   cmp(d.otiteCerumen, S.otiteCerumen, 2, 'aspect du cérumen');
-  cmp(d.raclageP, S.raclageP, 3.5, 'raclage profond');
-  cmp(d.raclageS, S.raclageS, 3.5, 'raclage superficiel');
-  cmp(d.tricho, S.tricho, 2.5, 'trichogramme');
-  cmp(d.calque, S.calque, 2.5, 'calque');
-  cmp(d.wood, S.wood, 2, 'lampe de Wood');
+  cmp(d.raclageP, S.raclageP, 3.5, 'raclage profond', true);
+  cmp(d.raclageS, S.raclageS, 3.5, 'raclage superficiel', true);
+  cmp(d.tricho, S.tricho, 2.5, 'trichogramme', true);
+  cmp(d.calque, S.calque, 2.5, 'calque', true);
+  cmp(d.wood, S.wood, 2, 'lampe de Wood', true);
+  // Examens de confirmation : poids élevé, ils tranchent quand ils sont faits
+  cmp(d.t4, S.t4, 4, 'T4 / TSH', true);
+  cmp(d.cortisol, S.cortisol, 4, 'cortisol', true);
+  cmp(d.culture_f, S.culture_f, 4, 'culture fongique', true);
+  cmp(d.cultureB, S.cultureB, 2.5, 'culture bactérienne', true);
+  cmp(d.biopsie, S.biopsie, 4, 'biopsie', true);
+  cmp(d.cyto, S.cyto, 4, 'cytoponction', true);
+  cmp(d.leish, S.leish, 4, 'Leishmania', true);
 
   // contagion : ensemble, on retient la meilleure concordance
   if(d.contagion && S.contagion.size){
@@ -667,29 +751,38 @@ function scorer(d){
       zmax+=2;
       if(d.zones.includes(k)) z+=p;
     });
-    if(zmax){ total+=4; points += 4*(z/zmax); if(z/zmax>0.5) pour.push('topographie'); else if(z===0) contre.push('topographie'); }
+    if(zmax){ total+=4; clinique+=4; points += 4*(z/zmax); if(z/zmax>0.5) pour.push('topographie'); else if(z===0) contre.push('topographie'); }
   }
   // lésions élémentaires : les primaires pèsent davantage
   const lesion=(att, ens, poids, nom)=>{
     if(!att || !ens.size) return;
-    total+=poids;
+    total+=poids; clinique+=poids;
     const n=[...ens].filter(x=>att.includes(x)).length;
     if(n){ points += poids*Math.min(1, n/ens.size + 0.3); pour.push(nom); }
   };
   lesion(d.prim, S.primaires, 3, 'lésions primaires');
   lesion(d.sec, S.secondaires, 1.5, 'lésions secondaires');
+  // Quelques lésions secondaires sont en réalité très spécifiques : le manchon
+  // folliculaire et la collerette épidermique valent un signe primaire.
+  [['manchon','manchon folliculaire'],['collerette','collerette épidermique']].forEach(([id,nom])=>{
+    if(!S.secondaires.has(id)) return;
+    total+=2.5; clinique+=2.5;
+    if((d.sec||[]).includes(id)){ points+=2.5; pour.push(nom); } else contre.push(nom);
+  });
 
-  if(total<2) return null;   // pas assez d'information pour se prononcer
+  // Aucune description de la PEAU : rien à dire, quels que soient le signalement
+  // et les examens. L'outil raisonne sur le pattern lésionnel, pas sur un bilan.
+  if(clinique<2 || total<2) return null;
   // Le rapport seul ne suffit pas : deux hypothèses concordant à 100 % se
   // départagent par la QUANTITÉ de preuve réunie. Sans cela, une entité qui
   // coche cinq critères est à égalité avec une entité qui n'en coche que quatre.
-  const ratio = points/total;
+  const ratio = Math.max(0, points)/total;
   const SEUIL_PREUVE = 14;
   const quantite = Math.min(1, points/SEUIL_PREUVE);
   let pct = Math.round(100*(0.70*ratio + 0.30*quantite));
   const RAR={courante:1, peu_frequente:0.90, rare:0.78, exceptionnelle:0.62};
-  pct = Math.round(pct * (RAR[d.rarete]||1));
-  return {pct, pour, contre, total};
+  pct = Math.round(pct * (RAR[d.rarete]||1) * mod);
+  return {pct:Math.min(100,pct), pour, contre, total};
 }
 
 function classement(){
@@ -744,6 +837,20 @@ function dessiner(){
 
 // ============ RENDU ============
 function rendre(){
+  // --- signalement ---
+  pastilles('ax-espece',[{v:'chien',l:'Chien'},{v:'chat',l:'Chat'}],
+    ()=>S.espece, (v,actif)=>{ S.espece = actif?null:v; S.race=null; }, true);
+  const sel=document.getElementById('sel-race');
+  const listeR = S.espece ? RACES[S.espece] : [];
+  sel.innerHTML='<option value="">'+(S.espece?'Sélectionner…':"Choisir l'espèce d'abord")+'</option>'+
+    listeR.map(([v,l])=>'<option value="'+v+'"'+(S.race===v?' selected':'')+'>'+l+'</option>').join('');
+  sel.disabled=!S.espece;
+  sel.onchange=()=>{ S.race=sel.value||null; rendre(); };
+  pastilles('ax-age',[{v:'junior',l:'Junior (< 1 an)'},{v:'adulte',l:'Adulte (1–7 ans)'},
+    {v:'senior',l:'Sénior (> 7 ans)'}], ...mono('age'), true);
+  pastilles('ax-robe',[{v:'claire',l:'Claire ou blanche',aide:'Prédispose au carcinome épidermoïde par photo-exposition'},
+    {v:'foncee',l:'Foncée'}], ...mono('robe'), true);
+
   const oui_non_inc=[{v:'oui',l:'Oui',ano:1},{v:'non',l:'Non'},{v:'inconnu',l:'Inconnu'}];
 
   pastilles('ax-prurit',[{v:'oui',l:'Prurit présent',ano:1},{v:'non',l:'Absent'}], ...mono('prurit'), true);
@@ -807,6 +914,17 @@ function rendre(){
     {v:'purulent',l:'Purulent',ano:1,aide:'Surinfection bactérienne, souvent Pseudomonas si chronique'},
     {v:'noiratre_sec',l:'Noirâtre sec, marc de café',ano:1,aide:'Très évocateur d\'une gale d\'oreille'},
     {v:'ceruminuex_brun',l:'Cérumineux brun gras',ano:1,aide:'Malassezia'}], ...mono('otiteCerumen'), true);
+
+  pastilles('ax-t4',[{v:'bas',l:'T4 basse, TSH élevée',ano:1},{v:'normal',l:'Normale'},{v:'non_realise',l:'Non réalisé'}], ...mono('t4'), true);
+  pastilles('ax-cortisol',[{v:'eleve',l:'Hypercortisolisme confirmé',ano:1},{v:'normal',l:'Normal'},{v:'non_realise',l:'Non réalisé'}], ...mono('cortisol'), true);
+  pastilles('ax-culture-f',[{v:'positif',l:'Dermatophyte isolé',ano:1},{v:'negatif',l:'Négative'},{v:'non_realise',l:'Non réalisée'}], ...mono('culture_f'), true);
+  pastilles('ax-culture-b',[{v:'positif',l:'Bactérie isolée',ano:1},{v:'negatif',l:'Négative'},{v:'non_realise',l:'Non réalisée'}], ...mono('cultureB'), true);
+  pastilles('ax-biopsie',[{v:'auto_immune',l:'Auto-immune',ano:1},{v:'neoplasique',l:'Néoplasique',ano:1},
+    {v:'adenite',l:'Adénite sébacée',ano:1},{v:'vascularite',l:'Vascularite',ano:1},
+    {v:'inflammatoire',l:'Inflammatoire non spécifique'},{v:'non_realise',l:'Non réalisée'}], ...mono('biopsie'), true);
+  pastilles('ax-cyto',[{v:'mastocytes',l:'Mastocytes',ano:1},{v:'lymphocytes',l:'Lymphocytes atypiques',ano:1},
+    {v:'inflammatoire',l:'Inflammatoire'},{v:'non_realise',l:'Non réalisée'}], ...mono('cyto'), true);
+  pastilles('ax-leish',[{v:'positif',l:'Sérologie ou PCR positive',ano:1},{v:'negatif',l:'Négative'},{v:'non_realise',l:'Non réalisée'}], ...mono('leish'), true);
 
   pastilles('ax-raclage-p',[{v:'demodex',l:'Demodex',ano:1},{v:'negatif',l:'Négatif'},{v:'non_realise',l:'Non réalisé'}], ...mono('raclageP'), true);
   pastilles('ax-raclage-s',[{v:'sarcoptes',l:'Sarcoptes',ano:1},{v:'cheyletiella',l:'Cheyletiella',ano:1},
@@ -930,7 +1048,14 @@ const TESTS=[
   {cle:'raclageS', champ:'raclageS', nom:'Raclage superficiel', pour:"recherche Sarcoptes ou Cheyletiella"},
   {cle:'tricho',   champ:'tricho',   nom:'Trichogramme', pour:"distingue poils cassés et télogènes, montre les spores"},
   {cle:'calque',   champ:'calque',   nom:'Calque / scotch-test', pour:"identifie cocci, Malassezia, éosinophiles, cellules acantholytiques"},
-  {cle:'wood',     champ:'wood',     nom:'Lampe de Wood', pour:"dépiste Microsporum canis, positive dans la moitié des cas seulement"}
+  {cle:'wood',     champ:'wood',     nom:'Lampe de Wood', pour:"dépiste Microsporum canis, positive dans la moitié des cas seulement"},
+  {cle:'t4',        champ:'t4',        nom:'T4 et TSH', pour:"confirme ou écarte une hypothyroïdie", lourd:true},
+  {cle:'cortisol',  champ:'cortisol',  nom:'Exploration surrénalienne', pour:"freination faible ou stimulation ACTH", lourd:true},
+  {cle:'culture_f', champ:'culture_f', nom:'Culture fongique', pour:"référence pour la dermatophytose, la lampe ne suffit pas", lourd:true},
+  {cle:'cultureB',  champ:'cultureB',  nom:'Culture bactérienne et antibiogramme', pour:"indispensable avant toute antibiothérapie prolongée", lourd:true},
+  {cle:'biopsie',   champ:'biopsie',   nom:'Biopsies cutanées', pour:"plusieurs sites, sur lésions primaires, hors corticothérapie", lourd:true},
+  {cle:'cyto',      champ:'cyto',      nom:'Cytoponction', pour:"avant toute exérèse d'un nodule cutané", lourd:true},
+  {cle:'leish',     champ:'leish',     nom:'Sérologie et PCR Leishmania', pour:"avec bilan rénal et protéinurie", lourd:true}
 ];
 function testsSuggeres(top){
   const out=[];
@@ -954,17 +1079,9 @@ function epreuves(top){
   if((!S.evictionEnCours || S.evictionEnCours==='jamais') &&
      top.some(x=>x.d.id==='allergie_alimentaire'))
     out.push("<b>Régime d'éviction</b> — protéine et glucide nouveaux ou hydrolysat, 8 semaines strictes puis provocation. Seul moyen de séparer allergie alimentaire et atopie.");
-  if(top.some(x=>['hypothyroidie_cut','cushing_cut','dermatose_oestrogenique','calcinose_cutis'].includes(x.d.id)))
-    out.push("<b>Bilan endocrinien</b> — T4 et TSH, ou test de freination faible ; échographie surrénalienne et abdominale.");
-  if(top.some(x=>['pemphigus_foliace','lupus_discoide','vascularite','lymphome_cutane','adenite_sebacee'].includes(x.d.id)))
-    out.push("<b>Biopsies cutanées</b> — plusieurs sites, sur lésions primaires non traitées, après arrêt de toute corticothérapie.");
-  if(top.some(x=>x.d.id==='leishmaniose_cut'))
-    out.push("<b>Sérologie et PCR Leishmania</b> — avec bilan rénal et protéinurie.");
-  if(top.some(x=>x.d.id==='dermatophytose'))
-    out.push("<b>Culture fongique</b> sur milieu de Sabouraud — reste la référence, la lampe de Wood ne suffit pas.");
-  if(top.some(x=>x.d.id==='mastocytome'))
-    out.push("<b>Cytoponction</b> de tout nodule cutané AVANT exérèse — jamais d'exérèse à l'aveugle.");
-  return out.slice(0,3);
+  if(top.some(x=>x.d.id==='dermatose_oestrogenique'))
+    out.push("<b>Échographie abdominale et testiculaire</b> — chercher tumeur sertolienne, kystes ovariens ou rémanence.");
+  return out.slice(0,2);
 }
 
 // ============ AFFICHAGE DES HYPOTHÈSES ============
@@ -997,10 +1114,14 @@ function hypotheses(){
   // Ce que l'outil recommande de faire ensuite
   // les tests de paillasse se raisonnent sur l'ensemble des hypothèses retenues,
   // mais les explorations lourdes ne se justifient que pour les premières
-  const sug=testsSuggeres(gardes), epr=epreuves(gardes.slice(0,3));
+  const sug=testsSuggeres(gardes.slice(0,4)), epr=epreuves(gardes.slice(0,3));
   if(sug.length || epr.length){
     h+='<div class="suite"><h2>Pour départager</h2>';
-    sug.forEach(t=>{ h+='<div class="suite-item"><b>'+t.nom+'</b> — '+t.pour+
+    const paillasse=sug.filter(t=>!t.lourd), lourds=sug.filter(t=>t.lourd);
+    paillasse.forEach(t=>{ h+='<div class="suite-item"><b>'+t.nom+'</b> — '+t.pour+
+      '<div class="suite-qui">réclamé par : '+t.qui.join(', ')+'</div></div>'; });
+    if(lourds.length) h+='<div class="suite-sep">Pour confirmer</div>';
+    lourds.forEach(t=>{ h+='<div class="suite-item"><b>'+t.nom+'</b> — '+t.pour+
       '<div class="suite-qui">réclamé par : '+t.qui.join(', ')+'</div></div>'; });
     epr.forEach(e=>{ h+='<div class="suite-item suite-epreuve">'+e+'</div>'; });
     h+='</div>';
