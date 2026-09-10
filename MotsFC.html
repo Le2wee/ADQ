@@ -240,12 +240,13 @@
   .mf-ar-down{bottom:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}
   .mf-ar-up{top:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}
   .mf-ar-below{bottom:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}
+  .mf-ar-above{top:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}
   /* A definition cell paints above its neighbours so its markers, which now sit
      completely outside the square, are not covered by the cell they point into. */
   .cell.def{z-index:2;}
   .cell.def.selected{z-index:3;}
 
-  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc, .cell.def .lc, .cell.def .uc{
+  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc, .cell.def .lc, .cell.def .uc, .cell.def .ac{
     flex:1 1 0;
     min-height:0;
     min-width:0;
@@ -264,7 +265,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   }
   .cell.def > span:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}
-  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc, .cell.def.selected .lc, .cell.def.selected .uc{color:#fff;}
+  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc, .cell.def.selected .lc, .cell.def.selected .uc, .cell.def.selected .ac{color:#fff;}
   .cell.def.selected > *:not(:first-child){border-top-color:rgba(255,255,255,0.35);}
 
   .clues-panel{
@@ -385,6 +386,7 @@
   }
   .audio-label{font-size:12.5px;color:var(--ink-soft);font-weight:600;}
   .audio-name{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;}
+  .audio-sep{width:1px;height:22px;background:var(--line);margin:0 4px;}
 </style>
 </head>
 <body>
@@ -494,6 +496,11 @@
           <textarea id="cbLeftInput" class="cb-input" rows="1" placeholder="Définition (mot à gauche, se lit normalement)"></textarea>
           <span class="cb-warn" id="cbLeftWarn"></span>
         </div>
+        <div class="cb-row" id="cbRowAbove">
+          <span class="cb-arrow">↱</span>
+          <textarea id="cbAboveInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessus)"></textarea>
+          <span class="cb-warn" id="cbAboveWarn"></span>
+        </div>
         <div class="cb-row" id="cbRowUp">
           <span class="cb-arrow">↑</span>
           <textarea id="cbUpInput" class="cb-input" rows="1" placeholder="Définition (mot au-dessus, se lit normalement)"></textarea>
@@ -541,6 +548,12 @@
     <button class="btn small" id="audioPickBtn">Choisir un fichier…</button>
     <button class="btn small" id="audioDefaultBtn" style="display:none;">Remettre celui par défaut</button>
     <button class="btn small danger" id="audioNoneBtn">Aucun son</button>
+    <span class="audio-sep"></span>
+    <span class="audio-label">💨 Sons bonus</span>
+    <div class="pillgroup" id="sfxGroup">
+      <button type="button" data-sfx="1">Inclus</button>
+      <button type="button" data-sfx="0">Sans</button>
+    </div>
   </div>
 
   <div class="actions">
@@ -622,6 +635,7 @@
     title: '',
     difficulty: 2,         // 1 to 3, shown as stars on the masthead
     shareId: null,         // cle du classement, figee a la premiere exportation
+    sfxEnabled: true,      // embarquer ou non les pets, rots et encouragements
     audioMode: 'default',  // 'default' | 'custom' | 'none'
     audioData: null,       // base64 data URL, only when audioMode === 'custom'
     audioName: '',
@@ -631,7 +645,7 @@
 
   function newCells(rows, cols){
     const arr = [];
-    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:''});
+    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:''});
     return arr;
   }
 
@@ -688,6 +702,15 @@
         }
         // Same idea vertically: the answer is above the definition cell and
         // still reads top-to-bottom.
+        // Le mot demarre dans la case du dessus et file vers la droite.
+        if(cell.aboveClue && cell.aboveClue.trim() !== ''){
+          const wcells = [];
+          if(r-1>=0 && get(r-1,c).type==='letter'){
+            let cc=c;
+            while(cc<cols && get(r-1,cc).type==='letter'){ wcells.push({r:r-1,c:cc}); cc++; }
+          }
+          right.push({r, c, cells:wcells, clue:cell.aboveClue, field:'aboveClue'});
+        }
         if(cell.upClue && cell.upClue.trim() !== ''){
           const wcells = []; let rr=r-1;
           while(rr>=0 && get(rr,c).type==='letter'){ wcells.push({r:rr,c}); rr--; }
@@ -759,7 +782,9 @@
     // elbow: leaves the right edge, turns downwards
     beside: '<path class="mf-line" d="M0 3 H8 V7"/><polygon class="mf-fill" points="5,7 11,7 8,12"/>',
     // elbow: leaves the bottom edge, turns to the right
-    below:  '<path class="mf-line" d="M3 0 V8 H7"/><polygon class="mf-fill" points="7,5 7,11 12,8"/>'
+    below:  '<path class="mf-line" d="M3 0 V8 H7"/><polygon class="mf-fill" points="7,5 7,11 12,8"/>',
+    // depuis la case du dessus, puis vers la droite
+    above:  '<path class="mf-line" d="M3 12 V4 H7"/><polygon class="mf-fill" points="7,1 7,7 12,4"/>'
   };
 
   function addArrow(host, type){
@@ -807,7 +832,7 @@
       for(let c=0;c<state.cols;c++){
         if(r>=newRows || c>=newCols){
           const cell = get(r,c);
-          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.type!=='letter') return true;
+          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.type!=='letter') return true;
         }
       }
     }
@@ -822,7 +847,7 @@
     for(let r=0;r<newRows;r++){
       for(let c=0;c<newCols;c++){
         if(r<oldRows && c<oldCols) newCellsArr.push(oldGet(r,c));
-        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:''});
+        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:''});
       }
     }
     state.rows = newRows; state.cols = newCols;
@@ -861,6 +886,7 @@
           const hasS = cell.besideClue && cell.besideClue.trim()!=='';
           const hasL = cell.leftClue && cell.leftClue.trim()!=='';
           const hasU = cell.upClue && cell.upClue.trim()!=='';
+          const hasA = cell.aboveClue && cell.aboveClue.trim()!=='';
           const maxPx = currentCellPx * 0.32;
           const minPx = 3.8;
           const slots = [];
@@ -877,14 +903,15 @@
           if(hasB){ slots.push(addBand(div, 'bc', cell.belowClue)); addArrow(div, 'below'); }
           if(hasL){ const b = addBand(div, 'lc', cell.leftClue);   slots.push(b); addArrow(b, 'left'); }
           if(hasU){ slots.push(addBand(div, 'uc', cell.upClue));    addArrow(div, 'up'); }
+          if(hasA){ slots.push(addBand(div, 'ac', cell.aboveClue)); addArrow(div, 'above'); }
           if(hasD || hasB) div.classList.add('pad-bottom');
-          if(hasU) div.classList.add('pad-top');
+          if(hasU || hasA) div.classList.add('pad-top');
           // fit AFTER every sibling slot exists, so flex has already divided the
           // final space between them (fitting too early sizes against a
           // temporary single-child layout that shrinks once siblings are added)
           slots.forEach(el => fitDefText(el, maxPx, minPx));
-          if(hasR || hasD || hasB || hasS || hasL || hasU){
-            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasU ? ('\u2191 ' + cell.upClue) : null].filter(Boolean).join('  |  ');
+          if(hasR || hasD || hasB || hasS || hasL || hasU || hasA){
+            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasU ? ('\u2191 ' + cell.upClue) : null, hasA ? ('\u21B1 ' + cell.aboveClue) : null].filter(Boolean).join('  |  ');
           }
         }
         div.addEventListener('click', onCellClick);
@@ -925,6 +952,7 @@
           if(cell.besideClue && cell.besideClue.trim()!=='' && !hasCellsRight(r,c)) dangling++;
           if(cell.leftClue && cell.leftClue.trim()!=='' && !hasCellsLeft(r,c)) dangling++;
           if(cell.upClue && cell.upClue.trim()!=='' && !hasCellsUp(r,c)) dangling++;
+          if(cell.aboveClue && cell.aboveClue.trim()!=='' && !hasCellsUp(r,c)) dangling++;
         }
       }
     }
@@ -979,7 +1007,7 @@
 
       const text = document.createElement('span');
       text.className = 'clue-text' + (w.clue ? '' : ' empty');
-      const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 '};
+      const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 '};
       const marker = markers[w.field] || '';
       text.textContent = marker + (w.clue || '(pas de définition)');
 
@@ -990,7 +1018,7 @@
       editBtn.addEventListener('click', ()=>{
         setMode('def');
         selectCellRaw(w.r, w.c);
-        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput', leftClue:'cbLeftInput', upClue:'cbUpInput'};
+        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput', leftClue:'cbLeftInput', upClue:'cbUpInput', aboveClue:'cbAboveInput'};
         document.getElementById(inputIds[w.field]).focus();
       });
 
@@ -1070,12 +1098,14 @@
     const rowS = document.getElementById('cbRowBeside');
     const rowL = document.getElementById('cbRowLeft');
     const rowU = document.getElementById('cbRowUp');
+    const rowA = document.getElementById('cbRowAbove');
     const rightInput = document.getElementById('cbRightInput');
     const downInput = document.getElementById('cbDownInput');
     const belowInput = document.getElementById('cbBelowInput');
     const besideInput = document.getElementById('cbBesideInput');
     const leftInput = document.getElementById('cbLeftInput');
     const upInput = document.getElementById('cbUpInput');
+    const aboveInput = document.getElementById('cbAboveInput');
     const delBtn = document.getElementById('cbDeleteDef');
     const emptyMsg = document.getElementById('cbEmptyMsg');
     const rightWarn = document.getElementById('cbRightWarn');
@@ -1084,6 +1114,7 @@
     const besideWarn = document.getElementById('cbBesideWarn');
     const leftWarn = document.getElementById('cbLeftWarn');
     const upWarn = document.getElementById('cbUpWarn');
+    const aboveWarn = document.getElementById('cbAboveWarn');
 
     rowR.style.display = 'none';
     rowD.style.display = 'none';
@@ -1091,6 +1122,7 @@
     rowS.style.display = 'none';
     rowL.style.display = 'none';
     rowU.style.display = 'none';
+    rowA.style.display = 'none';
     delBtn.style.display = 'none';
     emptyMsg.textContent = '';
     rightWarn.textContent = '';
@@ -1099,6 +1131,7 @@
     besideWarn.textContent = '';
     leftWarn.textContent = '';
     upWarn.textContent = '';
+    aboveWarn.textContent = '';
 
     if(!state.selected){
       emptyMsg.textContent = 'Sélectionne une case pour voir ou écrire une définition.';
@@ -1119,19 +1152,22 @@
       rowS.style.display = 'flex';
       rowL.style.display = 'flex';
       rowU.style.display = 'flex';
+      rowA.style.display = 'flex';
       rightInput.readOnly = false;
       downInput.readOnly = false;
       belowInput.readOnly = false;
       besideInput.readOnly = false;
       leftInput.readOnly = false;
       upInput.readOnly = false;
+      aboveInput.readOnly = false;
       rightInput.value = cell.rightClue || '';
       downInput.value = cell.downClue || '';
       belowInput.value = cell.belowClue || '';
       besideInput.value = cell.besideClue || '';
       leftInput.value = cell.leftClue || '';
       upInput.value = cell.upClue || '';
-      [rightInput, downInput, belowInput, besideInput, leftInput, upInput].forEach(autoGrow);
+      aboveInput.value = cell.aboveClue || '';
+      [rightInput, downInput, belowInput, besideInput, leftInput, upInput, aboveInput].forEach(autoGrow);
       delBtn.style.display = 'inline-block';
       rightWarn.textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
       downWarn.textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
@@ -1139,6 +1175,7 @@
       besideWarn.textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
       leftWarn.textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       upWarn.textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
+      aboveWarn.textContent = (cell.aboveClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
       return;
     }
 
@@ -1147,7 +1184,7 @@
     const dw = wordContaining(r,c,'D');
     rightInput.readOnly = true;
     downInput.readOnly = true;
-    const MARK = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 '};
+    const MARK = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 '};
     if(rw){ rowR.style.display='flex'; rightInput.value = (MARK[rw.field] || '') + (rw.clue || '(pas de définition)'); autoGrow(rightInput); }
     if(dw){ rowD.style.display='flex'; downInput.value = (MARK[dw.field] || '') + (dw.clue || '(pas de définition)'); autoGrow(downInput); }
     if(!rw && !dw){ emptyMsg.textContent = 'Case isolée : aucune définition ne mène ici.'; }
@@ -1168,6 +1205,7 @@
       document.getElementById('cbBesideWarn').textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
       document.getElementById('cbLeftWarn').textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       document.getElementById('cbUpWarn').textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
+      document.getElementById('cbAboveWarn').textContent = (cell.aboveClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
     }
   }
 
@@ -1216,6 +1254,15 @@
     cell.leftClue = e.target.value;
     refreshAfterClueEdit();
   });
+  document.getElementById('cbAboveInput').addEventListener('input', (e)=>{
+    autoGrow(e.target);
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.aboveClue = e.target.value;
+    refreshAfterClueEdit();
+  });
   document.getElementById('cbUpInput').addEventListener('input', (e)=>{
     autoGrow(e.target);
     if(!state.selected) return;
@@ -1231,12 +1278,12 @@
     const {r,c} = state.selected;
     const cell = get(r,c);
     if(cell.type !== 'def') return;
-    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue;
+    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue;
     if(hasContent){
       const ok = await confirmModal('Supprimer cette définition et transformer la case en case à lettre ?');
       if(!ok) return;
     }
-    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.letter='';
+    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.letter='';
     recomputeWords();
     renderGrid();
     renderClueLists();
@@ -1271,7 +1318,7 @@
     if(cell.type === 'block') return;
     markDirty();
     if(cell.type === 'letter'){
-      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue='';
+      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue='';
       recomputeWords();
       renderGrid();
       renderClueLists();
@@ -1282,7 +1329,7 @@
     }
     if(cell.type === 'def'){
       const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
-      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue && !cell.leftClue && !cell.upClue;
+      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue && !cell.leftClue && !cell.upClue && !cell.aboveClue;
       if(wasSelected && isEmpty){
         // quick undo: clicking an already-selected, still-empty definition cell
         // reverts it straight back to a letter cell (fixes an accidental misclick)
@@ -1312,11 +1359,11 @@
       updateClueBar();
       return;
     }
-    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue)){
+    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue)){
       const ok = await confirmModal('Cette case contient une définition. La transformer en case neutre l\u2019effacera. Continuer ?');
       if(!ok) return;
     }
-    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue='';
+    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue='';
     state.selected = null;
     recomputeWords();
     renderGrid();
@@ -1730,7 +1777,9 @@
     state.title = '';
     state.difficulty = 2;
     state.shareId = null;
+    state.sfxEnabled = true;
     updateDifficultyUI();
+    updateSfxUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -1974,12 +2023,13 @@
     const data = doc.data();
     const cells = JSON.parse(data.cellsJson);
     state.rows = data.rows; state.cols = data.cols;
-    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||''}));
+    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||'', aboveClue:c.aboveClue||''}));
     state.title = data.title || '';
     // Grids saved before the built-in sound existed have no audioMode: treat a
     // stored file as a custom sound, and anything else as the default.
     state.difficulty = data.difficulty || 2;   // grids saved before this existed default to ★★
     state.shareId = data.shareId || id;
+    state.sfxEnabled = data.sfxEnabled !== false;   // grilles anterieures : bonus inclus
     state.audioMode = data.audioMode || (data.audioData ? 'custom' : 'default');
     state.audioData = state.audioMode === 'custom' ? (data.audioData || null) : null;
     state.audioName = state.audioMode === 'custom' ? (data.audioName || '') : '';
@@ -1994,6 +2044,7 @@
     updateClueBar();
     updateAudioUI();
     updateDifficultyUI();
+    updateSfxUI();
     currentGridId = id;
     dirty = false;
     localStorage.setItem('mf-last-grid-' + currentUser.uid, id);
@@ -2006,9 +2057,10 @@
       title: state.title || 'Sans titre',
       rows: state.rows,
       cols: state.cols,
-      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue}))),
+      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue, aboveClue:c.aboveClue}))),
       difficulty: state.difficulty || 2,
       shareId: state.shareId || null,
+      sfxEnabled: state.sfxEnabled !== false,
       audioMode: state.audioMode || 'default',
       audioData: state.audioMode === 'custom' ? (state.audioData || null) : null,
       audioName: state.audioMode === 'custom' ? (state.audioName || '') : '',
@@ -2051,7 +2103,9 @@
     state.title = '';
     state.difficulty = 2;
     state.shareId = null;
+    state.sfxEnabled = true;
     updateDifficultyUI();
+    updateSfxUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -2119,6 +2173,24 @@
     markDirty();
     updateDifficultyUI();
     setStatus('Force réglée sur ' + STARS[state.difficulty] + ' (pense à enregistrer).');
+  });
+
+  function updateSfxUI(){
+    const on = state.sfxEnabled !== false;
+    document.querySelectorAll('#sfxGroup button').forEach(btn=>{
+      btn.classList.toggle('active', (btn.dataset.sfx === '1') === on);
+    });
+  }
+
+  document.getElementById('sfxGroup').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-sfx]');
+    if(!btn) return;
+    state.sfxEnabled = btn.dataset.sfx === '1';
+    markDirty();
+    updateSfxUI();
+    setStatus(state.sfxEnabled
+      ? 'Les sons bonus seront inclus dans la grille générée.'
+      : 'La grille générée sera sans sons bonus.');
   });
 
   function updateAudioUI(){
@@ -2212,14 +2284,15 @@
     const besideClue = state.cells.map(c=>c.type==='def' ? (c.besideClue||'') : '');
     const leftClue = state.cells.map(c=>c.type==='def' ? (c.leftClue||'') : '');
     const upClue = state.cells.map(c=>c.type==='def' ? (c.upClue||'') : '');
+    const aboveClue = state.cells.map(c=>c.type==='def' ? (c.aboveClue||'') : '');
     const solution = state.cells.map(c=>c.type==='letter' ? (c.letter||'') : '');
     const rightWords = state.words.right.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
     const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
     // Identifiant stable de la grille : c'est la cle du classement. On reprend
     // celui de la grille enregistree, sinon on en fige un a l'export.
     if(!state.shareId) state.shareId = currentGridId || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2,8));
-    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
-      sfx: SFX,
+    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
+      sfx: (state.sfxEnabled !== false) ? SFX : null,
       gridId: state.shareId,
       firebase: (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey !== 'REMPLACE_MOI') ? FIREBASE_CONFIG : null };
     let dataJson = JSON.stringify(payload).replace(/</g, '\\u003c');
@@ -2264,7 +2337,7 @@
       '<div class="mag-strip"><span>ÉDITION GÉANTE</span><span>GRILLE INÉDITE</span><span>SOLUTION AU DOS</span><span>3,50 F</span></div>',
       '</header>',
       '<div class="wrap">',
-      '<div class="ptitle-row"><h1 id="pTitle"></h1><span class="ptimer" id="pTimer">⏱ 00:00</span><button id="pSoundBadge" class="psound" type="button"><span id="pSoundIcon">🔊</span><span id="pSoundLabel">Son activé</span></button></div>',
+      '<div class="ptitle-row"><h1 id="pTitle"></h1><span class="ptimer" id="pTimer">⏱ 00:00</span><button id="pSoundBadge" class="psound" type="button"><span id="pSoundIcon">🔊</span><span id="pSoundLabel">Son activé</span></button><button id="pSfxBadge" class="psound psfx" type="button"><span id="pSfxIcon">💨</span><span id="pSfxLabel">Bonus activé</span></button></div>',
       '<div class="board">',
       '<div class="gridwrap">',
       '<div class="clue-bar" id="pClueBar">',
@@ -2343,6 +2416,8 @@
       '.psound.show{display:inline-flex;}',
       '.psound:hover{filter:brightness(0.97);}',
       '.psound.muted{background:var(--panel);border-color:var(--line);color:var(--muted);}',
+      '.psfx{border-color:var(--ink);background:#E8EDF3;}',
+      '.psfx.muted{background:var(--panel);border-color:var(--line);color:var(--muted);}',
       '@media print{.psound{display:none !important;}}',
       '.board{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}',
       '.gridwrap{display:flex;flex-direction:column;gap:10px;}',
@@ -2381,8 +2456,9 @@
       '.mf-ar-down{bottom:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}',
       '.mf-ar-up{top:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}',
       '.mf-ar-below{bottom:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}',
+      '.mf-ar-above{top:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}',
       '.pcell.def{z-index:2;}',
-      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc,.pcell.def .lc,.pcell.def .uc{flex:1 1 0;min-height:0;min-width:0;overflow:visible;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
+      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc,.pcell.def .lc,.pcell.def .uc,.pcell.def .ac{flex:1 1 0;min-height:0;min-width:0;overflow:visible;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
       '.pcell.def > span:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}',
       '.pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}',
       '.pcol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}',
@@ -2450,7 +2526,8 @@
       '  down:   \'<polygon class="mf-fill" points="2,2 10,2 6,11"/>\',',
       '  up:     \'<polygon class="mf-fill" points="2,10 10,10 6,1"/>\',',
       '  beside: \'<path class="mf-line" d="M0 3 H8 V7"/><polygon class="mf-fill" points="5,7 11,7 8,12"/>\',',
-      '  below:  \'<path class="mf-line" d="M3 0 V8 H7"/><polygon class="mf-fill" points="7,5 7,11 12,8"/>\'',
+      '  below:  \'<path class="mf-line" d="M3 0 V8 H7"/><polygon class="mf-fill" points="7,5 7,11 12,8"/>\',',
+      '  above:  \'<path class="mf-line" d="M3 12 V4 H7"/><polygon class="mf-fill" points="7,1 7,7 12,4"/>\'',
       '};',
       'function addArrow(host, type){',
       '  var svg = document.createElementNS("http://www.w3.org/2000/svg","svg");',
@@ -2492,6 +2569,7 @@
       '    var hasS = data.besideClue[i] && data.besideClue[i].trim()!=="";',
       '    var hasL = data.leftClue && data.leftClue[i] && data.leftClue[i].trim()!=="";',
       '    var hasU = data.upClue && data.upClue[i] && data.upClue[i].trim()!=="";',
+      '    var hasA = data.aboveClue && data.aboveClue[i] && data.aboveClue[i].trim()!=="";',
       '    var maxPx = cw*0.32, minPx = 3.8;',
       '    var slots = [];',
       '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=text; band.appendChild(inner); div.appendChild(band); return band; }',
@@ -2501,10 +2579,11 @@
       '    if(hasB){ slots.push(addBand("bc", data.belowClue[i])); addArrow(div,"below"); }',
       '    if(hasL){ var bL=addBand("lc", data.leftClue[i]);   slots.push(bL); addArrow(bL,"left"); }',
       '    if(hasU){ slots.push(addBand("uc", data.upClue[i]));    addArrow(div,"up"); }',
+      '    if(hasA){ slots.push(addBand("ac", data.aboveClue[i])); addArrow(div,"above"); }',
       '    if(hasD || hasB) div.classList.add("pad-bottom");',
-      '    if(hasU) div.classList.add("pad-top");',
+      '    if(hasU || hasA) div.classList.add("pad-top");',
       '    slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });',
-      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\\u2191 "+data.upClue[i]);',
+      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\\u2191 "+data.upClue[i]); if(hasA) titleParts.push("\\u21B1 "+data.aboveClue[i]);',
       '    if(titleParts.length) div.title = titleParts.join("  |  ");',
       '    row.push(null);',
       '  } else { row.push(null); }',
@@ -2516,7 +2595,7 @@
       '  var rowR=document.getElementById("pRowRight"), rowD=document.getElementById("pRowDown"), emptyMsg=document.getElementById("pEmptyMsg");',
       '  rowR.style.display = rw ? "flex" : "none";',
       '  rowD.style.display = dw ? "flex" : "none";',
-      '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 "};',
+      '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "};',
       '  if(rw) document.getElementById("pRightText").textContent = (MARK[rw.field]||"") + (rw.clue || "(pas de définition)");',
       '  if(dw) document.getElementById("pDownText").textContent = (MARK[dw.field]||"") + (dw.clue || "(pas de définition)");',
       '  emptyMsg.style.display = (!rw && !dw) ? "block" : "none";',
@@ -2665,7 +2744,7 @@
       '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
       '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
       '}',
-      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
       'renderClues();',
       'document.getElementById("pVerify").addEventListener("click", function(){',
       '  var total=0, correct=0;',
@@ -2687,8 +2766,29 @@
       '// Effets sonores : meme traitement que le son de victoire (Blob plutot que',
       '// data: URL, et repli Web Audio si la lecture est refusee).',
       'var sfxCache = {};',
+      '// Les sons bonus ont leur propre interrupteur : on peut vouloir garder la',
+      '// fanfare de victoire sans les pets. Le choix est retenu pour les grilles suivantes.',
+      'var sfxMuted = false;',
+      'try{ sfxMuted = localStorage.getItem("mf-sfx") === "off"; }catch(e){}',
+      '(function initSfxBadge(){',
+      '  var badge = document.getElementById("pSfxBadge");',
+      '  if(!data.sfx || !(data.sfx.nice || data.sfx.fart || data.sfx.burp)){ badge.style.display = "none"; return; }',
+      '  badge.classList.add("show");',
+      '  badge.title = "Couper ou remettre les sons bonus (pets, rots, encouragements)";',
+      '  function paint(){',
+      '    badge.classList.toggle("muted", sfxMuted);',
+      '    document.getElementById("pSfxIcon").textContent = sfxMuted ? "\\uD83D\\uDD07" : "\\uD83D\\uDCA8";',
+      '    document.getElementById("pSfxLabel").textContent = sfxMuted ? "Bonus coupé" : "Bonus activé";',
+      '  }',
+      '  paint();',
+      '  badge.addEventListener("click", function(){',
+      '    sfxMuted = !sfxMuted;',
+      '    try{ localStorage.setItem("mf-sfx", sfxMuted ? "off" : "on"); }catch(e){}',
+      '    paint();',
+      '  });',
+      '})();',
       'function playSfx(list){',
-      '  if(soundMuted || !list || !list.length) return;',
+      '  if(soundMuted || sfxMuted || !list || !list.length) return;',
       '  var src = list[Math.floor(Math.random()*list.length)];',
       '  try{',
       '    if(!sfxCache[src]){',
@@ -2861,6 +2961,7 @@
   buildGrid(state.rows, state.cols, false);
   setFindLength(7, false);
   updateDifficultyUI();
+  updateSfxUI();
   initFirebase();
 
 })();
