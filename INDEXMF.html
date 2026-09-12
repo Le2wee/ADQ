@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAXI-FLÉCHÉS — le sommaire</title>
+<style>
+:root{--paper:#E9EDF1;--panel:#fff;--ink:#1B2A41;--ink-soft:#425067;--accent:#C97A2B;
+  --accent-soft:#F1DCBE;--muted:#6B7684;--line:rgba(27,42,65,0.15);--mag-red:#C8102E;--mag-yellow:#FFC72C;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}
+header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--ink);}
+.mag-inner{display:flex;align-items:center;gap:16px;padding:16px 24px 12px;max-width:900px;margin:0 auto;}
+.mag-badge{flex:none;width:62px;height:62px;background:var(--mag-yellow);color:var(--ink);display:flex;
+  align-items:center;justify-content:center;font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;
+  font-size:19px;transform:rotate(-12deg);clip-path:polygon(50% 0%,61% 20%,83% 13%,80% 36%,100% 50%,80% 64%,
+  83% 87%,61% 80%,50% 100%,39% 80%,17% 87%,20% 64%,0% 50%,20% 36%,17% 13%,39% 20%);}
+.mag-title{margin:0;font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;font-weight:700;
+  font-style:italic;font-size:clamp(26px,6vw,44px);line-height:1;text-shadow:2px 2px 0 var(--ink);}
+.mag-sub{margin:6px 0 0;font-size:12.5px;font-style:italic;color:var(--mag-yellow);}
+.mag-strip{background:var(--ink);color:var(--mag-yellow);padding:6px 24px;font-size:10.5px;letter-spacing:1.4px;}
+.mag-strip span{margin-right:18px;}.mag-strip span::before{content:"\2605 ";color:var(--mag-red);}
+.wrap{max-width:900px;margin:0 auto;padding:22px 24px 48px;}
+h2{font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;font-size:20px;margin:0 0 14px;}
+.item{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);
+  border-radius:6px;padding:12px 16px;margin-bottom:10px;text-decoration:none;color:inherit;}
+.item:hover{border-color:var(--accent);background:#FDF8F1;}
+.num{flex:none;width:46px;height:46px;border-radius:50%;background:var(--ink);color:var(--mag-yellow);
+  display:flex;align-items:center;justify-content:center;font-family:Iowan Old Style,Georgia,serif;font-size:16px;}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;}
+.t{font-weight:700;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.d{font-size:12px;color:var(--muted);margin-top:3px;}
+.stars{flex:none;color:var(--accent);font-size:15px;letter-spacing:2px;}
+.msg{font-size:13px;color:var(--muted);font-style:italic;}
+footer{text-align:center;font-size:11.5px;color:var(--muted);font-style:italic;padding:0 0 28px;}
+</style></head><body>
+<header class="mag"><div class="mag-inner">
+<span class="mag-badge"><b>N°1</b></span>
+<div style="flex:1"><h1 class="mag-title">MAXI-FLÉCHÉS</h1>
+<p class="mag-sub">Le magazine 100 % fléchés de Bébou &amp; Claude-san</p></div>
+</div><div class="mag-strip"><span>TOUTES LES GRILLES</span><span>ACCÈS LIBRE</span><span>3,50 F</span></div></header>
+<div class="wrap"><h2>Sommaire</h2>
+<p class="msg" id="msg">Chargement…</p><div id="list"></div></div>
+<footer>DV Maxence Brossette et Claude-san</footer>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script>
+var CFG = {"apiKey":"AIzaSyB_nC3jujrXPKlfbDbQfyEVKI5qVUnolZQ","authDomain":"storagemf-10591.firebaseapp.com","projectId":"storagemf-10591","storageBucket":"storagemf-10591.firebasestorage.app","messagingSenderId":"270031844951","appId":"1:270031844951:web:589da557c403714eb61512"};
+var listEl = document.getElementById("list"), msgEl = document.getElementById("msg");
+function stars(n){ return "\u2605".repeat(Math.max(1, Math.min(3, n||2))); }
+function esc(t){ return String(t==null?"":t).replace(/[&<>"]/g, function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+function render(rows){
+  if(!rows.length){ msgEl.textContent = "Aucune grille au sommaire pour le moment."; return; }
+  msgEl.textContent = "";
+  listEl.innerHTML = rows.map(function(g){
+    return '<a class="item" href="' + esc(g.url) + '">' +
+      '<span class="num">' + esc(g.num || "?") + '</span>' +
+      '<span class="meta"><span class="t">' + esc(g.title || "Sans titre") + '</span>' +
+      '<span class="d">Grille ' + (g.rows||"?") + " \u00D7 " + (g.cols||"?") + '</span></span>' +
+      '<span class="stars">' + stars(g.difficulty) + '</span></a>';
+  }).join("");
+}
+function fromCache(){
+  try{ var c = localStorage.getItem("mf-catalogue");
+       if(c){ render(JSON.parse(c)); msgEl.textContent = "Sommaire hors connexion."; } }catch(e){}
+}
+fromCache();
+try{
+  firebase.initializeApp(CFG);
+  firebase.firestore().collection("catalogue").get().then(function(snap){
+    var rows = snap.docs.map(function(d){ return d.data(); });
+    rows.sort(function(a,b){
+      var x = parseInt(a.num,10), y = parseInt(b.num,10);
+      if(!isNaN(x) && !isNaN(y)) return x - y;
+      return String(a.title||"").localeCompare(String(b.title||""));
+    });
+    try{ localStorage.setItem("mf-catalogue", JSON.stringify(rows)); }catch(e){}
+    render(rows);
+  }).catch(function(err){
+    if(!listEl.innerHTML) msgEl.textContent = "Sommaire indisponible (" + (err.code||err.message) + ").";
+  });
+}catch(e){ if(!listEl.innerHTML) msgEl.textContent = "Sommaire indisponible."; }
+</script>
+</body></html>
