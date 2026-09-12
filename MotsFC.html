@@ -2290,7 +2290,13 @@
     const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
     // Identifiant stable de la grille : c'est la cle du classement. On reprend
     // celui de la grille enregistree, sinon on en fige un a l'export.
-    if(!state.shareId) state.shareId = currentGridId || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+    // Il doit imperativement etre persiste : sans cela, une reexportation
+    // ulterieure en fabriquerait un nouveau et repartirait sur un classement vide.
+    if(!state.shareId){
+      state.shareId = currentGridId || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+      markDirty();
+      autoSave();
+    }
     const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
       sfx: (state.sfxEnabled !== false) ? SFX : null,
       gridId: state.shareId,
@@ -2474,6 +2480,7 @@
       '.psignature{margin-top:28px;text-align:center;font-size:11.5px;color:var(--muted);font-style:italic;}',
       '.ptimer{display:inline-flex;align-items:center;gap:5px;background:var(--ink);color:var(--mag-yellow);border-radius:999px;padding:5px 13px;font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:13.5px;letter-spacing:0.5px;}',
       '.ptimer.done{background:var(--mag-red);color:#fff;}',
+      '.ptimer.paused{background:var(--muted);color:#fff;}',
       '.pwin{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(23,33,46,0.78);z-index:60;padding:20px;}',
       '.pwin.show{display:flex;}',
       '.pwin-card{position:relative;background:var(--mag-red);color:#fff;border:4px solid var(--ink);border-radius:8px;padding:38px 34px 26px;text-align:center;max-width:340px;box-shadow:0 16px 44px rgba(0,0,0,0.45);animation:pwin-pop 0.55s cubic-bezier(0.2,1.5,0.4,1);}',
@@ -2695,17 +2702,31 @@
       '    if(soundMuted && winAudio){ winAudio.pause(); winAudio.currentTime = 0; }',
       '  });',
       '})();',
-      'var tStart = null, tAcc = 0, tInt = null, tFrozen = false;',
+      'var tStart = null, tAcc = 0, tInt = null, tFrozen = false, tHidden = false;',
       'function tFormat(ms){ var s = Math.floor(ms/1000); var m = Math.floor(s/60); s = s%60;',
       '  return (m<10?"0":"")+m+":"+(s<10?"0":"")+s; }',
       'function tElapsed(){ return tStart===null ? tAcc : tAcc + (Date.now()-tStart); }',
-      'function tRender(){ document.getElementById("pTimer").textContent = "\\u23F1 " + tFormat(tElapsed()); }',
+      'function tRender(){ var el = document.getElementById("pTimer");',
+      '  el.textContent = (tHidden ? "\\u23F8 " : "\\u23F1 ") + tFormat(tElapsed());',
+      '  el.classList.toggle("paused", tHidden); }',
       'function tStartClock(){ if(tFrozen || tStart!==null) return; tStart = Date.now();',
       '  tInt = setInterval(tRender, 250); tRender(); }',
       'function tStop(){ if(tStart!==null){ tAcc += Date.now()-tStart; tStart = null; }',
       '  if(tInt){ clearInterval(tInt); tInt = null; } tRender(); }',
-      'function tReset(){ tStop(); tAcc = 0; tFrozen = false;',
+      'function tReset(){ tStop(); tAcc = 0; tFrozen = false; tHidden = false;',
       '  document.getElementById("pTimer").classList.remove("done"); tRender(); }',
+      '// Le chrono se suspend des que la page passe en arriere-plan (changement',
+      '// d onglet, telephone verrouille) et repart a son retour, pour que le temps',
+      '// affiche corresponde au temps reellement passe sur la grille.',
+      'document.addEventListener("visibilitychange", function(){',
+      '  if(document.visibilityState === "hidden"){',
+      '    if(tStart !== null && !tFrozen){ tStop(); tHidden = true; tRender(); }',
+      '  } else if(tHidden && !tFrozen){',
+      '    tHidden = false;',
+      '    tStartClock();',
+      '    tRender();',
+      '  }',
+      '});',
       'function isGridComplete(){',
       '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){',
       '    if(data.types[idx(r,c)]!=="letter") continue;',
