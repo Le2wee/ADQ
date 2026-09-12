@@ -1,7 +1,6 @@
 {
   "name": "MAXI-FLÉCHÉS",
   "short_name": "Fléchés",
-  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#E9EDF1",
   "theme_color": "#C8102E",
