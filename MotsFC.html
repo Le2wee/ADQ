@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MAXI-FLÉCHÉS">
@@ -600,6 +599,7 @@
     <span class="status" id="statusMsg"></span>
     <div class="spacer"></div>
     <button class="btn primary" id="exportBtn">Générer la grille à remplir ↓</button>
+    <button class="btn" id="pdfBtn">Exporter en PDF ↓</button>
   </div>
 
   <footer class="app-signature">DV Maxence Brossette et Claude-san</footer>
@@ -927,20 +927,21 @@
           const maxPx = currentCellPx * 0.32;
           const minPx = 3.8;
           const slots = [];
-          // Display order is fixed: clues whose word starts in the cell to the
-          // RIGHT (\u2192 and \u2935) sit above clues whose word starts in the cell
-          // BELOW (\u2193 and \u21B3); the two "definition after the answer" clues
-          // (\u2190 and \u2191) come last.
-          // Text no longer carries an arrow character: the marker is drawn on the
-          // cell border instead. Side arrows hang off their own band; bottom/top
-          // arrows attach to the cell so they sit on its outer edge.
-          if(hasR){ const b = addBand(div, 'rc', cell.rightClue);  slots.push(b); addArrow(b, 'right'); }
-          if(hasS){ const b = addBand(div, 'sc', cell.besideClue); slots.push(b); addArrow(b, 'beside'); }
-          if(hasD){ slots.push(addBand(div, 'dc', cell.downClue));  addArrow(div, 'down'); }
-          if(hasB){ slots.push(addBand(div, 'bc', cell.belowClue)); addArrow(div, 'below'); }
-          if(hasL){ const b = addBand(div, 'lc', cell.leftClue);   slots.push(b); addArrow(b, 'left'); }
+          // Le texte ne porte plus de caractere de fleche : le marqueur est dessine
+          // sur la bordure. Les marqueurs lateraux pendent de leur propre bande,
+          // ceux du haut et du bas sont accroches a la case entiere.
+          // L'ordre des bandes doit donc suivre la position du marqueur, sinon un
+          // texte se retrouve a l'oppose de sa propre fleche : bord HAUT d'abord
+          // (\u2191 \u21B1), cotes ensuite, bord BAS en dernier (\u2193 \u21B3).
+          // Les fleches laterales restant centrees sur leur bande, leur rang entre
+          // elles est libre : on garde celles qui partent de la droite au-dessus.
           if(hasU){ slots.push(addBand(div, 'uc', cell.upClue));    addArrow(div, 'up'); }
           if(hasA){ slots.push(addBand(div, 'ac', cell.aboveClue)); addArrow(div, 'above'); }
+          if(hasR){ const b = addBand(div, 'rc', cell.rightClue);  slots.push(b); addArrow(b, 'right'); }
+          if(hasS){ const b = addBand(div, 'sc', cell.besideClue); slots.push(b); addArrow(b, 'beside'); }
+          if(hasL){ const b = addBand(div, 'lc', cell.leftClue);   slots.push(b); addArrow(b, 'left'); }
+          if(hasD){ slots.push(addBand(div, 'dc', cell.downClue));  addArrow(div, 'down'); }
+          if(hasB){ slots.push(addBand(div, 'bc', cell.belowClue)); addArrow(div, 'below'); }
           if(hasD || hasB) div.classList.add('pad-bottom');
           if(hasU || hasA) div.classList.add('pad-top');
           // fit AFTER every sibling slot exists, so flex has already divided the
@@ -948,7 +949,7 @@
           // temporary single-child layout that shrinks once siblings are added)
           slots.forEach(el => fitDefText(el, maxPx, minPx));
           if(hasR || hasD || hasB || hasS || hasL || hasU || hasA){
-            div.title = [hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasU ? ('\u2191 ' + cell.upClue) : null, hasA ? ('\u21B1 ' + cell.aboveClue) : null].filter(Boolean).join('  |  ');
+            div.title = [hasU ? ('\u2191 ' + cell.upClue) : null, hasA ? ('\u21B1 ' + cell.aboveClue) : null, hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null].filter(Boolean).join('  |  ');
           }
         }
         div.addEventListener('click', onCellClick);
@@ -2473,7 +2474,6 @@
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
       '<link rel="apple-touch-icon" href="icon-180.png">',
       '<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">',
-      '<link rel="manifest" href="manifest.json">',
       '<meta name="apple-mobile-web-app-capable" content="yes">',
       '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
       '<meta name="apple-mobile-web-app-title" content="MAXI-FLÉCHÉS">',
@@ -2516,6 +2516,294 @@
     }catch(err){
       setStatus('Retrait refusé (' + (err.code || err.message) + ')');
     }
+  });
+
+  // ---------- export PDF ----------
+  // Generateur minimal maison : pas de bibliotheque externe a charger, donc
+  // l'atelier reste utilisable hors connexion et la mise en page est entierement
+  // sous controle. Les textes sont encodes en Latin-1 (WinAnsi), ce qui couvre
+  // les accents francais ; les fleches sont tracees en vectoriel.
+  const PDF_W = 595.28, PDF_H = 841.89, PDF_MARGIN = 40;
+
+  const _measureCtx = document.createElement('canvas').getContext('2d');
+  function pdfTextWidth(txt, size, bold){
+    _measureCtx.font = (bold ? 'bold ' : '') + size + 'px Helvetica, Arial, sans-serif';
+    return _measureCtx.measureText(txt).width;
+  }
+
+  // WinAnsi (CP1252) ajoute quelques caracteres au-dela de Latin-1, a des codes
+  // precis : sans cette table, un simple "coeur" ecrit avec la ligature, ou une
+  // apostrophe typographique, ressortirait en point d'interrogation.
+  const PDF_CP1252 = {
+    '\u20AC':0x80, '\u201A':0x82, '\u0192':0x83, '\u201E':0x84, '\u2026':0x85,
+    '\u2020':0x86, '\u2021':0x87, '\u02C6':0x88, '\u2030':0x89, '\u0160':0x8A,
+    '\u2039':0x8B, '\u0152':0x8C, '\u017D':0x8E, '\u2018':0x91, '\u2019':0x92,
+    '\u201C':0x93, '\u201D':0x94, '\u2022':0x95, '\u2013':0x96, '\u2014':0x97,
+    '\u02DC':0x98, '\u2122':0x99, '\u0161':0x9A, '\u203A':0x9B, '\u0153':0x9C,
+    '\u017E':0x9E, '\u0178':0x9F
+  };
+  // Quelques equivalents lisibles pour ce qui n'existe vraiment pas
+  const PDF_FALLBACK = { '\u2192':'->', '\u2193':'v', '\u2190':'<-', '\u2191':'^',
+                         '\u21B3':'->', '\u2935':'v', '\u21B1':'->', '\u2605':'*' };
+
+  function pdfEscape(txt){
+    let out = '';
+    for(const ch of String(txt)){
+      let c = ch;
+      if(PDF_CP1252[ch] !== undefined){
+        c = String.fromCharCode(PDF_CP1252[ch]);
+      } else if(ch.codePointAt(0) > 255){
+        c = PDF_FALLBACK[ch] || '';   // plutot rien qu'un point d'interrogation
+      }
+      for(const k of c){
+        out += (k === '\\' || k === '(' || k === ')') ? '\\' + k : k;
+      }
+    }
+    return out;
+  }
+
+  // Decoupe un texte en lignes tenant dans une largeur donnee.
+  // `broke` signale qu'un mot a du etre coupe en deux, ce qui est laid :
+  // pdfFit s'en sert pour privilegier une police plus petite mais intacte.
+  function pdfWrap(txt, size, bold, maxW){
+    const words = String(txt).split(/\s+/).filter(Boolean);
+    const lines = [];
+    let cur = '', broke = false;
+    for(const w of words){
+      const test = cur ? cur + ' ' + w : w;
+      if(cur && pdfTextWidth(test, size, bold) > maxW){
+        lines.push(cur); cur = w;
+      } else {
+        cur = test;
+      }
+      while(pdfTextWidth(cur, size, bold) > maxW && cur.length > 1){
+        broke = true;
+        let cut = cur.length - 1;
+        while(cut > 1 && pdfTextWidth(cur.slice(0, cut), size, bold) > maxW) cut--;
+        lines.push(cur.slice(0, cut));
+        cur = cur.slice(cut);
+      }
+    }
+    if(cur) lines.push(cur);
+    return {lines, broke};
+  }
+
+  // Reduit la taille jusqu'a ce que le texte tienne. On cherche d'abord une
+  // taille ou aucun mot n'est coupe ; on n'accepte une coupure que si meme la
+  // plus petite police n'y suffit pas.
+  function pdfFit(txt, boxW, boxH, maxSize){
+    let fallback = null;
+    for(let size = maxSize; size >= 3.2; size -= 0.25){
+      const {lines, broke} = pdfWrap(txt, size, true, boxW);
+      if(lines.length * size * 1.12 <= boxH){
+        if(!broke) return {size, lines};
+        if(!fallback) fallback = {size, lines};
+      }
+    }
+    if(fallback) return fallback;
+    const last = pdfWrap(txt, 3.2, true, boxW);
+    return {size: 3.2, lines: last.lines};
+  }
+
+  function pdfBuilder(){
+    const ops = [];
+    const Y = y => PDF_H - y;   // l'origine PDF est en bas a gauche
+    return {
+      ops,
+      rect(x, y, w, h, fill, stroke, lw){
+        ops.push('q');
+        if(fill) ops.push(fill.join(' ') + ' rg');
+        if(stroke){ ops.push(stroke.join(' ') + ' RG'); ops.push((lw || 1) + ' w'); }
+        ops.push(x.toFixed(2) + ' ' + (Y(y) - h).toFixed(2) + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re');
+        ops.push(fill && stroke ? 'B' : (fill ? 'f' : 'S'));
+        ops.push('Q');
+      },
+      poly(points, fill){
+        ops.push('q', fill.join(' ') + ' rg');
+        points.forEach((p, i) => ops.push(p[0].toFixed(2) + ' ' + Y(p[1]).toFixed(2) + ' ' + (i ? 'l' : 'm')));
+        ops.push('h', 'f', 'Q');
+      },
+      line(x1, y1, x2, y2, color, lw){
+        ops.push('q', color.join(' ') + ' RG', (lw || 1) + ' w',
+                 x1.toFixed(2) + ' ' + Y(y1).toFixed(2) + ' m',
+                 x2.toFixed(2) + ' ' + Y(y2).toFixed(2) + ' l', 'S', 'Q');
+      },
+      text(txt, x, y, size, color, bold, align){
+        const w = pdfTextWidth(txt, size, bold);
+        const tx = align === 'center' ? x - w / 2 : (align === 'right' ? x - w : x);
+        ops.push('BT', '/' + (bold ? 'F2' : 'F1') + ' ' + size.toFixed(2) + ' Tf',
+                 color.join(' ') + ' rg',
+                 tx.toFixed(2) + ' ' + Y(y).toFixed(2) + ' Td',
+                 '(' + pdfEscape(txt) + ') Tj', 'ET');
+      }
+    };
+  }
+
+  function pdfDocument(content){
+    const objs = [];
+    objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+    objs[2] = '<< /Type /Pages /Kids [3 0 R] /Count 1 >>';
+    objs[3] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PDF_W.toFixed(2) + ' ' + PDF_H.toFixed(2) +
+              '] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>';
+    objs[4] = '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream';
+    objs[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+    objs[6] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [];
+    for(let i = 1; i < objs.length; i++){
+      offsets[i] = pdf.length;
+      pdf += i + ' 0 obj\n' + objs[i] + '\nendobj\n';
+    }
+    const xref = pdf.length;
+    pdf += 'xref\n0 ' + objs.length + '\n0000000000 65535 f \n';
+    for(let i = 1; i < objs.length; i++){
+      pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+    }
+    pdf += 'trailer\n<< /Size ' + objs.length + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF';
+
+    const bytes = new Uint8Array(pdf.length);
+    for(let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 0xFF;
+    return new Blob([bytes], {type: 'application/pdf'});
+  }
+
+  function buildGridPdf(withSolution){
+    const INK = [0.106, 0.165, 0.255], RED = [0.784, 0.063, 0.180],
+          YELL = [1, 0.780, 0.173], CREAM = [0.945, 0.863, 0.745],
+          WHITE = [1, 1, 1], GREY = [0.42, 0.46, 0.51];
+    const b = pdfBuilder();
+
+    // ---- bandeau du magazine ----
+    b.rect(0, 0, PDF_W, 74, RED);
+    b.rect(0, 74, PDF_W, 20, INK);
+    const cx = PDF_MARGIN + 26;
+    const star = [];
+    for(let i = 0; i < 24; i++){
+      const r = (i % 2 === 0) ? 25 : 13;
+      const a = -0.18 + i * Math.PI / 12;
+      star.push([cx + r * Math.cos(a), 37 + r * Math.sin(a)]);
+    }
+    b.poly(star, YELL);
+    b.text('N°1', cx, 41, 11, INK, true, 'center');
+    b.text('MAXI-FLÉCHÉS', PDF_MARGIN + 64, 44, 29, WHITE, true);
+    b.text('Le magazine 100 % fléchés de Bébou & Claude-san', PDF_MARGIN + 66, 60, 9, YELL, false);
+    const stars = '\u2605'.repeat(state.difficulty || 2);
+    b.text('FORCE ' + (state.difficulty || 2) + '/3', PDF_W - PDF_MARGIN, 44, 10, YELL, true, 'right');
+    b.text((withSolution ? 'SOLUTION' : 'GRILLE') + '  \u2013  ' + (state.title || 'Sans titre'),
+           PDF_MARGIN, 88, 9, YELL, true);
+
+    // ---- dimensions de la grille ----
+    const top = 118, bottom = PDF_H - 60;
+    const cell = Math.min((PDF_W - 2 * PDF_MARGIN) / state.cols,
+                          (bottom - top) / state.rows, 52);
+    const gw = cell * state.cols, gh = cell * state.rows;
+    const gx = (PDF_W - gw) / 2, gy = top;
+
+    const ARROW = cell * 0.13;   // demi-hauteur des pointes
+    // Les marqueurs depassent sur la case voisine : si on les trace au fil des
+    // cases, celles dessinees ensuite les recouvrent. On les met de cote pour
+    // les poser en dernier, par-dessus toute la grille.
+    const pending = [];
+
+    for(let r = 0; r < state.rows; r++){
+      for(let c = 0; c < state.cols; c++){
+        const cellData = get(r, c);
+        const x = gx + c * cell, y = gy + r * cell;
+
+        if(cellData.type === 'block'){
+          b.rect(x, y, cell, cell, INK);
+          continue;
+        }
+        if(cellData.type === 'letter'){
+          b.rect(x, y, cell, cell, WHITE, INK, 0.7);
+          if(withSolution && cellData.letter){
+            b.text(cellData.letter, x + cell / 2, y + cell * 0.68, cell * 0.5, INK, true, 'center');
+          }
+          continue;
+        }
+
+        // ---- case de definition ----
+        b.rect(x, y, cell, cell, CREAM, INK, 0.7);
+        const bands = [];
+        if(cellData.upClue)     bands.push({t: cellData.upClue,     a: 'up'});
+        if(cellData.aboveClue)  bands.push({t: cellData.aboveClue,  a: 'above'});
+        if(cellData.rightClue)  bands.push({t: cellData.rightClue,  a: 'right'});
+        if(cellData.besideClue) bands.push({t: cellData.besideClue, a: 'beside'});
+        if(cellData.leftClue)   bands.push({t: cellData.leftClue,   a: 'left'});
+        if(cellData.downClue)   bands.push({t: cellData.downClue,   a: 'down'});
+        if(cellData.belowClue)  bands.push({t: cellData.belowClue,  a: 'below'});
+        if(!bands.length) continue;
+
+        const padX = cell * 0.06, padY = cell * 0.05;
+        const bh = (cell - 2 * padY) / bands.length;
+        bands.forEach((bd, i) => {
+          const by = y + padY + i * bh;
+          if(i > 0) b.line(x + padX, by, x + cell - padX, by, [0.55, 0.60, 0.66], 0.4);
+          const fit = pdfFit(bd.t, cell - 2 * padX, bh - 1.5, Math.min(bh * 0.62, cell * 0.28));
+          const lh = fit.size * 1.12;
+          const startY = by + (bh - fit.lines.length * lh) / 2 + fit.size;
+          fit.lines.forEach((ln, k) => b.text(ln, x + cell / 2, startY + k * lh, fit.size, INK, true, 'center'));
+
+          // ---- marqueur, pose sur le bord, comme a l'ecran ----
+          const midY = by + bh / 2;
+          pending.push(()=>{
+          if(bd.a === 'right'){
+            b.poly([[x + cell + 1, midY - ARROW], [x + cell + 1, midY + ARROW],
+                    [x + cell + 1 + ARROW * 1.5, midY]], INK);
+          } else if(bd.a === 'left'){
+            b.poly([[x - 1, midY - ARROW], [x - 1, midY + ARROW],
+                    [x - 1 - ARROW * 1.5, midY]], INK);
+          } else if(bd.a === 'beside'){
+            b.line(x + cell + 1, midY, x + cell + ARROW * 1.6, midY, INK, 1.2);
+            b.line(x + cell + ARROW * 1.6, midY, x + cell + ARROW * 1.6, midY + ARROW * 1.3, INK, 1.2);
+            b.poly([[x + cell + ARROW * 0.7, midY + ARROW * 1.3],
+                    [x + cell + ARROW * 2.5, midY + ARROW * 1.3],
+                    [x + cell + ARROW * 1.6, midY + ARROW * 2.8]], INK);
+          } else if(bd.a === 'down'){
+            b.poly([[x + cell / 2 - ARROW, y + cell + 1], [x + cell / 2 + ARROW, y + cell + 1],
+                    [x + cell / 2, y + cell + 1 + ARROW * 1.5]], INK);
+          } else if(bd.a === 'up'){
+            b.poly([[x + cell / 2 - ARROW, y - 1], [x + cell / 2 + ARROW, y - 1],
+                    [x + cell / 2, y - 1 - ARROW * 1.5]], INK);
+          } else if(bd.a === 'below'){
+            b.line(x + cell * 0.22, y + cell + 1, x + cell * 0.22, y + cell + ARROW * 1.6, INK, 1.2);
+            b.line(x + cell * 0.22, y + cell + ARROW * 1.6, x + cell * 0.22 + ARROW * 1.3, y + cell + ARROW * 1.6, INK, 1.2);
+            b.poly([[x + cell * 0.22 + ARROW * 1.3, y + cell + ARROW * 0.7],
+                    [x + cell * 0.22 + ARROW * 1.3, y + cell + ARROW * 2.5],
+                    [x + cell * 0.22 + ARROW * 2.8, y + cell + ARROW * 1.6]], INK);
+          } else if(bd.a === 'above'){
+            b.line(x + cell * 0.22, y - 1, x + cell * 0.22, y - ARROW * 1.6, INK, 1.2);
+            b.line(x + cell * 0.22, y - ARROW * 1.6, x + cell * 0.22 + ARROW * 1.3, y - ARROW * 1.6, INK, 1.2);
+            b.poly([[x + cell * 0.22 + ARROW * 1.3, y - ARROW * 0.7],
+                    [x + cell * 0.22 + ARROW * 1.3, y - ARROW * 2.5],
+                    [x + cell * 0.22 + ARROW * 2.8, y - ARROW * 1.6]], INK);
+          }
+          });
+        });
+      }
+    }
+
+    pending.forEach(draw => draw());
+    b.rect(gx, gy, gw, gh, null, INK, 1.6);
+    b.text('DV Maxence Brossette et Claude-san', PDF_W / 2, PDF_H - 32, 8.5, GREY, false, 'center');
+    return pdfDocument(b.ops.join('\n'));
+  }
+
+  function downloadBlob(blob, name){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  document.getElementById('pdfBtn').addEventListener('click', ()=>{
+    const base = (state.title || 'mots-fleches').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'mots-fleches';
+    downloadBlob(buildGridPdf(false), base + '-grille.pdf');
+    setTimeout(()=>downloadBlob(buildGridPdf(true), base + '-solution.pdf'), 600);
+    setStatus('Deux PDF téléchargés : la grille et la solution ✓');
   });
 
   // ---------- export playable file ----------
@@ -2831,13 +3119,13 @@
       '    var maxPx = cw*0.32, minPx = 3.8;',
       '    var slots = [];',
       '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=text; band.appendChild(inner); div.appendChild(band); return band; }',
-      '    if(hasR){ var bR=addBand("rc", data.rightClue[i]);  slots.push(bR); addArrow(bR,"right"); }',
-      '    if(hasS){ var bS=addBand("sc", data.besideClue[i]); slots.push(bS); addArrow(bS,"beside"); }',
-      '    if(hasD){ slots.push(addBand("dc", data.downClue[i]));  addArrow(div,"down"); }',
-      '    if(hasB){ slots.push(addBand("bc", data.belowClue[i])); addArrow(div,"below"); }',
-      '    if(hasL){ var bL=addBand("lc", data.leftClue[i]);   slots.push(bL); addArrow(bL,"left"); }',
       '    if(hasU){ slots.push(addBand("uc", data.upClue[i]));    addArrow(div,"up"); }',
       '    if(hasA){ slots.push(addBand("ac", data.aboveClue[i])); addArrow(div,"above"); }',
+      '    if(hasR){ var bR=addBand("rc", data.rightClue[i]);  slots.push(bR); addArrow(bR,"right"); }',
+      '    if(hasS){ var bS=addBand("sc", data.besideClue[i]); slots.push(bS); addArrow(bS,"beside"); }',
+      '    if(hasL){ var bL=addBand("lc", data.leftClue[i]);   slots.push(bL); addArrow(bL,"left"); }',
+      '    if(hasD){ slots.push(addBand("dc", data.downClue[i]));  addArrow(div,"down"); }',
+      '    if(hasB){ slots.push(addBand("bc", data.belowClue[i])); addArrow(div,"below"); }',
       '    if(hasD || hasB) div.classList.add("pad-bottom");',
       '    if(hasU || hasA) div.classList.add("pad-top");',
       '    slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });',
