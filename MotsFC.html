@@ -407,6 +407,18 @@
   #pubBase{flex:1;min-width:190px;}
   #pubFile{width:130px;}
   #pubNum{width:56px;text-align:center;}
+  .win-bar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    margin:12px 24px 0;padding:10px 14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  }
+  .win-bar label{font-size:12px;color:var(--muted);}
+  .win-bar input{
+    padding:6px 9px;border:1px solid var(--line);border-radius:5px;
+    font-size:13px;background:var(--paper);color:var(--ink);
+  }
+  #winTitleInput{width:150px;}
+  #winMsgInput{flex:1;min-width:200px;}
   .pub-state{font-size:12.5px;color:var(--muted);}
   .pub-state.on{color:var(--ok);font-weight:600;}
 </style>
@@ -578,6 +590,15 @@
     </div>
   </div>
 
+  <div class="win-bar">
+    <span class="audio-label">🎉 Message de victoire</span>
+    <label for="winTitleInput">Titre</label>
+    <input type="text" id="winTitleInput" maxlength="24" placeholder="BRAVO !" autocomplete="off">
+    <label for="winMsgInput">Message</label>
+    <input type="text" id="winMsgInput" maxlength="90" placeholder="Tout est juste, champion du fléché !" autocomplete="off">
+    <button class="btn small" id="winResetBtn">Par défaut</button>
+  </div>
+
   <div class="pub-bar">
     <span class="audio-label">📖 Sommaire</span>
     <label for="pubBase">Adresse du site</label>
@@ -673,6 +694,8 @@
     difficulty: 2,         // 1 to 3, shown as stars on the masthead
     shareId: null,         // cle du classement, figee a la premiere exportation
     sfxEnabled: true,      // embarquer ou non les pets, rots et encouragements
+    winTitle: '',          // vides = on garde les formules par defaut
+    winMessage: '',
     audioMode: 'default',  // 'default' | 'custom' | 'none'
     audioData: null,       // base64 data URL, only when audioMode === 'custom'
     audioName: '',
@@ -1816,8 +1839,10 @@
     state.difficulty = 2;
     state.shareId = null;
     state.sfxEnabled = true;
+    state.winTitle = ''; state.winMessage = '';
     updateDifficultyUI();
     updateSfxUI();
+    updateWinUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -2067,7 +2092,9 @@
     // stored file as a custom sound, and anything else as the default.
     state.difficulty = data.difficulty || 2;   // grids saved before this existed default to ★★
     state.shareId = data.shareId || id;
-    state.sfxEnabled = data.sfxEnabled !== false;   // grilles anterieures : bonus inclus
+    state.sfxEnabled = data.sfxEnabled !== false;
+    state.winTitle = data.winTitle || '';
+    state.winMessage = data.winMessage || '';   // grilles anterieures : bonus inclus
     state.audioMode = data.audioMode || (data.audioData ? 'custom' : 'default');
     state.audioData = state.audioMode === 'custom' ? (data.audioData || null) : null;
     state.audioName = state.audioMode === 'custom' ? (data.audioName || '') : '';
@@ -2083,6 +2110,7 @@
     updateAudioUI();
     updateDifficultyUI();
     updateSfxUI();
+    updateWinUI();
     document.getElementById('pubFile').value = '';
     document.getElementById('pubNum').value = '';
     currentGridId = id;
@@ -2102,6 +2130,8 @@
       difficulty: state.difficulty || 2,
       shareId: state.shareId || null,
       sfxEnabled: state.sfxEnabled !== false,
+      winTitle: state.winTitle || '',
+      winMessage: state.winMessage || '',
       audioMode: state.audioMode || 'default',
       audioData: state.audioMode === 'custom' ? (state.audioData || null) : null,
       audioName: state.audioMode === 'custom' ? (state.audioName || '') : '',
@@ -2145,8 +2175,10 @@
     state.difficulty = 2;
     state.shareId = null;
     state.sfxEnabled = true;
+    state.winTitle = ''; state.winMessage = '';
     updateDifficultyUI();
     updateSfxUI();
+    updateWinUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -2214,6 +2246,23 @@
     markDirty();
     updateDifficultyUI();
     setStatus('Force réglée sur ' + STARS[state.difficulty] + ' (pense à enregistrer).');
+  });
+
+  function updateWinUI(){
+    document.getElementById('winTitleInput').value = state.winTitle || '';
+    document.getElementById('winMsgInput').value = state.winMessage || '';
+  }
+
+  document.getElementById('winTitleInput').addEventListener('input', (e)=>{
+    state.winTitle = e.target.value; markDirty();
+  });
+  document.getElementById('winMsgInput').addEventListener('input', (e)=>{
+    state.winMessage = e.target.value; markDirty();
+  });
+  document.getElementById('winResetBtn').addEventListener('click', ()=>{
+    state.winTitle = ''; state.winMessage = '';
+    markDirty(); updateWinUI();
+    setStatus('Message de victoire remis par défaut.');
   });
 
   function updateSfxUI(){
@@ -2833,6 +2882,8 @@
     }
     const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
       sfx: (state.sfxEnabled !== false) ? SFX : null,
+      winTitle: state.winTitle || '',
+      winMessage: state.winMessage || '',
       gridId: state.shareId,
       firebase: (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey !== 'REMPLACE_MOI') ? FIREBASE_CONFIG : null };
     let dataJson = JSON.stringify(payload).replace(/</g, '\\u003c');
@@ -2911,7 +2962,8 @@
       '<div class="pwin-title">BRAVO&nbsp;!</div>',
       '<div class="pwin-sub">GRILLE TERMINÉE</div>',
       '<div class="pwin-time" id="pWinTime">00:00</div>',
-      '<div class="pwin-foot">Tout est juste, champion du fléché&nbsp;!</div>',
+      '<div class="pwin-foot" id="pWinFoot">Tout est juste, champion du fléché&nbsp;!</div>',
+      '<div class="pwin-hints" id="pWinHints"></div>',
       '<div class="pscore" id="pScore">',
       '<input id="pScoreName" maxlength="20" placeholder="Ton prénom" autocomplete="off">',
       '<button class="pbtn pbtn-primary" id="pScoreSend">Envoyer mon temps</button>',
@@ -3028,6 +3080,7 @@
       '.pwin-sub{margin-top:10px;font-size:12px;letter-spacing:3px;color:var(--mag-yellow);}',
       '.pwin-time{margin-top:14px;display:inline-block;background:var(--ink);color:var(--mag-yellow);font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:26px;padding:6px 16px;border-radius:5px;letter-spacing:1px;}',
       '.pwin-foot{margin-top:14px;font-size:12.5px;font-style:italic;color:#FFE9B0;}',
+      '.pwin-hints{margin-top:6px;font-size:11.5px;color:var(--mag-yellow);}',
       '.pwin #pWinClose{margin-top:14px;}',
       '.pscore{display:none;margin-top:16px;gap:8px;justify-content:center;flex-wrap:wrap;}',
       '.pscore.show{display:flex;}',
@@ -3281,9 +3334,20 @@
       '  tStop(); tFrozen = true;',
       '  document.getElementById("pTimer").classList.add("done");',
       '  document.getElementById("pWinTime").textContent = tFormat(tElapsed());',
-      '  document.querySelector(".pwin-foot").textContent = hintsUsed',
-      '    ? ("Terminée avec " + hintsUsed + " indice" + (hintsUsed>1?"s":"") + ".")',
-      '    : "Sans le moindre indice, chapeau !";',
+      '  // Textes personnalises par l auteur de la grille, avec repli sur les',
+      '  // formules d origine. Le compte d indices a sa propre ligne, sinon il',
+      '  // ecraserait le message choisi.',
+      '  var wt = (data.winTitle || "").trim();',
+      '  var wm = (data.winMessage || "").trim();',
+      '  var titleEl = document.querySelector(".pwin-title");',
+      '  titleEl.textContent = wt || "BRAVO !";',
+      '  // un titre long deborderait de la carte : on reduit la taille en consequence',
+      '  var len = titleEl.textContent.length;',
+      '  titleEl.style.fontSize = (len <= 8 ? 44 : (len <= 14 ? 34 : (len <= 20 ? 26 : 20))) + "px";',
+      '  document.getElementById("pWinFoot").textContent = wm ||',
+      '    (hintsUsed ? "Tout est juste !" : "Sans le moindre indice, chapeau !");',
+      '  document.getElementById("pWinHints").textContent = hintsUsed',
+      '    ? ("Terminée avec " + hintsUsed + " indice" + (hintsUsed>1?"s":"") + ".") : "";',
       '  document.getElementById("pWin").classList.add("show");',
       '  document.getElementById("pStatus").textContent = "";',
       '  if(boardDb){',
@@ -3522,6 +3586,7 @@
   setFindLength(7, false);
   updateDifficultyUI();
   updateSfxUI();
+  updateWinUI();
   try{ document.getElementById('pubBase').value = localStorage.getItem('mf-base-url') || ''; }catch(err){}
   initFirebase();
 
