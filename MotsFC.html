@@ -477,6 +477,8 @@
       <button type="button" data-diff="1">★</button>
       <button type="button" data-diff="2">★★</button>
       <button type="button" data-diff="3">★★★</button>
+      <button type="button" data-diff="4">★★★★</button>
+      <button type="button" data-diff="5">★★★★★</button>
     </div>
   </div>
 
@@ -2228,7 +2230,7 @@
     return null;
   }
 
-  const STARS = {1:'★', 2:'★★', 3:'★★★'};
+  const STARS = {1:'★', 2:'★★', 3:'★★★', 4:'★★★★', 5:'★★★★★'};
 
   function updateDifficultyUI(){
     const d = state.difficulty || 2;
@@ -2737,7 +2739,7 @@
     b.text('MAXI-FLÉCHÉS', PDF_MARGIN + 64, 44, 29, WHITE, true);
     b.text('Le magazine 100 % fléchés de Bébou & Claude-san', PDF_MARGIN + 66, 60, 9, YELL, false);
     const stars = '\u2605'.repeat(state.difficulty || 2);
-    b.text('FORCE ' + (state.difficulty || 2) + '/3', PDF_W - PDF_MARGIN, 44, 10, YELL, true, 'right');
+    b.text('FORCE ' + (state.difficulty || 2) + '/5', PDF_W - PDF_MARGIN, 44, 10, YELL, true, 'right');
     b.text((withSolution ? 'SOLUTION' : 'GRILLE') + '  \u2013  ' + (state.title || 'Sans titre'),
            PDF_MARGIN, 88, 9, YELL, true);
 
@@ -2904,7 +2906,7 @@
   }
 
   function buildPlayerHtml(dataJson, title, difficulty){
-    const stars = {1:'★', 2:'★★', 3:'★★★'}[difficulty || 2];
+    const stars = {1:'★', 2:'★★', 3:'★★★', 4:'★★★★', 5:'★★★★★'}[difficulty || 2];
     const esc = title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return [
       '<!DOCTYPE html>',
@@ -2940,6 +2942,10 @@
       '<div class="cb-row" id="pRowRight"><span class="cb-arrow">→</span><span id="pRightText"></span></div>',
       '<div class="cb-row" id="pRowDown"><span class="cb-arrow">↓</span><span id="pDownText"></span></div>',
       '<span class="cb-empty" id="pEmptyMsg">Sélectionne une case pour voir sa définition</span>',
+      '</div>',
+      '<div class="phelp">',
+      '<span class="phelp-item"><b>Ordinateur</b> la barre d\'espace change l\'orientation</span>',
+      '<span class="phelp-item"><b>Téléphone</b> retaper la case change l\'orientation</span>',
       '</div>',
       '<div id="pGrid" class="pgrid"></div>',
       '<div class="pactions">',
@@ -3019,7 +3025,15 @@
       '.board{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}',
       '.gridwrap{display:flex;flex-direction:column;gap:10px;}',
       '.clue-bar{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;width:100%;box-sizing:border-box;font-size:13.5px;min-height:20px;}',
-      '.cb-row{display:none;align-items:flex-start;gap:8px;}',
+      '.cb-row{display:none;align-items:flex-start;gap:8px;cursor:pointer;padding:3px 5px;margin:-3px -5px;border-radius:5px;}',
+      '.cb-row:hover{background:rgba(201,122,43,0.18);}',
+      '.cb-row.on{background:var(--accent);color:#fff;}',
+      '.phelp{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 0;font-size:11.5px;color:var(--muted);font-style:italic;}',
+      '.phelp-item{display:inline-flex;align-items:center;gap:6px;}',
+      '.phelp-item b{font-style:normal;font-weight:700;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;',
+      '  background:var(--ink);color:var(--mag-yellow);border-radius:999px;padding:2px 8px;}',
+      '@media print{.phelp{display:none;}}',
+      '.cb-row.on .cb-arrow{background:#fff;color:var(--accent);}',
       '#pRightText,#pDownText{flex:1;min-width:0;font-size:14.5px;line-height:1.35;}',
       '.cb-arrow{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:13px;background:var(--accent);color:#fff;border-radius:5px;padding:3px 8px;flex:none;min-width:16px;text-align:center;}',
       '.cb-empty{font-size:12.5px;color:var(--muted);}',
@@ -3094,6 +3108,9 @@
       '.pboard .rk{opacity:0.8;min-width:22px;}',
       '.pboard .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
       '.pboard .tm{font-family:ui-monospace,"SF Mono",Consolas,monospace;}',
+      '.pboard .hn{font-size:10.5px;opacity:0.85;white-space:nowrap;}',
+      '.pboard .hn.net{font-style:italic;}',
+      '.pboard li.me .hn{opacity:1;}',
       '.pboard-msg{text-align:center;font-size:12px;color:#FFE9B0;font-style:italic;}',
       '@keyframes pwin-pop{0%{opacity:0;transform:scale(0.6) rotate(-8deg);}100%{opacity:1;transform:scale(1) rotate(-1deg);}}',
       '@keyframes pwin-spin{0%,100%{transform:translateX(-50%) rotate(-10deg);}50%{transform:translateX(-50%) rotate(10deg);}}',
@@ -3116,6 +3133,11 @@
       'function idx(r,c){ return r*cols+c; }',
       'var cellRefs = [];',
       'var dir = "R";',
+      '// Case actuellement selectionnee. Pour distinguer un premier appui (qui',
+      '// selectionne) d un second (qui fait pivoter), on note si la case etait',
+      '// deja active AU MOMENT DU CONTACT : se fier a l enchainement focus/clic',
+      '// est trompeur, car le tout premier appui n emet parfois aucun clic.',
+      'var curR = -1, curC = -1, dejaActive = false;',
       'function normalize(ch){ return ch.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase(); }',
       'function wordAt(r,c,d){ var list = d==="R"?data.rightWords:data.downWords; for(var k=0;k<list.length;k++){ var w=list[k]; for(var j=0;j<w.cells.length;j++){ if(w.cells[j][0]===r && w.cells[j][1]===c) return w; } } return null; }',
       'function canDir(r,c,d){ return !!wordAt(r,c,d); }',
@@ -3157,6 +3179,9 @@
       '    var inp = document.createElement("input"); inp.setAttribute("autocomplete","off");',
       '    inp.dataset.r=r; inp.dataset.c=c;',
       '    inp.addEventListener("focus", onFocusCell);',
+      '    inp.addEventListener("mousedown", onPressCell);',
+      '    inp.addEventListener("touchstart", onPressCell, {passive:true});',
+      '    inp.addEventListener("click", onClickCell);',
       '    inp.addEventListener("keydown", onKeyCell);',
       '    inp.addEventListener("input", onInputCell);',
       '    div.appendChild(inp);',
@@ -3197,9 +3222,29 @@
       '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "};',
       '  if(rw) document.getElementById("pRightText").textContent = (MARK[rw.field]||"") + (rw.clue || "(pas de définition)");',
       '  if(dw) document.getElementById("pDownText").textContent = (MARK[dw.field]||"") + (dw.clue || "(pas de définition)");',
+      '  rowR.classList.toggle("on", dir==="R" && !!rw);',
+      '  rowD.classList.toggle("on", dir==="D" && !!dw);',
       '  emptyMsg.style.display = (!rw && !dw) ? "block" : "none";',
       '}',
-      'function onFocusCell(e){ var r=+e.target.dataset.r, c=+e.target.dataset.c; if(!canDir(r,c,dir)){ dir = dir==="R"?"D":"R"; } highlight(r,c); updateClueBar(r,c); }',
+      'function onFocusCell(e){ var r=+e.target.dataset.r, c=+e.target.dataset.c;',
+      '  if(!canDir(r,c,dir)){ dir = dir==="R"?"D":"R"; }',
+      '  curR = r; curC = c;',
+      '  highlight(r,c); updateClueBar(r,c); }',
+      '// Retaper une case deja selectionnee fait pivoter le sens : c est la',
+      '// convention des mots croises, et le seul geste possible sans clavier.',
+      'function onPressCell(e){ dejaActive = (document.activeElement === e.currentTarget); }',
+      'function onClickCell(e){',
+      '  if(!dejaActive) return;',
+      '  var r=+e.target.dataset.r, c=+e.target.dataset.c;',
+      '  var autre = dir==="R" ? "D" : "R";',
+      '  if(canDir(r,c,autre)){ dir = autre; highlight(r,c); updateClueBar(r,c); }',
+      '}',
+      '// Toucher une definition de la barre bascule directement dessus.',
+      'function pickDir(d){',
+      '  if(curR < 0 || !canDir(curR,curC,d)) return;',
+      '  dir = d; highlight(curR,curC); updateClueBar(curR,curC);',
+      '  var el = cellRefs[curR][curC]; if(el) el.focus();',
+      '}',
       'function moveTo(r,c){ if(r<0||c<0||r>=rows||c>=cols) return; var el = cellRefs[r][c]; if(el){ el.focus(); } }',
       'function skipMove(r,c,dr,dc){ var nr=r+dr, nc=c+dc; while(nr>=0&&nc>=0&&nr<rows&&nc<cols&&data.types[idx(nr,nc)]!=="letter"){ nr+=dr; nc+=dc; } moveTo(nr,nc); }',
       'function onKeyCell(e){',
@@ -3368,7 +3413,9 @@
       '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
       '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
       '}',
-      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ dir=d; moveTo(w.cells[0][0], w.cells[0][1]); }); return row; }',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ var r0=w.cells[0][0], c0=w.cells[0][1]; dir=d; moveTo(r0,c0); curR=r0; curC=c0; highlight(r0,c0); updateClueBar(r0,c0); }); return row; }',
+      'document.getElementById("pRowRight").addEventListener("click", function(){ pickDir("R"); });',
+      'document.getElementById("pRowDown").addEventListener("click", function(){ pickDir("D"); });',
       'renderClues();',
       'document.getElementById("pVerify").addEventListener("click", function(){',
       '  var total=0, correct=0;',
@@ -3526,8 +3573,12 @@
       '  docs.forEach(function(d, i){',
       '    var v = d.data();',
       '    var mine = (d.id === boardUid) ? " class=\\"me\\"" : "";',
+      '    var h = parseInt(v.hints, 10) || 0;',
+      '    // une main levee vaut mieux qu un chiffre : on distingue d un coup d oeil',
+      '    // celui qui a fini sans aide de celui qui s est fait aider',
+      '    var marque = h ? (\'<span class="hn">\' + h + " \\uD83D\\uDCA1</span>") : \'<span class="hn net">sans aide</span>\';',
       '    html += "<li" + mine + "><span class=\\"rk\\">" + (i+1) + ".</span>" +',
-      '            "<span class=\\"nm\\">" + escapeHtml(v.name || "?") + "</span>" +',
+      '            "<span class=\\"nm\\">" + escapeHtml(v.name || "?") + "</span>" + marque +',
       '            "<span class=\\"tm\\">" + tFormat(v.ms || 0) + "</span></li>";',
       '  });',
       '  el.innerHTML = html + "</ol>";',
@@ -3555,6 +3606,7 @@
       '  boardRef().doc(boardUid).set({',
       '    name: name,',
       '    ms: parseInt(Math.round(tElapsed()), 10),',
+      '    hints: parseInt(hintsUsed, 10) || 0,',
       '    at: firebase.firestore.FieldValue.serverTimestamp()',
       '  }).then(function(){',
       '    document.getElementById("pScore").classList.remove("show");',
