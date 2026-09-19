@@ -160,7 +160,16 @@
     background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;
     width:100%;min-width:260px;
   }
-  .cb-row{display:flex;align-items:flex-start;gap:8px;}
+  .cb-row{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;}
+  /* L'indice occupe sa propre ligne sous la definition, decale pour s'aligner
+     sur le texte plutot que sur la fleche. */
+  .cb-tip{flex-basis:100%;display:flex;align-items:center;gap:6px;padding-left:34px;font-size:12px;}
+  .cb-tip-input{
+    flex:1;min-width:0;border:none;border-bottom:1px dotted var(--line);background:transparent;
+    font-family:inherit;font-size:12px;color:var(--ink-soft);padding:2px 0;
+  }
+  .cb-tip-input:focus{outline:none;border-bottom-color:var(--accent);}
+  .cb-tip-input::placeholder{color:var(--muted);font-style:italic;}
   .cb-arrow{
     font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:14px;
     background:var(--accent);color:#fff;border-radius:5px;padding:3px 8px;flex:none;min-width:16px;text-align:center;
@@ -209,6 +218,9 @@
     color:var(--ink);
     text-transform:uppercase;
   }
+  .hybar{position:absolute;background:#000;z-index:4;pointer-events:none;border-radius:1px;}
+  .hybar.r{top:-1px;bottom:-1px;right:-3px;width:4px;}
+  .hybar.d{left:-1px;right:-1px;bottom:-3px;height:4px;}
   .cell.block{background:var(--block);}
   .cell.block:hover{background:#26364a;}
   .cell.inword{background:#DCE6F0;}
@@ -511,36 +523,43 @@
           <span class="cb-arrow">→</span>
           <textarea id="cbRightInput" class="cb-input" rows="1" placeholder="Définition (sens →)"></textarea>
           <span class="cb-warn" id="cbRightWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbRightHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowBeside">
           <span class="cb-arrow">⤵</span>
           <textarea id="cbBesideInput" class="cb-input" rows="1" placeholder="Définition (vertical, part de la case de droite)"></textarea>
           <span class="cb-warn" id="cbBesideWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbBesideHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowDown">
           <span class="cb-arrow">↓</span>
           <textarea id="cbDownInput" class="cb-input" rows="1" placeholder="Définition (sens ↓)"></textarea>
           <span class="cb-warn" id="cbDownWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbDownHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowBelow">
           <span class="cb-arrow">↳</span>
           <textarea id="cbBelowInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessous)"></textarea>
           <span class="cb-warn" id="cbBelowWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbBelowHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowLeft">
           <span class="cb-arrow">←</span>
           <textarea id="cbLeftInput" class="cb-input" rows="1" placeholder="Définition (mot à gauche, se lit normalement)"></textarea>
           <span class="cb-warn" id="cbLeftWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbLeftHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowAbove">
           <span class="cb-arrow">↱</span>
           <textarea id="cbAboveInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessus)"></textarea>
           <span class="cb-warn" id="cbAboveWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbAboveHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowUp">
           <span class="cb-arrow">↑</span>
           <textarea id="cbUpInput" class="cb-input" rows="1" placeholder="Définition (mot au-dessus, se lit normalement)"></textarea>
           <span class="cb-warn" id="cbUpWarn"></span>
+          <span class="cb-tip">💡<input type="text" id="cbUpHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <span class="cb-empty" id="cbEmptyMsg"></span>
         <div class="cb-actions">
@@ -693,7 +712,7 @@
     dir: 'R',        // 'R' (right) or 'D' (down) — current typing direction
     mode: 'letters',
     title: '',
-    difficulty: 2,         // 1 to 3, shown as stars on the masthead
+    difficulty: 2,         // 1 to 5, shown as stars on the masthead
     shareId: null,         // cle du classement, figee a la premiere exportation
     sfxEnabled: true,      // embarquer ou non les pets, rots et encouragements
     winTitle: '',          // vides = on garde les formules par defaut
@@ -707,7 +726,7 @@
 
   function newCells(rows, cols){
     const arr = [];
-    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:''});
+    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', hyR:false, hyD:false});
     return arr;
   }
 
@@ -781,6 +800,13 @@
         }
       }
     }
+    // Chaque mot porte l'indice facultatif de SA definition. Le nom du champ se
+    // deduit de celui de la definition (rightClue -> rightHint), ce qui evite de
+    // le repeter aux sept endroits ou un mot est construit.
+    [right, down].forEach(liste => liste.forEach(w => {
+      const src = get(w.r, w.c);
+      w.hint = (src && src[w.field.replace('Clue','Hint')]) || '';
+    }));
     state.words = {right, down};
   }
 
@@ -909,7 +935,7 @@
     for(let r=0;r<newRows;r++){
       for(let c=0;c<newCols;c++){
         if(r<oldRows && c<oldCols) newCellsArr.push(oldGet(r,c));
-        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:''});
+        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', hyR:false, hyD:false});
       }
     }
     state.rows = newRows; state.cols = newCols;
@@ -941,6 +967,12 @@
           letterEl.className = 'letter';
           letterEl.textContent = cell.letter || '';
           div.appendChild(letterEl);
+          ['R','D'].forEach(d=>{
+            if(!hasHyphen(r,c,d)) return;
+            const b = document.createElement('span');
+            b.className = 'hybar ' + d.toLowerCase();
+            div.appendChild(b);
+          });
         } else if(cell.type === 'def'){
           const hasR = cell.rightClue && cell.rightClue.trim()!=='';
           const hasD = cell.downClue && cell.downClue.trim()!=='';
@@ -987,6 +1019,43 @@
     // renderGrid wipes the container, so the input has to be re-attached
     gridEl.appendChild(ensureKeyInput());
     placeKeyInput();
+  }
+
+  // Tiret dans un mot : trait noir sur le bord droit (hyR) ou bas (hyD) d'une
+  // case lettre. Il n'est affiche que si la case voisine est aussi une lettre.
+  function hasHyphen(r,c,d){
+    const cell = get(r,c);
+    if(!cell || cell.type!=='letter' || !cell['hy'+d]) return false;
+    const nr = r + (d==='D'?1:0), nc = c + (d==='R'?1:0);
+    return inBounds(nr,nc) && get(nr,nc).type==='letter';
+  }
+  function paintHyphens(r,c){
+    const el = cellEls[r] && cellEls[r][c] && cellEls[r][c].root;
+    if(!el) return;
+    el.querySelectorAll('.hybar').forEach(b=>b.remove());
+    ['R','D'].forEach(d=>{
+      if(!hasHyphen(r,c,d)) return;
+      const b = document.createElement('span');
+      b.className = 'hybar ' + d.toLowerCase();
+      el.appendChild(b);
+    });
+  }
+  // « - » pose (ou retire) un tiret AVANT la case selectionnee, dans le sens
+  // d'ecriture : on tape PORTE, le curseur est sur la case suivante, puis « - ».
+  function toggleHyphen(){
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const d = state.dir==='R' ? 'R' : 'D';
+    const pr = r - (d==='D'?1:0), pc = c - (d==='R'?1:0);
+    if(!inBounds(pr,pc) || get(pr,pc).type!=='letter' || get(r,c).type!=='letter'){
+      setStatus('Tiret impossible : il faut une lettre avant la case sélectionnée.');
+      return;
+    }
+    const cell = get(pr,pc);
+    cell['hy'+d] = !cell['hy'+d];
+    paintHyphens(pr,pc);
+    markDirty();
+    setStatus(cell['hy'+d] ? 'Tiret ajouté avant cette case.' : 'Tiret retiré.');
   }
 
   function markIsolatedCells(){
@@ -1186,6 +1255,7 @@
     rowL.style.display = 'none';
     rowU.style.display = 'none';
     rowA.style.display = 'none';
+    CB_TIPS.forEach(t => { t.bloc.style.display = 'none'; });
     delBtn.style.display = 'none';
     emptyMsg.textContent = '';
     rightWarn.textContent = '';
@@ -1230,6 +1300,12 @@
       leftInput.value = cell.leftClue || '';
       upInput.value = cell.upClue || '';
       aboveInput.value = cell.aboveClue || '';
+      // Les indices ne concernent que les cases de definition : ailleurs on les
+      // masque, sinon une valeur d'une autre case resterait affichee.
+      CB_TIPS.forEach(t => {
+        t.input.value = cell[t.champ.replace('Clue','Hint')] || '';
+        t.bloc.style.display = 'flex';
+      });
       [rightInput, downInput, belowInput, besideInput, leftInput, upInput, aboveInput].forEach(autoGrow);
       delBtn.style.display = 'inline-block';
       rightWarn.textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
@@ -1317,6 +1393,20 @@
     cell.leftClue = e.target.value;
     refreshAfterClueEdit();
   });
+  // Un indice par definition : meme table pour l'affichage et la saisie.
+  const CB_TIPS = [{nom:'Right', champ:'rightClue', input:document.getElementById('cbRightHint'), bloc:document.getElementById('cbRightHint').parentElement}, {nom:'Down', champ:'downClue', input:document.getElementById('cbDownHint'), bloc:document.getElementById('cbDownHint').parentElement}, {nom:'Below', champ:'belowClue', input:document.getElementById('cbBelowHint'), bloc:document.getElementById('cbBelowHint').parentElement}, {nom:'Beside', champ:'besideClue', input:document.getElementById('cbBesideHint'), bloc:document.getElementById('cbBesideHint').parentElement}, {nom:'Left', champ:'leftClue', input:document.getElementById('cbLeftHint'), bloc:document.getElementById('cbLeftHint').parentElement}, {nom:'Up', champ:'upClue', input:document.getElementById('cbUpHint'), bloc:document.getElementById('cbUpHint').parentElement}, {nom:'Above', champ:'aboveClue', input:document.getElementById('cbAboveHint'), bloc:document.getElementById('cbAboveHint').parentElement}];
+  CB_TIPS.forEach(t => {
+    t.input.addEventListener('input', (e)=>{
+      if(!state.selected) return;
+      const {r,c} = state.selected;
+      const cell = get(r,c);
+      if(cell.type !== 'def') return;
+      cell[t.champ.replace('Clue','Hint')] = e.target.value;
+      markDirty();
+      recomputeWords();
+    });
+  });
+
   document.getElementById('cbAboveInput').addEventListener('input', (e)=>{
     autoGrow(e.target);
     if(!state.selected) return;
@@ -1346,7 +1436,7 @@
       const ok = await confirmModal('Supprimer cette définition et transformer la case en case à lettre ?');
       if(!ok) return;
     }
-    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.letter='';
+    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.letter='';
     recomputeWords();
     renderGrid();
     renderClueLists();
@@ -1381,7 +1471,7 @@
     if(cell.type === 'block') return;
     markDirty();
     if(cell.type === 'letter'){
-      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue='';
+      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint='';
       recomputeWords();
       renderGrid();
       renderClueLists();
@@ -1426,7 +1516,7 @@
       const ok = await confirmModal('Cette case contient une définition. La transformer en case neutre l\u2019effacera. Continuer ?');
       if(!ok) return;
     }
-    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue='';
+    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint='';
     state.selected = null;
     recomputeWords();
     renderGrid();
@@ -1500,6 +1590,8 @@
     if(e.key === 'Tab'){ e.preventDefault(); jumpWord(e.shiftKey ? -1 : 1); return; }
 
     if(e.key === 'Backspace'){ e.preventDefault(); handleBackspace(); return; }
+
+    if(e.key === '-'){ e.preventDefault(); toggleHyphen(); return; }
 
     if(e.key.length === 1){
       const norm = normalizeChar(e.key);
@@ -1725,7 +1817,9 @@
       const raw = e.target.value;
       e.target.value = '';
       if(!raw) return;
-      const norm = normalizeChar(raw.slice(-1));
+      const last = raw.slice(-1);
+      if(last === '-' || last === '\u2010' || last === '\u2011' || last === '\u2013'){ toggleHyphen(); return; }
+      const norm = normalizeChar(last);
       if(/^[A-Z0-9]$/.test(norm)) typeLetter(norm);
     });
 
@@ -2088,7 +2182,7 @@
     const data = doc.data();
     const cells = JSON.parse(data.cellsJson);
     state.rows = data.rows; state.cols = data.cols;
-    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||'', aboveClue:c.aboveClue||''}));
+    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||'', aboveClue:c.aboveClue||'', rightHint:c.rightHint||'', downHint:c.downHint||'', belowHint:c.belowHint||'', besideHint:c.besideHint||'', leftHint:c.leftHint||'', upHint:c.upHint||'', aboveHint:c.aboveHint||'', hyR:!!c.hyR, hyD:!!c.hyD}));
     state.title = data.title || '';
     // Grids saved before the built-in sound existed have no audioMode: treat a
     // stored file as a custom sound, and anything else as the default.
@@ -2128,7 +2222,7 @@
       title: state.title || 'Sans titre',
       rows: state.rows,
       cols: state.cols,
-      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue, aboveClue:c.aboveClue}))),
+      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue, aboveClue:c.aboveClue, rightHint:c.rightHint, downHint:c.downHint, belowHint:c.belowHint, besideHint:c.besideHint, leftHint:c.leftHint, upHint:c.upHint, aboveHint:c.aboveHint, hyR:!!c.hyR, hyD:!!c.hyD}))),
       difficulty: state.difficulty || 2,
       shareId: state.shareId || null,
       sfxEnabled: state.sfxEnabled !== false,
@@ -2484,7 +2578,7 @@
     const js = [
       'var CFG = ' + cfg + ';',
       'var listEl = document.getElementById("list"), msgEl = document.getElementById("msg");',
-      'function stars(n){ return "\\u2605".repeat(Math.max(1, Math.min(3, n||2))); }',
+      'function stars(n){ return "\\u2605".repeat(Math.max(1, Math.min(5, n||2))); }',
       'function esc(t){ return String(t==null?"":t).replace(/[&<>"]/g, function(c){',
       '  return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]; }); }',
       'function render(rows){',
@@ -2767,6 +2861,8 @@
         }
         if(cellData.type === 'letter'){
           b.rect(x, y, cell, cell, WHITE, INK, 0.7);
+          if(hasHyphen(r,c,'R')) pending.push(()=> b.line(x + cell, y, x + cell, y + cell, INK, 3));
+          if(hasHyphen(r,c,'D')) pending.push(()=> b.line(x, y + cell, x + cell, y + cell, INK, 3));
           if(withSolution && cellData.letter){
             b.text(cellData.letter, x + cell / 2, y + cell * 0.68, cell * 0.5, INK, true, 'center');
           }
@@ -2871,8 +2967,8 @@
     const upClue = state.cells.map(c=>c.type==='def' ? (c.upClue||'') : '');
     const aboveClue = state.cells.map(c=>c.type==='def' ? (c.aboveClue||'') : '');
     const solution = state.cells.map(c=>c.type==='letter' ? (c.letter||'') : '');
-    const rightWords = state.words.right.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
-    const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field}));
+    const rightWords = state.words.right.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field, hint:w.hint||''}));
+    const downWords = state.words.down.filter(w=>w.cells.length).map(w=>({cells:w.cells.map(cc=>[cc.r,cc.c]), clue:w.clue||'', field:w.field, hint:w.hint||''}));
     // Identifiant stable de la grille : c'est la cle du classement. On reprend
     // celui de la grille enregistree, sinon on en fige un a l'export.
     // Il doit imperativement etre persiste : sans cela, une reexportation
@@ -2882,7 +2978,12 @@
       markDirty();
       autoSave();
     }
-    const payload = { title, rows: state.rows, cols: state.cols, types, rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
+    const hyphens = [];
+    for(let r=0;r<state.rows;r++) for(let c=0;c<state.cols;c++){
+      if(hasHyphen(r,c,'R')) hyphens.push([r,c,'R']);
+      if(hasHyphen(r,c,'D')) hyphens.push([r,c,'D']);
+    }
+    const payload = { title, rows: state.rows, cols: state.cols, types, hyphens, rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
       sfx: (state.sfxEnabled !== false) ? SFX : null,
       winTitle: state.winTitle || '',
       winMessage: state.winMessage || '',
@@ -2939,8 +3040,12 @@
       '<div class="board">',
       '<div class="gridwrap">',
       '<div class="clue-bar" id="pClueBar">',
-      '<div class="cb-row" id="pRowRight"><span class="cb-arrow">→</span><span id="pRightText"></span></div>',
-      '<div class="cb-row" id="pRowDown"><span class="cb-arrow">↓</span><span id="pDownText"></span></div>',
+      '<div class="cb-row" id="pRowRight"><span class="cb-arrow">→</span><span id="pRightText"></span>',
+      '<button type="button" class="cb-tipbtn" id="pRightTip">💡 +15 s</button>',
+      '<span class="cb-tiptext" id="pRightTipText"></span></div>',
+      '<div class="cb-row" id="pRowDown"><span class="cb-arrow">↓</span><span id="pDownText"></span>',
+      '<button type="button" class="cb-tipbtn" id="pDownTip">💡 +15 s</button>',
+      '<span class="cb-tiptext" id="pDownTipText"></span></div>',
       '<span class="cb-empty" id="pEmptyMsg">Sélectionne une case pour voir sa définition</span>',
       '</div>',
       '<div class="phelp">',
@@ -3025,7 +3130,7 @@
       '.board{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}',
       '.gridwrap{display:flex;flex-direction:column;gap:10px;}',
       '.clue-bar{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;width:100%;box-sizing:border-box;font-size:13.5px;min-height:20px;}',
-      '.cb-row{display:none;align-items:flex-start;gap:8px;cursor:pointer;padding:3px 5px;margin:-3px -5px;border-radius:5px;}',
+      '.cb-row{display:none;align-items:flex-start;gap:8px;flex-wrap:wrap;cursor:pointer;padding:3px 5px;margin:-3px -5px;border-radius:5px;}',
       '.cb-row:hover{background:rgba(201,122,43,0.18);}',
       '.cb-row.on{background:var(--accent);color:#fff;}',
       '.phelp{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0 0;font-size:11.5px;color:var(--muted);font-style:italic;}',
@@ -3037,8 +3142,21 @@
       '#pRightText,#pDownText{flex:1;min-width:0;font-size:14.5px;line-height:1.35;}',
       '.cb-arrow{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:13px;background:var(--accent);color:#fff;border-radius:5px;padding:3px 8px;flex:none;min-width:16px;text-align:center;}',
       '.cb-empty{font-size:12.5px;color:var(--muted);}',
+      '.cb-tipbtn{display:none;flex:none;border:1px solid var(--accent);background:#fff;color:var(--accent);',
+      '  border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}',
+      '.cb-tipbtn:hover{background:var(--accent);color:#fff;}',
+      '.cb-row.on .cb-tipbtn{border-color:#fff;color:#fff;background:transparent;}',
+      '.cb-row.on .cb-tipbtn:hover{background:#fff;color:var(--accent);}',
+      '.cb-tiptext{display:none;flex-basis:100%;padding-left:34px;font-size:12.5px;font-style:italic;color:var(--ink-soft);}',
+      '.cb-row.on .cb-tiptext{color:#fff;}',
+      '.pclue-tip{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:999px;',
+      '  padding:1px 7px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:6px;white-space:nowrap;}',
+      '.pclue-tiptext{display:block;font-size:11.5px;font-style:italic;color:var(--ink-soft);margin-top:2px;}',
       '.pgrid{display:grid;gap:2px;background:var(--line);border:2px solid var(--ink);width:max-content;}',
       '.pcell{width:var(--cell);height:var(--cell);position:relative;background:var(--block);}',
+      '.hybar{position:absolute;background:#000;z-index:4;pointer-events:none;border-radius:1px;}',
+      '.hybar.r{top:-1px;bottom:-1px;right:-3px;width:4px;}',
+      '.hybar.d{left:-1px;right:-1px;bottom:-3px;height:4px;}',
       '.pcell.letter{background:var(--panel);}',
       '.pcell.def{background:var(--accent-soft);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;padding:2px;}',
       '.pcell input{width:100%;height:100%;border:none;background:transparent;text-align:center;font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;font-size:calc(var(--cell)*0.5);text-transform:uppercase;color:var(--ink);padding:0;}',
@@ -3138,6 +3256,43 @@
       '// deja active AU MOMENT DU CONTACT : se fier a l enchainement focus/clic',
       '// est trompeur, car le tout premier appui n emet parfois aucun clic.',
       'var curR = -1, curC = -1, dejaActive = false;',
+      '// Indices de definition : chacun coute 15 secondes, une seule fois.',
+      'var TIP_MALUS = 15000;',
+      'var tipsUsed = 0, tipsShown = {};',
+      '(function marquerMots(){',
+      '  // identifiant sur mesure : deux mots peuvent partir de la meme case,',
+      '  // l index dans le tableau est le seul repere vraiment unique',
+      '  data.rightWords.forEach(function(w,i){ w.tipKey = "R" + i; });',
+      '  data.downWords.forEach(function(w,i){ w.tipKey = "D" + i; });',
+      '})();',
+      'function useTip(w){',
+      '  if(!w || !w.hint || tipsShown[w.tipKey]) return;',
+      '  tipsShown[w.tipKey] = true;',
+      '  tipsUsed++;',
+      '  // une fois la grille finie ou la solution affichee, le malus n a plus de sens',
+      '  if(!solvedAlready && !solutionRevealed){',
+      '    tAcc += TIP_MALUS;',
+      '    tStartClock();',
+      '    tRender();',
+      '    document.getElementById("pStatus").textContent =',
+      '      "Indice affiché : +15 s de pénalité";',
+      '  }',
+      '  if(w._tipBtn){ w._tipBtn.style.display = "none"; }',
+      '  if(w._tipTxt){ w._tipTxt.style.display = "block"; w._tipTxt.textContent = "💡 " + w.hint; }',
+      '  if(curR >= 0) updateClueBar(curR, curC);',
+      '}',
+      'function paintTip(w, btn, txt){',
+      '  if(!w || !w.hint){ btn.style.display = "none"; txt.style.display = "none"; return; }',
+      '  btn._word = w;',
+      '  if(tipsShown[w.tipKey]){',
+      '    btn.style.display = "none";',
+      '    txt.style.display = "block"; txt.textContent = "💡 " + w.hint;',
+      '  } else {',
+      '    btn.style.display = "inline-block";',
+      '    btn.title = "Afficher l\'indice de cette définition (coûte 15 secondes)";',
+      '    txt.style.display = "none"; txt.textContent = "";',
+      '  }',
+      '}',
       'function normalize(ch){ return ch.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toUpperCase(); }',
       'function wordAt(r,c,d){ var list = d==="R"?data.rightWords:data.downWords; for(var k=0;k<list.length;k++){ var w=list[k]; for(var j=0;j<w.cells.length;j++){ if(w.cells[j][0]===r && w.cells[j][1]===c) return w; } } return null; }',
       'function canDir(r,c,d){ return !!wordAt(r,c,d); }',
@@ -3166,6 +3321,7 @@
       '    size -= 0.5; band.style.fontSize = size+"px"; guard++;',
       '  }',
       '}',
+      'var HY = {}; (data.hyphens||[]).forEach(function(h){ HY[idx(h[0],h[1])+h[2]] = true; });',
       'var gridEl = document.getElementById("pGrid");',
       'var cw = Math.max(34, Math.min(48, Math.floor(Math.min(window.innerWidth-40,620)/cols)));',
       'document.documentElement.style.setProperty("--cell", cw+"px");',
@@ -3186,6 +3342,8 @@
       '    inp.addEventListener("input", onInputCell);',
       '    div.appendChild(inp);',
       '    row.push(inp);',
+      '    if(HY[i+"R"]){ var hb=document.createElement("span"); hb.className="hybar r"; div.appendChild(hb); }',
+      '    if(HY[i+"D"]){ var hb2=document.createElement("span"); hb2.className="hybar d"; div.appendChild(hb2); }',
       '  } else if(data.types[i]==="def"){',
       '    var hasR = data.rightClue[i] && data.rightClue[i].trim()!=="";',
       '    var hasD = data.downClue[i] && data.downClue[i].trim()!=="";',
@@ -3222,6 +3380,8 @@
       '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "};',
       '  if(rw) document.getElementById("pRightText").textContent = (MARK[rw.field]||"") + (rw.clue || "(pas de définition)");',
       '  if(dw) document.getElementById("pDownText").textContent = (MARK[dw.field]||"") + (dw.clue || "(pas de définition)");',
+      '  paintTip(rw, document.getElementById("pRightTip"), document.getElementById("pRightTipText"));',
+      '  paintTip(dw, document.getElementById("pDownTip"), document.getElementById("pDownTipText"));',
       '  rowR.classList.toggle("on", dir==="R" && !!rw);',
       '  rowD.classList.toggle("on", dir==="D" && !!dw);',
       '  emptyMsg.style.display = (!rw && !dw) ? "block" : "none";',
@@ -3390,9 +3550,11 @@
       '  var len = titleEl.textContent.length;',
       '  titleEl.style.fontSize = (len <= 8 ? 44 : (len <= 14 ? 34 : (len <= 20 ? 26 : 20))) + "px";',
       '  document.getElementById("pWinFoot").textContent = wm ||',
-      '    (hintsUsed ? "Tout est juste !" : "Sans le moindre indice, chapeau !");',
-      '  document.getElementById("pWinHints").textContent = hintsUsed',
-      '    ? ("Terminée avec " + hintsUsed + " indice" + (hintsUsed>1?"s":"") + ".") : "";',
+      '    ((hintsUsed || tipsUsed) ? "Tout est juste !" : "Sans le moindre indice, chapeau !");',
+      '  var bilan = [];',
+      '  if(hintsUsed) bilan.push(hintsUsed + " lettre" + (hintsUsed>1?"s":"") + " révélée" + (hintsUsed>1?"s":""));',
+      '  if(tipsUsed) bilan.push(tipsUsed + " indice" + (tipsUsed>1?"s":"") + " de définition (+" + (tipsUsed*15) + " s)");',
+      '  document.getElementById("pWinHints").textContent = bilan.length ? ("Terminée avec " + bilan.join(" et ") + ".") : "";',
       '  document.getElementById("pWin").classList.add("show");',
       '  document.getElementById("pStatus").textContent = "";',
       '  if(boardDb){',
@@ -3413,7 +3575,13 @@
       '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
       '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
       '}',
-      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); row.addEventListener("click", function(){ var r0=w.cells[0][0], c0=w.cells[0][1]; dir=d; moveTo(r0,c0); curR=r0; curC=c0; highlight(r0,c0); updateClueBar(r0,c0); }); return row; }',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); if(w.hint){ var tb=document.createElement("button"); tb.type="button"; tb.className="pclue-tip"; tb.textContent="💡 +15 s"; tb.title="Afficher l\'indice (coûte 15 secondes)"; tb.addEventListener("click", function(ev){ ev.stopPropagation(); useTip(w); }); var tt=document.createElement("span"); tt.className="pclue-tiptext"; tt.style.display="none"; w._tipBtn=tb; w._tipTxt=tt; t.appendChild(tb); row.appendChild(tt); } row.addEventListener("click", function(){ var r0=w.cells[0][0], c0=w.cells[0][1]; dir=d; moveTo(r0,c0); curR=r0; curC=c0; highlight(r0,c0); updateClueBar(r0,c0); }); return row; }',
+      '["pRightTip","pDownTip"].forEach(function(id){',
+      '  document.getElementById(id).addEventListener("click", function(e){',
+      '    e.stopPropagation();   // sinon la ligne changerait aussi l orientation',
+      '    useTip(e.currentTarget._word);',
+      '  });',
+      '});',
       'document.getElementById("pRowRight").addEventListener("click", function(){ pickDir("R"); });',
       'document.getElementById("pRowDown").addEventListener("click", function(){ pickDir("D"); });',
       'renderClues();',
@@ -3535,6 +3703,12 @@
       '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value=""; el.disabled=false; el.parentElement.classList.remove("correct","incorrect"); } }',
       '  document.getElementById("pStatus").textContent = "";',
       '  solvedAlready = false; solutionRevealed = false; hintsUsed = 0;',
+      '  tipsUsed = 0; tipsShown = {};',
+      '  data.rightWords.concat(data.downWords).forEach(function(w){',
+      '    if(w._tipBtn){ w._tipBtn.style.display = "inline-block"; }',
+      '    if(w._tipTxt){ w._tipTxt.style.display = "none"; w._tipTxt.textContent = ""; }',
+      '  });',
+      '  if(curR >= 0) updateClueBar(curR, curC);',
       '  document.querySelectorAll(".pcell.hinted").forEach(function(el){ el.classList.remove("hinted"); });',
       '  document.getElementById("pWin").classList.remove("show");',
       '  tReset();',
@@ -3576,7 +3750,11 @@
       '    var h = parseInt(v.hints, 10) || 0;',
       '    // une main levee vaut mieux qu un chiffre : on distingue d un coup d oeil',
       '    // celui qui a fini sans aide de celui qui s est fait aider',
-      '    var marque = h ? (\'<span class="hn">\' + h + " \\uD83D\\uDCA1</span>") : \'<span class="hn net">sans aide</span>\';',
+      '    var tp = parseInt(v.tips, 10) || 0;',
+      '    var aides = [];',
+      '    if(h) aides.push(h + " \\uD83D\\uDD24");',
+      '    if(tp) aides.push(tp + " \\uD83D\\uDCA1");',
+      '    var marque = aides.length ? (\'<span class="hn">\' + aides.join(" ") + "</span>") : \'<span class="hn net">sans aide</span>\';',
       '    html += "<li" + mine + "><span class=\\"rk\\">" + (i+1) + ".</span>" +',
       '            "<span class=\\"nm\\">" + escapeHtml(v.name || "?") + "</span>" + marque +',
       '            "<span class=\\"tm\\">" + tFormat(v.ms || 0) + "</span></li>";',
@@ -3607,6 +3785,7 @@
       '    name: name,',
       '    ms: parseInt(Math.round(tElapsed()), 10),',
       '    hints: parseInt(hintsUsed, 10) || 0,',
+      '    tips: parseInt(tipsUsed, 10) || 0,',
       '    at: firebase.firestore.FieldValue.serverTimestamp()',
       '  }).then(function(){',
       '    document.getElementById("pScore").classList.remove("show");',
