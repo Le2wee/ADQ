@@ -3,7 +3,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MAXI-FLÉCHÉS">
@@ -52,7 +51,7 @@ footer{text-align:center;font-size:11.5px;color:var(--muted);font-style:italic;p
 <script>
 var CFG = {"apiKey":"AIzaSyB_nC3jujrXPKlfbDbQfyEVKI5qVUnolZQ","authDomain":"storagemf-10591.firebaseapp.com","projectId":"storagemf-10591","storageBucket":"storagemf-10591.firebasestorage.app","messagingSenderId":"270031844951","appId":"1:270031844951:web:589da557c403714eb61512"};
 var listEl = document.getElementById("list"), msgEl = document.getElementById("msg");
-function stars(n){ return "\u2605".repeat(Math.max(1, Math.min(3, n||2))); }
+function stars(n){ return "\u2605".repeat(Math.max(1, Math.min(5, n||2))); }
 function esc(t){ return String(t==null?"":t).replace(/[&<>"]/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 function render(rows){
