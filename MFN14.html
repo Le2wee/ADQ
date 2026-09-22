@@ -32,8 +32,19 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .psfx.muted{background:var(--panel);border-color:var(--line);color:var(--muted);}
 @media print{.psound{display:none !important;}}
 .board{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
-.gridwrap{display:flex;flex-direction:column;gap:10px;}
-.clue-bar{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;width:100%;box-sizing:border-box;font-size:13.5px;min-height:20px;}
+.board > .gridwrap{flex:1 1 auto;min-width:0;}
+.gridwrap{display:flex;flex-direction:column;gap:10px;min-width:0;max-width:100%;}
+.clue-bar{position:sticky;top:0;z-index:50;display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;width:100%;box-sizing:border-box;font-size:13.5px;min-height:20px;box-shadow:0 2px 8px rgba(23,33,46,0.10);}
+.gridscroll{position:relative;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:2px;}
+.gridscroll::-webkit-scrollbar{height:6px;}
+.gridscroll::-webkit-scrollbar-thumb{background:rgba(23,33,46,0.25);border-radius:3px;}
+.gridfade{position:relative;}
+.gridfade::before,.gridfade::after{content:"";position:absolute;top:0;bottom:8px;width:22px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:3;}
+.gridfade::before{left:0;background:linear-gradient(to right, var(--paper), rgba(233,237,241,0));}
+.gridfade::after{right:0;background:linear-gradient(to left, var(--paper), rgba(233,237,241,0));}
+.gridfade.more-left::before{opacity:1;}
+.gridfade.more-right::after{opacity:1;}
+@media print{.gridscroll{overflow:visible;}}
 .cb-row{display:none;align-items:flex-start;gap:8px;flex-wrap:wrap;cursor:pointer;padding:3px 5px;margin:-3px -5px;border-radius:5px;}
 .cb-row:hover{background:rgba(201,122,43,0.18);}
 .cb-row.on{background:var(--accent);color:#fff;}
@@ -61,8 +72,9 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .hybar{position:absolute;background:#000;z-index:4;pointer-events:none;border-radius:1px;}
 .hybar.r{top:-1px;bottom:-1px;right:-3px;width:4px;}
 .hybar.d{left:-1px;right:-1px;bottom:-3px;height:4px;}
-.protate{position:fixed;left:10px;top:10px;z-index:60;display:none;align-items:center;gap:3px;height:46px;min-width:46px;padding:0 10px;border-radius:23px;border:2px solid var(--ink);background:var(--accent);color:#fff;font-size:22px;font-weight:700;line-height:1;box-shadow:0 3px 10px rgba(23,33,46,0.35);-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;}
-.protate .pr-dir{font-size:17px;}
+.protate{position:absolute;right:8px;top:6px;z-index:55;display:none;align-items:center;gap:3px;height:38px;min-width:38px;padding:0 9px;border-radius:19px;border:2px solid var(--ink);background:var(--accent);color:#fff;font-size:18px;font-weight:700;line-height:1;box-shadow:0 2px 6px rgba(23,33,46,0.3);-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;cursor:pointer;}
+.protate .pr-dir{font-size:14px;}
+@media (pointer:coarse){ .clue-bar.has-rot{padding-right:58px;} }
 .protate.single{opacity:0.45;}
 @media (pointer:coarse){ .protate.on{display:inline-flex;} }
 .pcell.letter{background:var(--panel);}
@@ -99,7 +111,18 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .pcell.def > span:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}
 .pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}
 .pcol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}
-.pcol h3{margin:0 0 8px;font-size:13px;color:var(--ink-soft);border-bottom:1px solid var(--line);padding-bottom:6px;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+.pcol h3{margin:0;font-size:13px;color:var(--ink-soft);font-family:ui-monospace,"SF Mono",Consolas,monospace;display:flex;align-items:center;gap:6px;}
+.pcol summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;-webkit-tap-highlight-color:transparent;user-select:none;}
+.pcol summary::-webkit-details-marker{display:none;}
+.pcol summary::after{content:"\25BE";font-size:14px;color:var(--ink-soft);transition:transform .15s;}
+.pcol:not([open]) summary::after{transform:rotate(-90deg);}
+.pcol[open] summary{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px;}
+.pcount{font-weight:400;color:var(--muted);}
+.pbubble{position:absolute;z-index:65;display:none;max-width:min(320px, calc(100vw - 16px));background:var(--panel);color:var(--ink);border:2px solid var(--ink);border-left:6px solid var(--accent);border-radius:8px;padding:10px 12px;box-shadow:0 6px 18px rgba(23,33,46,0.3);font-size:16px;line-height:1.35;}
+.pbubble.show{display:block;}
+.pbubble .pb-row{display:flex;gap:8px;align-items:baseline;}
+.pbubble .pb-row + .pb-row{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);}
+.pbubble .pb-ar{flex:none;font-weight:700;color:var(--accent);}
 .pclue{display:flex;gap:8px;padding:4px 0;font-size:13.5px;cursor:pointer;}
 .pclue .pw{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:var(--muted);min-width:56px;flex:none;letter-spacing:1px;}
 .pclue.active{background:var(--accent-soft);border-radius:4px;}
@@ -147,6 +170,27 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .pmodal-row{display:flex;justify-content:flex-end;gap:8px;}
 @media print{.pactions{display:none;}}
 @media (max-width:720px){.board{flex-direction:column;}}
+/* en-tete compact sur telephone : la grille remonte nettement */
+@media (max-width:560px){
+  .mag-inner{gap:10px;padding:8px 12px;}
+  .mag-badge{width:40px;height:40px;font-size:13px;}
+  .mag-title{font-size:clamp(20px,6.4vw,28px);text-shadow:1.5px 1.5px 0 var(--ink);}
+  .mag-sub{display:none;}
+  .mag-force{font-size:9px;padding:3px 6px;}
+  .mag-strip{padding:4px 12px;font-size:9px;letter-spacing:1px;gap:4px 12px;}
+  .mag-strip span:nth-child(n+3){display:none;}
+  .wrap{padding:12px;}
+  h1{font-size:19px;}
+  .ptitle-row{gap:8px;margin:0 0 10px;}
+  .ptimer{font-size:12.5px;padding:4px 10px;}
+  .psound,.psfx{font-size:11.5px;padding:4px 9px;}
+  .phelp{font-size:10px;gap:4px 10px;margin:6px 0 0;}
+  #pRightText,#pDownText{font-size:13px;}
+  .cb-tiptext{font-size:11.5px;padding-left:30px;}
+  .clue-bar{padding:6px 8px;}
+  .pactions{gap:6px;margin-top:10px;}
+  .pbtn{padding:7px 10px;font-size:12px;}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -168,6 +212,7 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 <div class="board">
 <div class="gridwrap">
 <div class="clue-bar" id="pClueBar">
+<button type="button" class="protate" id="pRotate" aria-label="Changer l'orientation"><span>↻</span><span class="pr-dir">→</span></button>
 <div class="cb-row" id="pRowRight"><span class="cb-arrow">→</span><span id="pRightText"></span>
 <button type="button" class="cb-tipbtn" id="pRightTip">💡 +15 s</button>
 <span class="cb-tiptext" id="pRightTipText"></span></div>
@@ -180,7 +225,7 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 <span class="phelp-item"><b>Ordinateur</b> la barre d'espace change l'orientation</span>
 <span class="phelp-item"><b>Téléphone</b> le bouton ↻ en haut à gauche (ou retaper la case) change l'orientation</span>
 </div>
-<div id="pGrid" class="pgrid"></div>
+<div class="gridfade" id="pGridFade"><div class="gridscroll" id="pGridScroll"><div id="pGrid" class="pgrid"></div></div></div>
 <div class="pactions">
 <button id="pVerify" class="pbtn">Vérifier</button>
 <button id="pHint" class="pbtn">💡 Indice</button>
@@ -191,8 +236,8 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 </div>
 </div>
 <div class="pclues">
-<div class="pcol"><h3>→ Horizontales</h3><div id="pRight"></div></div>
-<div class="pcol"><h3>↓ Verticales</h3><div id="pDown"></div></div>
+<details class="pcol"><summary><h3>→ Horizontales <span class="pcount" id="pRightCount"></span></h3></summary><div id="pRight"></div></details>
+<details class="pcol"><summary><h3>↓ Verticales <span class="pcount" id="pDownCount"></span></h3></summary><div id="pDown"></div></details>
 </div>
 </div>
 <div class="pwin" id="pWin">
@@ -349,6 +394,7 @@ for(var r=0;r<rows;r++){ var row=[]; for(var c=0;c<cols;c++){
     slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });
     var titleParts=[]; if(hasR) titleParts.push("\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\u2191 "+data.upClue[i]); if(hasA) titleParts.push("\u21B1 "+data.aboveClue[i]);
     if(titleParts.length) div.title = titleParts.join("  |  ");
+    if(titleParts.length){ div.dataset.i = i; attachBubble(div); }
     row.push(null);
   } else { row.push(null); }
 } cellRefs.push(row); }
@@ -368,11 +414,13 @@ function updateClueBar(r,c){
   rowD.classList.toggle("on", dir==="D" && !!dw);
   emptyMsg.style.display = (!rw && !dw) ? "block" : "none";
   if(typeof paintRot === "function") paintRot();
+  if(typeof ajusterBarre === "function") ajusterBarre();
 }
 function onFocusCell(e){ var r=+e.target.dataset.r, c=+e.target.dataset.c;
   if(!canDir(r,c,dir)){ dir = dir==="R"?"D":"R"; }
   curR = r; curC = c;
-  highlight(r,c); updateClueBar(r,c); if(typeof paintRot === "function") paintRot(); }
+  highlight(r,c); updateClueBar(r,c); if(typeof paintRot === "function") paintRot();
+  if(typeof garderVisible === "function") garderVisible(r,c); }
 // Retaper une case deja selectionnee fait pivoter le sens : c est la
 // convention des mots croises, et le seul geste possible sans clavier.
 function onPressCell(e){ dejaActive = (document.activeElement === e.currentTarget); }
@@ -567,6 +615,8 @@ function clueRow(w,d){ var row=document.createElement("div"); row.className="pcl
 document.getElementById("pRowRight").addEventListener("click", function(){ pickDir("R"); });
 document.getElementById("pRowDown").addEventListener("click", function(){ pickDir("D"); });
 renderClues();
+document.getElementById("pRightCount").textContent = "(" + data.rightWords.length + ")";
+document.getElementById("pDownCount").textContent = "(" + data.downWords.length + ")";
 document.getElementById("pVerify").addEventListener("click", function(){
   var total=0, correct=0;
   for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; total++; var el=cellRefs[r][c]; var sol=data.solution[idx(r,c)]; el.parentElement.classList.remove("correct","incorrect"); if(!el.value) continue; if(normalize(el.value)===sol){ el.parentElement.classList.add("correct"); correct++; } else { el.parentElement.classList.add("incorrect"); } } }
@@ -786,19 +836,68 @@ document.getElementById("pBoardBtn").addEventListener("click", function(){
   loadBoard();
 });
 initBoard();
+// ---------- bulle de definition ----------
+// Toucher une case de definition affiche son texte en grand, sans changer
+// la case selectionnee : le geste par defaut est annule, sinon la case en
+// cours perdrait le focus et le clavier du telephone se fermerait.
+var bubbleEl = null, bubbleFor = null, bubbleLast = 0;
+function bubbleNode(){
+  if(!bubbleEl){
+    bubbleEl = document.createElement("div"); bubbleEl.className = "pbubble";
+    bubbleEl.addEventListener("mousedown", function(e){ e.preventDefault(); });
+    bubbleEl.addEventListener("click", hideBubble);
+    document.body.appendChild(bubbleEl);
+  }
+  return bubbleEl;
+}
+function hideBubble(){ if(bubbleEl){ bubbleEl.classList.remove("show"); } bubbleFor = null; }
+function showBubble(div){
+  var now = Date.now(); if(now - bubbleLast < 350) return; bubbleLast = now;
+  if(bubbleFor === div){ hideBubble(); return; }
+  var i = +div.dataset.i;
+  var parts = [["\u2191", data.upClue], ["\u21B1", data.aboveClue], ["\u2192", data.rightClue], ["\u2935", data.besideClue], ["\u2190", data.leftClue], ["\u2193", data.downClue], ["\u21B3", data.belowClue]];
+  var b = bubbleNode(); b.innerHTML = "";
+  parts.forEach(function(pt){
+    var t = pt[1] && pt[1][i]; if(!t || !t.trim()) return;
+    var row = document.createElement("div"); row.className = "pb-row";
+    var a = document.createElement("span"); a.className = "pb-ar"; a.textContent = pt[0];
+    var tx = document.createElement("span"); tx.textContent = t;
+    row.appendChild(a); row.appendChild(tx); b.appendChild(row);
+  });
+  b.classList.add("show"); bubbleFor = div;
+  var rc = div.getBoundingClientRect(), bw = b.offsetWidth, bh = b.offsetHeight;
+  var vw = document.documentElement.clientWidth;
+  var left = rc.left + rc.width/2 - bw/2;
+  left = Math.max(8, Math.min(left, vw - bw - 8));
+  var top = rc.bottom + 6;
+  var vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  if(top + bh > vh - 8 && rc.top - bh - 6 > 8) top = rc.top - bh - 6;
+  b.style.left = (left + window.scrollX) + "px";
+  b.style.top = (top + window.scrollY) + "px";
+}
+function attachBubble(div){
+  var sx = 0, sy = 0, moved = false;
+  div.addEventListener("touchstart", function(e){ var t = e.touches[0]; sx = t.clientX; sy = t.clientY; moved = false; }, {passive:true});
+  div.addEventListener("touchmove", function(e){ var t = e.touches[0]; if(Math.abs(t.clientX-sx) > 10 || Math.abs(t.clientY-sy) > 10) moved = true; }, {passive:true});
+  div.addEventListener("touchend", function(e){ if(moved) return; e.preventDefault(); showBubble(div); });
+  div.addEventListener("mousedown", function(e){ e.preventDefault(); });
+  div.addEventListener("click", function(){ showBubble(div); });
+}
+// fermeture : ailleurs dans la page, a la saisie, ou si la mise en page change
+document.addEventListener("touchstart", function(e){ if(bubbleFor && !e.target.closest(".pbubble") && !e.target.closest(".pcell.def")) hideBubble(); }, {passive:true});
+document.addEventListener("mousedown", function(e){ if(bubbleFor && !e.target.closest(".pbubble") && !e.target.closest(".pcell.def")) hideBubble(); });
+gridEl.addEventListener("input", hideBubble);
+window.addEventListener("resize", hideBubble);
 // ---------- bouton de rotation (ecrans tactiles) ----------
 // Fixe dans le coin, il reste a portee quel que soit le defilement. Il agit
 // au contact et annule le geste par defaut, sinon la case perdrait le focus
 // et le clavier du telephone se refermerait.
-var rotBtn = document.createElement("button");
-rotBtn.type = "button"; rotBtn.className = "protate";
-rotBtn.setAttribute("aria-label", "Changer l orientation");
-rotBtn.innerHTML = '<span>\u21BB</span><span class="pr-dir">\u2192</span>';
-document.body.appendChild(rotBtn);
+var rotBtn = document.getElementById("pRotate");
 function paintRot(){
   if(!rotBtn) return;
   if(curR < 0){ rotBtn.classList.remove("on"); return; }
   rotBtn.classList.add("on");
+  document.getElementById("pClueBar").classList.add("has-rot");
   rotBtn.querySelector(".pr-dir").textContent = dir === "R" ? "\u2192" : "\u2193";
   rotBtn.classList.toggle("single", !canDir(curR, curC, dir === "R" ? "D" : "R"));
 }
@@ -815,12 +914,6 @@ function doRotate(e){
 rotBtn.addEventListener("touchstart", doRotate, {passive:false});
 rotBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });
 rotBtn.addEventListener("click", doRotate);
-// Sur iPhone, le clavier decale la zone visible : on recale le bouton dessus.
-if(window.visualViewport){
-  var placeRot = function(){ rotBtn.style.top = (window.visualViewport.offsetTop + 10) + "px"; rotBtn.style.left = (window.visualViewport.offsetLeft + 10) + "px"; };
-  window.visualViewport.addEventListener("resize", placeRot);
-  window.visualViewport.addEventListener("scroll", placeRot);
-}
 // ---------- sauvegarde de la partie ----------
 // Tout est garde dans le navigateur, grille par grille : lettres, chrono,
 // lettres revelees, indices de definition. Une partie finie ou dont la
@@ -890,6 +983,94 @@ document.getElementById("pReset").addEventListener("click", function(){ clearSav
 document.getElementById("pWinClose").addEventListener("click", function(){
   document.getElementById("pWin").classList.remove("show");
 });
+// ---------- barre de definition : hauteur figee ----------
+// Les definitions n ont pas toutes la meme longueur : sans hauteur fixe, la
+// page sursaute a chaque changement de case. On mesure donc une fois la
+// definition la plus haute de chaque sens, indice compris, et on fige.
+function mesureBarre(){
+  var bar = document.getElementById("pClueBar");
+  bar.style.minHeight = "";
+  var w = bar.clientWidth; if(!w) return;
+  var banc = document.createElement("div");
+  banc.className = "clue-bar" + (rotBtn && rotBtn.classList.contains("on") ? " has-rot" : "");
+  banc.style.cssText += ";position:absolute;left:-9999px;top:0;visibility:hidden;width:" + w + "px;min-height:0;";
+  document.body.appendChild(banc);
+  function hauteurMax(liste, fleche){
+    var max = 0;
+    liste.forEach(function(mot){
+      banc.innerHTML = "";
+      var row = document.createElement("div");
+      row.className = "cb-row"; row.style.display = "flex";
+      var a = document.createElement("span"); a.className = "cb-arrow"; a.textContent = fleche;
+      var t = document.createElement("span"); t.id = ""; t.style.cssText = "flex:1;min-width:0;font-size:14.5px;line-height:1.35;";
+      t.textContent = (mot.clue || "(pas de définition)");
+      row.appendChild(a); row.appendChild(t);
+      if(mot.hint){
+        var bt = document.createElement("span");
+        bt.className = "cb-tipbtn"; bt.style.display = "inline-block";
+        bt.textContent = "\uD83D\uDCA1 +15 s";
+        row.appendChild(bt);
+        var tt = document.createElement("span");
+        tt.className = "cb-tiptext"; tt.style.display = "block";
+        tt.textContent = "\uD83D\uDCA1 " + mot.hint;
+        row.appendChild(tt);
+      }
+      banc.appendChild(row);
+      max = Math.max(max, row.offsetHeight);
+    });
+    return max;
+  }
+  var hR = hauteurMax(data.rightWords, "\u2192");
+  var hD = hauteurMax(data.downWords, "\u2193");
+  document.body.removeChild(banc);
+  // 2 x 8 px de marge interieure + 6 px entre les deux lignes
+  var total = hR + hD + 6 + 16;
+  // Une definition a rallonge ne doit pas manger l ecran : au dela du
+  // plafond, la barre garde sa hauteur et c est le texte qui retrecit.
+  var plafond = Math.max(84, Math.round((window.visualViewport ? window.visualViewport.height : window.innerHeight) * 0.18));
+  barreH = Math.ceil(Math.min(total, plafond));
+  bar.style.height = barreH + "px";
+  bar.style.overflow = "hidden";
+  if(curR >= 0) updateClueBar(curR, curC); else ajusterBarre();
+}
+var barreH = 0;
+// Reduit le texte tant qu il deborde de la hauteur figee.
+function ajusterBarre(){
+  if(!barreH) return;
+  var bar = document.getElementById("pClueBar");
+  var els = [document.getElementById("pRightText"), document.getElementById("pDownText"),
+             document.getElementById("pRightTipText"), document.getElementById("pDownTipText")];
+  els.forEach(function(e){ if(e) e.style.fontSize = ""; });
+  var garde = 0;
+  while(garde < 12 && bar.scrollHeight > barreH + 1){
+    garde++;
+    els.forEach(function(e){
+      if(!e) return;
+      var t = parseFloat(getComputedStyle(e).fontSize);
+      e.style.fontSize = Math.max(9.5, t - 0.7) + "px";
+    });
+  }
+}
+mesureBarre();
+// ---------- defilement horizontal cantonne a la grille ----------
+var scrollEl = document.getElementById("pGridScroll");
+function majFondu(){
+  var w = document.getElementById("pGridFade");
+  w.classList.toggle("more-left", scrollEl.scrollLeft > 2);
+  w.classList.toggle("more-right", scrollEl.scrollLeft + scrollEl.clientWidth < scrollEl.scrollWidth - 2);
+}
+scrollEl.addEventListener("scroll", majFondu);
+majFondu();
+// La case active doit rester visible quand on tape pres du bord.
+function garderVisible(r,c){
+  var el = cellRefs[r] && cellRefs[r][c]; if(!el) return;
+  var cellule = el.parentElement;
+  var x = cellule.offsetLeft, larg = cellule.offsetWidth;
+  var marge = larg;
+  if(x - marge < scrollEl.scrollLeft){ scrollEl.scrollLeft = Math.max(0, x - marge); }
+  else if(x + larg + marge > scrollEl.scrollLeft + scrollEl.clientWidth){ scrollEl.scrollLeft = x + larg + marge - scrollEl.clientWidth; }
+}
+window.addEventListener("resize", function(){ mesureBarre(); majFondu(); });
 tRender();
 </script>
 </body></html>
