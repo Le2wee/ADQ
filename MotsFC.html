@@ -600,6 +600,7 @@
     <input type="file" id="audioInput" accept="audio/*" style="display:none;">
     <span class="audio-name" id="audioName">Son par défaut</span>
     <button class="btn small" id="audioPlayBtn">▶ Écouter</button>
+    <button class="btn small" id="audioStopBtn">⏹ Stop</button>
     <button class="btn small" id="audioPickBtn">Choisir un fichier…</button>
     <button class="btn small" id="audioDefaultBtn" style="display:none;">Remettre celui par défaut</button>
     <button class="btn small danger" id="audioNoneBtn">Aucun son</button>
@@ -2433,16 +2434,40 @@
     }catch(err){ return dataUrl; }
   }
 
+  // Une seule lecture a la fois : reappuyer sur Écouter reprend le son du debut
+  // au lieu d'en empiler une copie de plus.
+  let previewAudio = null, previewUrl = null;
+
+  function stopPreview(){
+    if(previewAudio){
+      try{ previewAudio.pause(); previewAudio.currentTime = 0; }catch(err){}
+    }
+    if(previewUrl){
+      try{ URL.revokeObjectURL(previewUrl); }catch(err){}
+    }
+    previewAudio = null; previewUrl = null;
+  }
+
   document.getElementById('audioPlayBtn').addEventListener('click', ()=>{
     const src = effectiveAudio();
     if(!src) return;
+    stopPreview();
     const url = audioSrcFor(src);
     const a = new Audio(url);
-    a.addEventListener('ended', ()=>{ if(url !== src) URL.revokeObjectURL(url); });
-    a.play().catch(()=>setStatus('Lecture impossible dans ce navigateur.'));
+    previewAudio = a;
+    previewUrl = (url !== src) ? url : null;
+    a.addEventListener('ended', ()=>{ if(previewAudio === a) stopPreview(); });
+    a.play().catch(()=>{ stopPreview(); setStatus('Lecture impossible dans ce navigateur.'); });
+  });
+
+  document.getElementById('audioStopBtn').addEventListener('click', ()=>{
+    if(!previewAudio){ setStatus('Aucun son en cours de lecture.'); return; }
+    stopPreview();
+    setStatus('Lecture arrêtée.');
   });
 
   document.getElementById('audioDefaultBtn').addEventListener('click', ()=>{
+    stopPreview();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -2451,6 +2476,7 @@
   });
 
   document.getElementById('audioNoneBtn').addEventListener('click', ()=>{
+    stopPreview();
     state.audioMode = 'none';
     state.audioData = null;
     state.audioName = '';
