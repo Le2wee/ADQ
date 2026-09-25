@@ -663,6 +663,36 @@ document.getElementById("pZoomFit").addEventListener("click", function(){
 try{ vueEnsemble = localStorage.getItem(VKEY) === "1"; }catch(e){}
 appliquerTaille();
 window.addEventListener("resize", appliquerTaille);
+// ---------- barre de definition : hauteur plancher ----------
+// Elle reserve toujours la place de deux definitions d une ligne, meme
+// quand la case n en a qu une : changer de case ne fait plus sauter la
+// page. Au-dela (definition longue, indice affiche), elle grandit.
+function mesureBarre(){
+  var bar = document.getElementById("pClueBar");
+  bar.style.minHeight = "";
+  var w = bar.clientWidth; if(!w) return;
+  var banc = document.createElement("div");
+  banc.className = "clue-bar";
+  banc.style.cssText += ";position:absolute;left:-9999px;top:0;visibility:hidden;width:" + w + "px;min-height:0;";
+  document.body.appendChild(banc);
+  function ligne(fleche){
+    var row = document.createElement("div");
+    row.className = "cb-row"; row.style.display = "flex";
+    var a = document.createElement("span"); a.className = "cb-arrow"; a.textContent = fleche;
+    var t = document.createElement("span");
+    t.style.cssText = "flex:1;min-width:0;font-size:14.5px;line-height:1.35;";
+    t.textContent = "Ag";
+    row.appendChild(a); row.appendChild(t);
+    banc.appendChild(row);
+    return row.offsetHeight;
+  }
+  var h = ligne("\u2192") + ligne("\u2193");
+  document.body.removeChild(banc);
+  // 2 x 8 px de marge interieure + 6 px entre les deux lignes
+  bar.style.minHeight = Math.ceil(h + 6 + 16) + "px";
+}
+mesureBarre();
+window.addEventListener("resize", mesureBarre);
 renderClues();
 document.getElementById("pRightCount").textContent = "(" + data.rightWords.length + ")";
 document.getElementById("pDownCount").textContent = "(" + data.downWords.length + ")";
