@@ -371,6 +371,15 @@
     box-shadow:0 12px 32px rgba(0,0,0,0.25);
   }
   .modal p{margin:0 0 16px;font-size:14px;color:var(--ink);}
+  .modal.large{max-width:460px;}
+  .check-title{margin:0 0 10px;font-size:15px;font-weight:700;color:var(--ink);}
+  .check-sec{margin:0 0 12px;font-size:13px;color:var(--ink);}
+  .check-sec b{display:block;margin-bottom:4px;font-size:12px;letter-spacing:0.4px;text-transform:uppercase;color:var(--ink-soft);}
+  .check-mots{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow:auto;}
+  .check-mot{border:1px solid var(--danger);color:var(--danger);border-radius:999px;padding:2px 9px;font-size:12.5px;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;letter-spacing:0.5px;}
+  .check-ligne{margin:2px 0;}
+  .check-note{margin:10px 0 0;font-size:12px;color:var(--muted);font-style:italic;}
   .modal .row{display:flex;justify-content:flex-end;gap:8px;}
 
   @media (max-width:760px){
@@ -585,11 +594,12 @@
           <button class="btn small" id="findLenMinus" type="button">−</button>
           <input type="number" id="findLen" min="2" max="20" value="7">
           <button class="btn small" id="findLenPlus" type="button">+</button>
+          <button class="btn small" id="findAnchor" type="button" title="Où les lettres restent quand on change la longueur">Commence par</button>
           <button class="btn small" id="findFromCell" title="Reprendre le mot sélectionné dans la grille">Depuis la grille</button>
           <button class="btn small" id="findClear" type="button">Effacer</button>
         </div>
         <div class="find-boxes" id="findBoxes"></div>
-        <p class="find-hint">Laisse vide les positions inconnues. Clique un résultat pour le poser dans la grille.</p>
+        <p class="find-hint">Laisse vide les positions inconnues. Clique un résultat pour le poser dans la grille. Le bouton « Commence par / Se termine par » choisit le bord où les lettres restent collées quand tu changes la longueur.</p>
         <div id="findStatus" class="find-status"></div>
         <div id="findResults" class="find-results"></div>
       </div>
@@ -658,6 +668,18 @@
 
   </div>
 
+</div>
+
+<div class="modal-overlay" id="checkOverlay">
+  <div class="modal large">
+    <p class="check-title" id="checkTitle">Vérification avant export</p>
+    <div id="checkBody"></div>
+    <p class="check-note" id="checkNote"></p>
+    <div class="row">
+      <button class="btn small" id="checkCancel">Corriger</button>
+      <button class="btn small primary" id="checkGo">Exporter quand même</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -1678,9 +1700,19 @@
   // a compter des caracteres jokers a la main.
   const FIND_MIN = 2, FIND_MAX = 20;
 
+  // Ancrage des lettres deja saisies quand la longueur change : au debut du mot
+  // (defaut) ou a la fin, pour chercher une terminaison.
+  let findAnchor = 'start';
+
   function buildFindBoxes(len, keep){
     const wrap = document.getElementById('findBoxes');
-    const previous = keep ? readFindPattern() : '';
+    let previous = keep ? readFindPattern() : '';
+    if(previous && findAnchor === 'end'){
+      // on recale le motif sur le bord droit : les lettres restent a la fin
+      previous = (len >= previous.length)
+        ? '?'.repeat(len - previous.length) + previous
+        : previous.slice(previous.length - len);
+    }
     wrap.innerHTML = '';
     for(let i=0;i<len;i++){
       const box = document.createElement('div');
@@ -1787,6 +1819,28 @@
   });
   document.getElementById('findLenPlus').addEventListener('click', ()=>{
     setFindLength(findBoxes().length + 1, true);
+  });
+  document.getElementById('findAnchor').addEventListener('click', ()=>{
+    findAnchor = (findAnchor === 'start') ? 'end' : 'start';
+    const btn = document.getElementById('findAnchor');
+    btn.textContent = (findAnchor === 'end') ? 'Se termine par' : 'Commence par';
+    btn.classList.toggle('primary', findAnchor === 'end');
+    if(findAnchor === 'end'){
+      // on recolle tout de suite les lettres deja tapees contre le bord droit
+      const motif = readFindPattern().replace(/\?+$/, '');
+      const n = findBoxes().length;
+      const cale = '?'.repeat(Math.max(0, n - motif.length)) + motif.slice(-n);
+      findBoxes().forEach((inp, i) => { inp.value = (cale[i] && cale[i] !== '?') ? cale[i] : ''; });
+    } else {
+      const motif = readFindPattern().replace(/^\?+/, '');
+      const n = findBoxes().length;
+      const cale = (motif + '?'.repeat(n)).slice(0, n);
+      findBoxes().forEach((inp, i) => { inp.value = (cale[i] && cale[i] !== '?') ? cale[i] : ''; });
+    }
+    renderFindResults();
+    setStatus(findAnchor === 'end'
+      ? 'Les lettres restent collées à la fin du mot.'
+      : 'Les lettres restent collées au début du mot.');
   });
   document.getElementById('findClear').addEventListener('click', ()=>{
     findBoxes().forEach(i => i.value = '');
@@ -1959,6 +2013,115 @@
     buildGrid(state.rows, state.cols, false);
     setStatus('Grille réinitialisée.');
   });
+
+  // ---------- verification avant export ----------
+  // Les mots de la grille sont confrontes au dictionnaire embarque. Les sigles
+  // et les mots volontairement absents sont retenus une fois pour toutes, pour
+  // ne pas reposer la question a chaque export.
+  const MOTS_OK_KEY = 'mf-mots-valides';
+
+  function motsValides(){
+    try{ return new Set(JSON.parse(localStorage.getItem(MOTS_OK_KEY) || '[]')); }
+    catch(err){ return new Set(); }
+  }
+
+  function memoriserMots(liste){
+    const s = motsValides();
+    liste.forEach(m => s.add(m));
+    try{ localStorage.setItem(MOTS_OK_KEY, JSON.stringify([...s])); }catch(err){}
+  }
+
+  let DICO = null;
+  function dictionnaire(){
+    if(!DICO) DICO = new Set(loadWords());
+    return DICO;
+  }
+
+  function motDuMot(w){ return w.cells.map(({r,c}) => get(r,c).letter || '').join(''); }
+
+  function controlerGrille(){
+    const dico = dictionnaire(), connus = motsValides();
+    const inconnus = [], sansDef = [];
+    const tous = [...state.words.right, ...state.words.down].filter(w=>w.cells.length);
+    tous.forEach(w=>{
+      const mot = motDuMot(w);
+      if(mot.length !== w.cells.length) return;          // mot incomplet : deja signale comme case vide
+      if(!dico.has(mot) && !connus.has(mot) && inconnus.indexOf(mot) === -1) inconnus.push(mot);
+      if(!(w.clue || '').trim()) sansDef.push(mot);
+    });
+    // deux mots du meme sens ne doivent jamais se partager une case
+    const chevauchements = [];
+    [['right', state.words.right], ['down', state.words.down]].forEach(([sens, liste])=>{
+      const vu = new Map();
+      liste.forEach((w, i)=>{
+        w.cells.forEach(({r,c})=>{
+          const cle = r + ',' + c;
+          if(vu.has(cle)){
+            const paire = sens + vu.get(cle) + '-' + i;
+            if(chevauchements.indexOf(paire) === -1) chevauchements.push(paire);
+          }
+          vu.set(cle, i);
+        });
+      });
+    });
+    // memes lettres deux fois dans la grille
+    const vus = new Map(), doublons = [];
+    tous.forEach(w=>{
+      const mot = motDuMot(w);
+      if(mot.length !== w.cells.length) return;
+      if(vus.has(mot)){ if(doublons.indexOf(mot) === -1) doublons.push(mot); }
+      vus.set(mot, true);
+    });
+    // reprise des comptes de la barre d'avertissement
+    let isolees = 0, vides = 0;
+    for(let r=0;r<state.rows;r++){
+      for(let c=0;c<state.cols;c++){
+        const cell = get(r,c);
+        if(cell.type !== 'letter') continue;
+        if(!belongsRight(r,c) && !belongsDown(r,c)) isolees++;
+        else if(!cell.letter) vides++;
+      }
+    }
+    return {inconnus, sansDef, chevauchements, doublons, isolees, vides};
+  }
+
+  function panneauControle(rapport){
+    return new Promise((resolve)=>{
+      const overlay = document.getElementById('checkOverlay');
+      const body = document.getElementById('checkBody');
+      const bouts = [];
+      if(rapport.inconnus.length){
+        bouts.push('<div class="check-sec"><b>Ces mots semblent erronés, les confirmez-vous ?</b>' +
+          '<div class="check-mots">' + rapport.inconnus.map(m=>'<span class="check-mot">' + m + '</span>').join('') + '</div></div>');
+      }
+      const autres = [];
+      if(rapport.chevauchements.length) autres.push(rapport.chevauchements.length + ' paire' + (rapport.chevauchements.length>1?'s':'') + ' de mots qui se chevauchent dans le même sens');
+      if(rapport.doublons.length) autres.push('mot' + (rapport.doublons.length>1?'s':'') + ' en double : ' + rapport.doublons.join(', '));
+      if(rapport.isolees) autres.push(rapport.isolees + ' case' + (rapport.isolees>1?'s':'') + ' isolée' + (rapport.isolees>1?'s':'') + ' (atteinte par aucune définition)');
+      if(rapport.vides) autres.push(rapport.vides + ' case' + (rapport.vides>1?'s':'') + ' vide' + (rapport.vides>1?'s':''));
+      if(rapport.sansDef.length) autres.push(rapport.sansDef.length + ' mot' + (rapport.sansDef.length>1?'s':'') + ' sans définition');
+      if(autres.length){
+        bouts.push('<div class="check-sec"><b>À vérifier aussi</b>' +
+          autres.map(t=>'<div class="check-ligne">• ' + t + '</div>').join('') + '</div>');
+      }
+      body.innerHTML = bouts.join('');
+      document.getElementById('checkNote').textContent = rapport.inconnus.length
+        ? 'Les mots confirmés ne seront plus signalés par la suite.' : '';
+      overlay.classList.add('show');
+      const go = document.getElementById('checkGo');
+      const stop = document.getElementById('checkCancel');
+      function fin(ok){
+        overlay.classList.remove('show');
+        go.removeEventListener('click', onGo);
+        stop.removeEventListener('click', onStop);
+        resolve(ok);
+      }
+      function onGo(){ memoriserMots(rapport.inconnus); fin(true); }
+      function onStop(){ fin(false); }
+      go.addEventListener('click', onGo);
+      stop.addEventListener('click', onStop);
+    });
+  }
 
   // ---------- confirm modal ----------
   function confirmModal(message){
@@ -2991,7 +3154,16 @@
   });
 
   // ---------- export playable file ----------
-  document.getElementById('exportBtn').addEventListener('click', exportPlayable);
+  document.getElementById('exportBtn').addEventListener('click', async ()=>{
+    const rapport = controlerGrille();
+    const souci = rapport.inconnus.length || rapport.chevauchements.length || rapport.doublons.length ||
+                  rapport.isolees || rapport.vides || rapport.sansDef.length;
+    if(souci){
+      const suite = await panneauControle(rapport);
+      if(!suite){ setStatus('Export annulé : corrige la grille puis relance.'); return; }
+    }
+    exportPlayable();
+  });
 
   function exportPlayable(){
     const title = state.title.trim() || 'Mots fléchés';
