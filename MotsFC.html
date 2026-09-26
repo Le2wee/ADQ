@@ -370,6 +370,13 @@
   .find-box span{font-size:9.5px;color:var(--muted);font-family:ui-monospace,"SF Mono",Consolas,monospace;}
   .find-hint{margin:8px 0 0;font-size:11.5px;color:var(--muted);line-height:1.4;}
   .find-status{margin-top:8px;font-size:12px;color:var(--ink-soft);}
+  #dupWord{flex:1;min-width:110px;text-transform:uppercase;}
+  .dup-results{margin-top:6px;max-height:230px;overflow:auto;}
+  .dup-item{padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .dup-item:last-child{border-bottom:none;}
+  .dup-item b{font-family:ui-monospace,"SF Mono",Consolas,monospace;letter-spacing:1px;}
+  .dup-use{margin-left:12px;font-size:11.5px;color:var(--ink-soft);}
+  .dup-mine{font-style:italic;color:var(--muted);}
   .find-results{
     margin-top:6px;max-height:260px;overflow-y:auto;
     display:flex;flex-wrap:wrap;gap:5px;
@@ -405,7 +412,8 @@
   .check-mots{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow:auto;}
   .check-mot{border:1px solid var(--danger);color:var(--danger);border-radius:999px;padding:2px 9px;font-size:12.5px;
     font-family:ui-monospace,"SF Mono",Consolas,monospace;letter-spacing:0.5px;}
-  .check-ligne{margin:2px 0;}
+  .check-ligne{margin:6px 0;}
+  .check-usage{margin-left:14px;font-size:12px;color:var(--ink-soft);}
   .check-note{margin:10px 0 0;font-size:12px;color:var(--muted);font-style:italic;}
   .modal .row{display:flex;justify-content:flex-end;gap:8px;}
 
@@ -640,6 +648,16 @@
       <div id="grid" tabindex="0" class="mode-letters"></div>
     </div>
     <div class="clues-panel">
+      <div class="clue-col finder">
+        <h3>♻️ DÉJÀ UTILISÉ ?</h3>
+        <div class="find-row">
+          <button class="btn small" id="dupBtn" type="button">Vérifier toute la grille</button>
+          <input type="text" id="dupWord" placeholder="ou un mot précis" autocomplete="off" maxlength="24">
+          <button class="btn small" id="dupWordBtn" type="button">Chercher</button>
+        </div>
+        <div id="dupStatus" class="find-status"></div>
+        <div id="dupResults" class="dup-results"></div>
+      </div>
       <div class="clue-col finder">
         <h3>🔍 CHERCHER UN MOT</h3>
         <div class="find-row">
@@ -1845,7 +1863,7 @@
     if(!imgStart){
       imgStart = {r,c};
       renderGrid();
-      setStatus('Coin de départ posé. Clique maintenant le coin opposé.');
+      setStatus('Coin posé. Reclique la même case pour une image d\u2019une seule case, ou clique le coin opposé.');
       return;
     }
     const r0 = Math.min(imgStart.r, r), c0 = Math.min(imgStart.c, c);
@@ -1855,12 +1873,6 @@
     if(state.images.some(z => zonesChevauchent(z, zone))){
       renderGrid();
       setStatus('Cette zone en recouvre une autre. Retire d\u2019abord l\u2019image existante.');
-      return;
-    }
-    // une zone d'une seule case n'a aucun interet et cache une fausse manoeuvre
-    if(h * w < 2){
-      renderGrid();
-      setStatus('Une zone image fait au moins deux cases.');
       return;
     }
     let contenu = false;
@@ -1922,7 +1934,9 @@
     state.selected = null;
     markDirty();
     recomputeWords(); renderGrid(); renderClueLists(); updateWarnings(); updateClueBar();
-    setStatus('Image posée sur ' + zone.h + ' × ' + zone.w + ' cases (' + Math.round(data.length * 0.75 / 1024) + ' Ko).');
+    setStatus(zone.h * zone.w === 1
+      ? 'Image posée sur une case (' + Math.round(data.length * 0.75 / 1024) + ' Ko).'
+      : 'Image posée sur ' + zone.h + ' × ' + zone.w + ' cases (' + Math.round(data.length * 0.75 / 1024) + ' Ko).');
   });
 
   // Les zones sont dessinees par-dessus la grille, une fois les cases en place.
@@ -2435,6 +2449,181 @@
 
   (function(){var b=document.getElementById("magBadge"),l=document.querySelector("link[rel=icon]");if(b&&l) b.src=l.href;})();
 
+  // ---------- index des mots par grille ----------
+  // Chaque grille depose la liste de ses mots complets dans une collection a
+  // part : verifier les doublons ne coute alors qu'une lecture de quelques Ko,
+  // au lieu de recharger toutes les grilles.
+  // L'index vit dans un document unique de la collection des grilles : pas de
+  // nouvelle collection a autoriser dans les regles Firestore.
+  const INDEX_DOC = '__motsIndex';
+  function indexDoc(){ return gridsCollection().doc(INDEX_DOC); }
+
+  function motsDeLaGrille(){
+    const out = [];
+    [...state.words.right, ...state.words.down].forEach(w=>{
+      if(!w.cells.length) return;
+      const mot = w.cells.map(({r,c}) => get(r,c).letter || '').join('');
+      if(mot.length !== w.cells.length) return;
+      if(out.some(x => x.m === mot)) return;
+      out.push({m: mot, d: (w.clue || '').slice(0, 120)});
+    });
+    return out;
+  }
+
+  function listeMots(entrees){
+    // l'index des premieres versions ne contenait que des chaines
+    return (entrees || []).map(x => (typeof x === 'string') ? {m:x, d:''} : x);
+  }
+
+  async function majIndexMots(){
+    if(!currentUser || !fbDb || !currentGridId || currentGridId === INDEX_DOC) return;
+    try{
+      const entree = {};
+      entree[currentGridId] = { title: state.title || 'Sans titre', words: motsDeLaGrille() };
+      await indexDoc().set({ motsIndex: entree }, {merge:true});
+    }catch(err){ /* l'index n'est pas vital : on n'interrompt rien */ }
+  }
+
+  // Relit la structure d'une grille enregistree pour en extraire les mots.
+  function motsDepuisCells(cells, rows, cols){
+    const at = (r,c) => cells[r*cols+c];
+    const estLettre = (r,c) => r>=0 && c>=0 && r<rows && c<cols && at(r,c) && at(r,c).type === 'letter';
+    const mots = [];
+    // La definition d'un mot vient de la case voisine, selon le sens de lecture :
+    // on la retrouve en regardant autour de la premiere lettre.
+    function defPour(r,c,horizontal){
+      const cand = horizontal
+        ? [[r, c-1, ['rightClue']], [r-1, c, ['belowClue']], [r+1, c, ['aboveClue']], [r, c+0, []]]
+        : [[r-1, c, ['downClue']], [r, c-1, ['besideClue']], [r, c+1, ['downClue']], [r, c+0, []]];
+      for(const [i,j,champs] of cand){
+        if(i<0 || j<0 || i>=rows || j>=cols) continue;
+        const cell = at(i,j);
+        if(!cell || cell.type !== 'def') continue;
+        for(const ch of champs){ if((cell[ch] || '').trim()) return cell[ch].trim(); }
+      }
+      return '';
+    }
+    function lire(r,c,dr,dc){
+      let mot = '';
+      let i = r, j = c;
+      while(estLettre(i,j)){ mot += at(i,j).letter || ''; i += dr; j += dc; }
+      if(mot.length > 1 && !mots.some(x => x.m === mot)){
+        mots.push({m: mot, d: defPour(r, c, dc === 1).slice(0, 120)});
+      }
+    }
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        if(!estLettre(r,c)) continue;
+        if(!estLettre(r,c-1)) lire(r,c,0,1);
+        if(!estLettre(r-1,c)) lire(r,c,1,0);
+      }
+    }
+    return mots;
+  }
+
+  // Grilles enregistrees avant l'index : on les lit une fois pour le construire.
+  async function reconstruireIndex(){
+    const snap = await gridsCollection().get();
+    const entrees = {};
+    let faites = 0;
+    snap.docs.forEach(doc=>{
+      if(doc.id === INDEX_DOC) return;
+      const data = doc.data();
+      let cells;
+      try{ cells = JSON.parse(data.cellsJson || '[]'); }catch(err){ return; }
+      entrees[doc.id] = {
+        title: data.title || 'Sans titre',
+        words: motsDepuisCells(cells, data.rows, data.cols)
+      };
+      faites++;
+      dupStatus('Lecture des grilles : ' + faites + '…');
+    });
+    await indexDoc().set({ motsIndex: entrees }, {merge:true});
+    return entrees;
+  }
+
+  // Renvoie l'index complet {idGrille: {title, words}}, en le construisant au
+  // premier appel.
+  async function chargerIndex(){
+    const doc = await indexDoc().get();
+    const data = doc.exists ? (doc.data().motsIndex || null) : null;
+    if(data && Object.keys(data).length) return data;
+    dupStatus('Premier passage : lecture de toutes tes grilles…');
+    return await reconstruireIndex();
+  }
+
+  async function chercherDoublons(mots){
+    if(!currentUser || !fbDb){ dupStatus('Connecte-toi pour comparer avec tes autres grilles.'); return null; }
+    const index = await chargerIndex();
+    const cherches = mots.map(x => x.m);
+    const trouves = [];
+    Object.keys(index).forEach(id=>{
+      if(id === currentGridId) return;
+      const d = index[id] || {};
+      const titre = d.title || 'Sans titre';
+      listeMots(d.words).forEach(entree=>{
+        if(cherches.indexOf(entree.m) === -1) return;
+        let deja = trouves.find(t => t.mot === entree.m);
+        if(!deja){ deja = {mot: entree.m, usages: []}; trouves.push(deja); }
+        if(!deja.usages.some(u => u.titre === titre && u.def === (entree.d || ''))){
+          deja.usages.push({titre, def: entree.d || ''});
+        }
+      });
+    });
+    trouves.sort((a,b)=> a.mot.localeCompare(b.mot));
+    return trouves;
+  }
+
+  function echapper(t){
+    return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
+
+  function dupStatus(t){ document.getElementById('dupStatus').textContent = t; }
+
+  function afficherDoublons(trouves, mots){
+    const res = document.getElementById('dupResults');
+    res.innerHTML = trouves.map(t => {
+      const mienne = ((mots || []).find(x => x.m === t.mot) || {}).d || '';
+      const usages = t.usages.map(u => '<div class="dup-use">' + echapper(u.titre) +
+        (u.def ? ' — « ' + echapper(u.def) + ' »' : ' — définition inconnue') + '</div>').join('');
+      return '<div class="dup-item"><b>' + echapper(t.mot) + '</b>' +
+             (mienne ? ' <span class="dup-mine">ici : « ' + echapper(mienne) + ' »</span>' : '') +
+             usages + '</div>';
+    }).join('');
+  }
+
+  async function lancerComparaison(mots, libelle){
+    flushClueRedraw();
+    document.getElementById('dupResults').innerHTML = '';
+    if(!mots.length){ dupStatus('Rien à comparer.'); return; }
+    dupStatus('Comparaison en cours…');
+    let trouves;
+    try{ trouves = await chercherDoublons(mots); }
+    catch(err){
+      const code = err.code || err.message || '';
+      dupStatus(code.indexOf('permission') !== -1
+        ? 'Accès refusé par Firebase : les règles doivent autoriser la collection des grilles.'
+        : 'Comparaison impossible (' + code + ').');
+      return;
+    }
+    if(trouves === null) return;
+    if(!trouves.length){ dupStatus(libelle + ' : rien de déjà utilisé ✓'); return; }
+    dupStatus(trouves.length + ' mot' + (trouves.length>1?'s':'') + ' déjà utilisé' + (trouves.length>1?'s':'') + ' ailleurs :');
+    afficherDoublons(trouves, mots);
+  }
+
+  document.getElementById('dupBtn').addEventListener('click', ()=> lancerComparaison(motsDeLaGrille(), 'Cette grille'));
+
+  document.getElementById('dupWordBtn').addEventListener('click', ()=>{
+    const champ = document.getElementById('dupWord');
+    const mot = normalizeWord(champ.value);
+    champ.value = mot;
+    lancerComparaison(mot ? [{m: mot, d: ''}] : [], mot);
+  });
+  document.getElementById('dupWord').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') document.getElementById('dupWordBtn').click();
+  });
+
   // ---------- verification avant export ----------
   // Les mots de la grille sont confrontes au dictionnaire embarque. Les sigles
   // et les mots volontairement absents sont retenus une fois pour toutes, pour
@@ -2602,6 +2791,7 @@
         currentGridId = ref.id;
         localStorage.setItem('mf-last-grid-' + currentUser.uid, ref.id);
       }
+      majIndexMots();
       setStatus('Enregistré automatiquement ✓');
     }catch(err){
       dirty = true;   // on retentera au prochain tour
@@ -2713,7 +2903,7 @@
   function subscribeGalleryList(){
     if(unsubscribeGalleryList || !currentUser) return;
     unsubscribeGalleryList = gridsCollection().orderBy('updatedAt','desc').onSnapshot(
-      (snap)=>renderGalleryList(snap.docs),
+      (snap)=>renderGalleryList(snap.docs.filter(d => d.id !== INDEX_DOC)),
       (err)=>setStatus('Erreur de chargement des grilles : ' + err.message)
     );
   }
@@ -2856,6 +3046,7 @@
         localStorage.setItem('mf-last-grid-' + currentUser.uid, ref.id);
       }
       dirty = false;
+      majIndexMots();
       setStatus('Grille enregistrée ✓');
     }catch(err){
       setStatus('Échec de l\u2019enregistrement : ' + err.message);
@@ -2868,6 +3059,7 @@
       const ref = await gridsCollection().add(gridPayloadForSave());
       currentGridId = ref.id;
       localStorage.setItem('mf-last-grid-' + currentUser.uid, ref.id);
+      majIndexMots();
       setStatus('Copie enregistrée ✓');
     }catch(err){
       setStatus('Échec de l\u2019enregistrement : ' + err.message);
