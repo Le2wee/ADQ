@@ -153,6 +153,17 @@
     background:var(--accent-soft);border:1px solid var(--accent);border-radius:6px;
     width:100%;min-width:260px;
   }
+  .cb-add{display:none;}
+  .cb-add.on{display:block;}
+  .cb-del{border:none;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;}
+  .cb-del:hover{color:var(--danger);}
+  .cb-picker{display:none;align-items:center;gap:4px;flex-wrap:wrap;}
+  .cb-picker.on{display:flex;}
+  .cb-pick{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);background:var(--panel);
+    color:var(--ink-soft);font-size:15px;line-height:1;cursor:pointer;padding:0;font-family:inherit;}
+  .cb-pick:hover{border-color:var(--accent);}
+  .cb-pick.filled{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:700;}
+  .cb-pick.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   .cb-row{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;}
   /* L'indice occupe sa propre ligne sous la definition, decale pour s'aligner
      sur le texte plutot que sur la fleche. */
@@ -334,6 +345,7 @@
   }
   .clue-row .clue-text{flex:1;font-size:13px;color:var(--ink);}
   .clue-row .clue-text.empty{color:var(--muted);font-style:italic;}
+  .clue-tip{display:block;margin-top:2px;font-size:11.5px;font-style:italic;color:var(--accent);}
   .clue-row .edit-btn{
     border:none;background:transparent;cursor:pointer;font-size:13px;flex:none;padding:0 2px;
   }
@@ -561,51 +573,68 @@
   <div class="workspace">
     <div class="grid-panel">
       <div class="clue-bar" id="clueBar">
+        <div class="cb-add" id="cbAdd"><button type="button" class="btn small" id="cbAddBtn">+ Ajouter une définition</button></div>
+        <div class="cb-picker" id="cbPicker">
+          <button type="button" class="cb-pick" data-dir="Right"  title="Horizontal, part de la case de droite">→</button>
+          <button type="button" class="cb-pick" data-dir="Beside" title="Vertical, part de la case de droite">⤵</button>
+          <button type="button" class="cb-pick" data-dir="Down"   title="Vertical, part de la case du dessous">↓</button>
+          <button type="button" class="cb-pick" data-dir="Below"  title="Horizontal, part de la case du dessous">↳</button>
+          <button type="button" class="cb-pick" data-dir="Left"   title="Le mot à gauche, lu normalement">←</button>
+          <button type="button" class="cb-pick" data-dir="Up"     title="Le mot au-dessus, lu normalement">↑</button>
+          <button type="button" class="cb-pick" data-dir="Above"  title="Horizontal, part de la case du dessus">↱</button>
+        </div>
         <div class="cb-row" id="cbRowRight">
           <span class="cb-arrow">→</span>
           <textarea id="cbRightInput" class="cb-input" rows="1" placeholder="Définition (sens →)"></textarea>
           <span class="cb-warn" id="cbRightWarn"></span>
+          <button type="button" class="cb-del" data-dir="Right" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbRightHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowBeside">
           <span class="cb-arrow">⤵</span>
           <textarea id="cbBesideInput" class="cb-input" rows="1" placeholder="Définition (vertical, part de la case de droite)"></textarea>
           <span class="cb-warn" id="cbBesideWarn"></span>
+          <button type="button" class="cb-del" data-dir="Beside" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbBesideHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowDown">
           <span class="cb-arrow">↓</span>
           <textarea id="cbDownInput" class="cb-input" rows="1" placeholder="Définition (sens ↓)"></textarea>
           <span class="cb-warn" id="cbDownWarn"></span>
+          <button type="button" class="cb-del" data-dir="Down" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbDownHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowBelow">
           <span class="cb-arrow">↳</span>
           <textarea id="cbBelowInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessous)"></textarea>
           <span class="cb-warn" id="cbBelowWarn"></span>
+          <button type="button" class="cb-del" data-dir="Below" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbBelowHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowLeft">
           <span class="cb-arrow">←</span>
           <textarea id="cbLeftInput" class="cb-input" rows="1" placeholder="Définition (mot à gauche, se lit normalement)"></textarea>
           <span class="cb-warn" id="cbLeftWarn"></span>
+          <button type="button" class="cb-del" data-dir="Left" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbLeftHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowAbove">
           <span class="cb-arrow">↱</span>
           <textarea id="cbAboveInput" class="cb-input" rows="1" placeholder="Définition (horizontal, part de la case du dessus)"></textarea>
           <span class="cb-warn" id="cbAboveWarn"></span>
+          <button type="button" class="cb-del" data-dir="Above" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbAboveHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowUp">
           <span class="cb-arrow">↑</span>
           <textarea id="cbUpInput" class="cb-input" rows="1" placeholder="Définition (mot au-dessus, se lit normalement)"></textarea>
           <span class="cb-warn" id="cbUpWarn"></span>
+          <button type="button" class="cb-del" data-dir="Up" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbUpHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <span class="cb-empty" id="cbEmptyMsg"></span>
         <div class="cb-actions">
-          <button class="btn small danger" id="cbDeleteDef" style="display:none;">Supprimer cette définition</button>
+          <button class="btn small danger" id="cbDeleteDef" style="display:none;">Convertir en case à lettre</button>
         </div>
       </div>
       <div id="grid" tabindex="0" class="mode-letters"></div>
@@ -652,6 +681,12 @@
     <div class="pillgroup" id="sfxGroup">
       <button type="button" data-sfx="1">Inclus</button>
       <button type="button" data-sfx="0">Sans</button>
+    </div>
+    <span class="audio-sep"></span>
+    <span class="audio-label">⏳ Rappel des indices</span>
+    <div class="pillgroup" id="nudgeGroup">
+      <button type="button" data-nudge="1">Après 1 min</button>
+      <button type="button" data-nudge="0">Jamais</button>
     </div>
   </div>
 
@@ -776,6 +811,7 @@
     selected: null,  // {r,c}
     dir: 'R',        // 'R' (right) or 'D' (down) — current typing direction
     mode: 'letters',
+    nudge: true,           // rappel des indices apres une minute sans saisie
     images: [],            // zones illustrees : {r, c, h, w, data}
     hl: [],                // cases mises en valeur : index des cases
     hlColor: 'jaune',      // teinte choisie pour cette grille
@@ -1221,6 +1257,14 @@
       const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 '};
       const marker = markers[w.field] || '';
       text.textContent = marker + (w.clue || '(pas de définition)');
+      // l'indice payant se lit sous la definition, sinon on ne sait pas
+      // lesquelles en ont un sans cliquer case par case
+      if(w.hint){
+        const tip = document.createElement('span');
+        tip.className = 'clue-tip';
+        tip.textContent = '💡 ' + w.hint;
+        text.appendChild(tip);
+      }
 
       const editBtn = document.createElement('button');
       editBtn.className = 'edit-btn';
@@ -1302,6 +1346,64 @@
     el.style.height = Math.min(el.scrollHeight, 160) + 'px';
   }
 
+  const CB_DIRS = [
+    {nom:'Right',  champ:'rightClue',  input:'cbRightInput'},
+    {nom:'Beside', champ:'besideClue', input:'cbBesideInput'},
+    {nom:'Down',   champ:'downClue',   input:'cbDownInput'},
+    {nom:'Below',  champ:'belowClue',  input:'cbBelowInput'},
+    {nom:'Left',   champ:'leftClue',   input:'cbLeftInput'},
+    {nom:'Up',     champ:'upClue',     input:'cbUpInput'},
+    {nom:'Above',  champ:'aboveClue',  input:'cbAboveInput'}
+  ];
+  let cbActive = 'Right', cbCell = null;
+  let cbOuverts = [];        // directions affichees pour la case en cours
+
+  // « + » ouvre le choix de la direction ; la ligne creee reste ensuite
+  // affichee jusqu'a sa suppression.
+  document.getElementById('cbAddBtn').addEventListener('click', ()=>{
+    document.getElementById('cbPicker').classList.add('on');
+    document.getElementById('cbAdd').classList.remove('on');
+  });
+
+  document.getElementById('cbPicker').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.cb-pick');
+    if(!btn) return;
+    cbActive = btn.dataset.dir;
+    if(cbOuverts.indexOf(cbActive) === -1) cbOuverts.push(cbActive);
+    document.getElementById('cbPicker').classList.remove('on');
+    updateClueBar();
+    const d = CB_DIRS.find(x => x.nom === cbActive);
+    const champ = document.getElementById(d.input);
+    if(champ){ champ.focus(); autoGrow(champ); }
+  });
+
+  document.getElementById('clueBar').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.cb-del');
+    if(!btn || !state.selected) return;
+    const nom = btn.dataset.dir;
+    const d = CB_DIRS.find(x => x.nom === nom);
+    const cell = get(state.selected.r, state.selected.c);
+    cell[d.champ] = '';
+    cell[d.champ.replace('Clue','Hint')] = '';
+    cbOuverts = cbOuverts.filter(x => x !== nom);
+    markDirty();
+    recomputeWords(); renderGrid(); renderClueLists(); updateWarnings();
+    updateClueBar();
+    setStatus('Définition supprimée.');
+  });
+
+  // Rafraichit seulement l'etat des pastilles : appele a chaque frappe, il ne
+  // doit rien redessiner d'autre.
+  function majPastilles(){
+    if(!state.selected) return;
+    const cell = get(state.selected.r, state.selected.c);
+    if(!cell || cell.type !== 'def') return;
+    document.querySelectorAll('.cb-pick').forEach(btn=>{
+      const d = CB_DIRS.find(x => x.nom === btn.dataset.dir);
+      btn.classList.toggle('filled', !!(cell[d.champ] || '').trim());
+    });
+  }
+
   function updateClueBar(){
     const rowR = document.getElementById('cbRowRight');
     const rowD = document.getElementById('cbRowDown');
@@ -1327,6 +1429,8 @@
     const upWarn = document.getElementById('cbUpWarn');
     const aboveWarn = document.getElementById('cbAboveWarn');
 
+    document.getElementById('cbPicker').classList.remove('on');
+    document.getElementById('cbAdd').classList.remove('on');
     rowR.style.display = 'none';
     rowD.style.display = 'none';
     rowB.style.display = 'none';
@@ -1358,13 +1462,28 @@
     }
 
     if(cell.type === 'def'){
-      rowR.style.display = 'flex';
-      rowD.style.display = 'flex';
-      rowB.style.display = 'flex';
-      rowS.style.display = 'flex';
-      rowL.style.display = 'flex';
-      rowU.style.display = 'flex';
-      rowA.style.display = 'flex';
+      // Une seule direction est ouverte a la fois : les pastilles disent d'un
+      // coup d'oeil lesquelles sont deja remplies, et la barre reste courte.
+      // En changeant de case, on repart des directions deja renseignees.
+      const cle = r + ',' + c;
+      if(cle !== cbCell){
+        cbCell = cle;
+        cbOuverts = CB_DIRS.filter(d => (cell[d.champ] || '').trim()).map(d => d.nom);
+        cbActive = cbOuverts[0] || null;
+        document.getElementById('cbPicker').classList.remove('on');
+      }
+      // une case vierge propose directement le choix de la direction
+      if(!cbOuverts.length) document.getElementById('cbPicker').classList.add('on');
+      document.getElementById('cbAdd').classList.toggle('on', cbOuverts.length > 0 && cbOuverts.length < CB_DIRS.length);
+      document.querySelectorAll('.cb-pick').forEach(btn=>{
+        const d = CB_DIRS.find(x => x.nom === btn.dataset.dir);
+        const prise = cbOuverts.indexOf(btn.dataset.dir) !== -1;
+        btn.style.display = prise ? 'none' : 'inline-block';
+        btn.classList.toggle('filled', !!(cell[d.champ] || '').trim());
+        btn.classList.remove('active');
+      });
+      const lignes = {Right:rowR, Down:rowD, Below:rowB, Beside:rowS, Left:rowL, Up:rowU, Above:rowA};
+      Object.keys(lignes).forEach(nom => { lignes[nom].style.display = (cbOuverts.indexOf(nom) !== -1) ? 'flex' : 'none'; });
       rightInput.readOnly = false;
       downInput.readOnly = false;
       belowInput.readOnly = false;
@@ -1383,7 +1502,7 @@
       // masque, sinon une valeur d'une autre case resterait affichee.
       CB_TIPS.forEach(t => {
         t.input.value = cell[t.champ.replace('Clue','Hint')] || '';
-        t.bloc.style.display = 'flex';
+        t.bloc.style.display = (cbOuverts.indexOf(t.nom) !== -1) ? 'flex' : 'none';
       });
       [rightInput, downInput, belowInput, besideInput, leftInput, upInput, aboveInput].forEach(autoGrow);
       delBtn.style.display = 'inline-block';
@@ -1408,11 +1527,26 @@
     if(!rw && !dw){ emptyMsg.textContent = 'Case isolée : aucune définition ne mène ici.'; }
   }
 
+  // Redessiner toute la grille a chaque frappe coutait cher : chaque case de
+  // definition remesure son texte pour l'ajuster. On garde le modele a jour
+  // tout de suite, et on repousse le redessin a la fin de la saisie.
+  let redrawTimer = null;
+
+  function flushClueRedraw(){
+    if(!redrawTimer) return;
+    clearTimeout(redrawTimer);
+    redrawTimer = null;
+    renderGrid();
+    renderClueLists();
+  }
+
   function refreshAfterClueEdit(){
     markDirty();
     recomputeWords();
-    renderGrid();
-    renderClueLists();
+    refreshCluePreviews();
+    majPastilles();
+    if(redrawTimer) clearTimeout(redrawTimer);
+    redrawTimer = setTimeout(()=>{ redrawTimer = null; renderGrid(); renderClueLists(); }, 320);
     updateWarnings();
     if(state.selected){
       const {r,c} = state.selected;
@@ -1473,6 +1607,10 @@
     refreshAfterClueEdit();
   });
   // Un indice par definition : meme table pour l'affichage et la saisie.
+  ['cbRightInput','cbDownInput','cbBelowInput','cbBesideInput','cbLeftInput','cbUpInput','cbAboveInput',
+   'cbRightHint','cbDownHint','cbBelowHint','cbBesideHint','cbLeftHint','cbUpHint','cbAboveHint']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('blur', flushClueRedraw); });
+
   const CB_TIPS = [{nom:'Right', champ:'rightClue', input:document.getElementById('cbRightHint'), bloc:document.getElementById('cbRightHint').parentElement}, {nom:'Down', champ:'downClue', input:document.getElementById('cbDownHint'), bloc:document.getElementById('cbDownHint').parentElement}, {nom:'Below', champ:'belowClue', input:document.getElementById('cbBelowHint'), bloc:document.getElementById('cbBelowHint').parentElement}, {nom:'Beside', champ:'besideClue', input:document.getElementById('cbBesideHint'), bloc:document.getElementById('cbBesideHint').parentElement}, {nom:'Left', champ:'leftClue', input:document.getElementById('cbLeftHint'), bloc:document.getElementById('cbLeftHint').parentElement}, {nom:'Up', champ:'upClue', input:document.getElementById('cbUpHint'), bloc:document.getElementById('cbUpHint').parentElement}, {nom:'Above', champ:'aboveClue', input:document.getElementById('cbAboveHint'), bloc:document.getElementById('cbAboveHint').parentElement}];
   CB_TIPS.forEach(t => {
     t.input.addEventListener('input', (e)=>{
@@ -1512,7 +1650,7 @@
     if(cell.type !== 'def') return;
     const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue;
     if(hasContent){
-      const ok = await confirmModal('Supprimer cette définition et transformer la case en case à lettre ?');
+      const ok = await confirmModal('Effacer toutes les définitions de cette case et la rendre à lettre ?');
       if(!ok) return;
     }
     cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.letter='';
@@ -2652,6 +2790,7 @@
     state.difficulty = data.difficulty || 2;   // grids saved before this existed default to ★★
     state.shareId = data.shareId || id;
     state.sfxEnabled = data.sfxEnabled !== false;
+    state.nudge = data.nudge !== false;
     state.winTitle = data.winTitle || '';
     state.winMessage = data.winMessage || '';   // grilles anterieures : bonus inclus
     state.audioMode = data.audioMode || (data.audioData ? 'custom' : 'default');
@@ -2671,6 +2810,7 @@
     updateSfxUI();
     updateWinUI();
     updateSecretUI();
+    updateNudgeUI();
     document.getElementById('pubFile').value = '';
     document.getElementById('pubNum').value = '';
     currentGridId = id;
@@ -2695,6 +2835,7 @@
       difficulty: state.difficulty || 2,
       shareId: state.shareId || null,
       sfxEnabled: state.sfxEnabled !== false,
+      nudge: state.nudge !== false,
       winTitle: state.winTitle || '',
       winMessage: state.winMessage || '',
       audioMode: state.audioMode || 'default',
@@ -2828,6 +2969,21 @@
     state.winTitle = ''; state.winMessage = '';
     markDirty(); updateWinUI();
     setStatus('Message de victoire remis par défaut.');
+  });
+
+  function updateNudgeUI(){
+    const on = state.nudge !== false;
+    document.querySelectorAll('#nudgeGroup button').forEach(btn=>{
+      btn.classList.toggle('active', (btn.dataset.nudge === '1') === on);
+    });
+  }
+
+  document.getElementById('nudgeGroup').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-nudge]');
+    if(!btn) return;
+    state.nudge = btn.dataset.nudge === '1';
+    updateNudgeUI();
+    markDirty();
   });
 
   function updateSfxUI(){
@@ -3506,6 +3662,7 @@
   }
 
   document.getElementById('pdfBtn').addEventListener('click', async ()=>{
+    flushClueRedraw();
     const base = (state.title || 'mots-fleches').toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'mots-fleches';
@@ -3516,6 +3673,7 @@
 
   // ---------- export playable file ----------
   document.getElementById('exportBtn').addEventListener('click', async ()=>{
+    flushClueRedraw();
     const rapport = controlerGrille();
     const souci = rapport.inconnus.length || rapport.chevauchements.length || rapport.doublons.length ||
                   rapport.isolees || rapport.vides || rapport.sansDef.length;
@@ -3561,6 +3719,7 @@
       secret: secret || '',
       secretClue: state.secretClue || '', rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
       sfx: (state.sfxEnabled !== false) ? SFX : null,
+      nudge: state.nudge !== false,
       winTitle: state.winTitle || '',
       winMessage: state.winMessage || '',
       gridId: state.shareId,
@@ -3630,6 +3789,7 @@
       '</div>',
       '<div class="pzoom"><button type="button" class="pzfit" id="pZoomFit">\u2921 Vue d\'ensemble</button></div>',
       '<div class="gridfade" id="pGridFade"><div class="gridscroll" id="pGridScroll"><div id="pGrid" class="pgrid"></div></div></div>',
+      '<div class="pnudge" id="pNudge">💡 N\'oubliez pas les indices de lettres et de définitions !</div>',
       '<div class="psecret" id="pSecret">',
       '<div class="psecret-title">🔒 MOT MYSTÈRE</div>',
       '<div class="psecret-clue" id="pSecretClue"></div>',
@@ -3769,6 +3929,10 @@
       '.psecret.trouve .psecret-boxes input{border-color:var(--ok);background:#EAF3EE;}',
       '.psecret-msg{margin-top:8px;font-size:13px;color:var(--ink-soft);}',
       '.psecret-msg.ok{color:var(--ok);font-weight:700;}',
+      '.pnudge{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(140%);z-index:70;',
+      '  background:var(--ink);color:var(--mag-yellow);border-radius:999px;padding:10px 18px;font-size:13.5px;',
+      '  font-weight:600;box-shadow:0 6px 18px rgba(23,33,46,0.35);transition:transform .25s;max-width:calc(100vw - 24px);text-align:center;}',
+      '.pnudge.show{transform:translateX(-50%) translateY(0);}',
       '.zone-img{position:absolute;z-index:5;object-fit:cover;border:2px solid var(--ink);border-radius:2px;pointer-events:none;}',
       '.hybar{position:absolute;background:#000;z-index:4;pointer-events:none;border-radius:1px;}',
       '.hybar.r{top:-1px;bottom:-1px;right:-3px;width:4px;}',
@@ -3924,6 +4088,7 @@
       '  if(w._tipBtn){ w._tipBtn.style.display = "none"; }',
       '  if(w._tipTxt){ w._tipTxt.style.display = "block"; w._tipTxt.textContent = "💡 " + w.hint; }',
       '  if(curR >= 0) updateClueBar(curR, curC);',
+      '  if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }',
       '}',
       'function paintTip(w, btn, txt){',
       '  if(!w || !w.hint){ btn.style.display = "none"; txt.style.display = "none"; return; }',
@@ -4132,6 +4297,7 @@
       '  if(v){ if(nr<rows && nc<cols && data.types[idx(nr,nc)]==="letter"){ moveTo(nr,nc); } }',
       '  tStartClock();',
       '  if(typeof majPool === "function") majPool();',
+      '  if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }',
       '  checkCompletion();',
       '}',
       // Silent completion watch: fires once, only on a genuine full solve (not
@@ -4245,6 +4411,8 @@
       '  if(solvedAlready || solutionRevealed) return;',
       '  if(!isGridComplete()) return;',
       '  solvedAlready = true;',
+      '  if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }',
+      '  cacherRappel();',
       '  tStop(); tFrozen = true;',
       '  if(typeof saveGame === "function") setTimeout(saveGame, 0);',
       '  for(var fr=0;fr<rows;fr++){ for(var fc=0;fc<cols;fc++){ if(cellRefs[fr][fc]) cellRefs[fr][fc].disabled = true; } }',
@@ -4323,6 +4491,37 @@
       'try{ vueEnsemble = localStorage.getItem(VKEY) === "1"; }catch(e){}',
       'appliquerTaille();',
       'window.addEventListener("resize", appliquerTaille);',
+      '// ---------- rappel des indices ----------',
+      '// Au bout d une minute sans lettre saisie, un bandeau rappelle que les',
+      '// indices existent. Il ne revient qu apres deux minutes, ne parle jamais',
+      '// une fois la grille finie, et se tait quand la page passe en arriere-plan.',
+      'var NUDGE_ATTENTE = 60000, NUDGE_REPOS = 120000;',
+      'var nudgeTimer = null, nudgeDernier = 0;',
+      'function cacherRappel(){',
+      '  var el = document.getElementById("pNudge");',
+      '  if(el) el.classList.remove("show");',
+      '}',
+      'function montrerRappel(){',
+      '  if(solvedAlready || solutionRevealed) return;',
+      '  var el = document.getElementById("pNudge");',
+      '  if(!el) return;',
+      '  nudgeDernier = Date.now();',
+      '  el.classList.add("show");',
+      '  setTimeout(cacherRappel, 7000);',
+      '  armerRappel();',
+      '}',
+      'function armerRappel(){',
+      '  if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }',
+      '  if(data.nudge === false) return;',
+      '  if(solvedAlready || solutionRevealed) return;',
+      '  if(document.visibilityState === "hidden") return;',
+      '  var attente = Math.max(NUDGE_ATTENTE, nudgeDernier + NUDGE_REPOS - Date.now());',
+      '  nudgeTimer = setTimeout(montrerRappel, attente);',
+      '}',
+      'document.addEventListener("visibilitychange", function(){',
+      '  if(document.visibilityState === "hidden"){ if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; } cacherRappel(); }',
+      '  else armerRappel();',
+      '});',
       '// ---------- mot mystere ----------',
       '// Les cases mises en valeur portent une teinte. Leurs lettres, dans l ordre',
       '// de la grille, forment l anagramme a remettre dans l ordre. Le mot est un',
@@ -4540,6 +4739,7 @@
       '               ("Indice " + hintsUsed + " : une lettre révélée")) +',
       '    " (" + left + " case" + (left>1?"s":"") + " restante" + (left>1?"s":"") + ")";',
       '  tStartClock();',
+      '  if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }',
       '  try{ cell.focus(); }catch(e){}',
       '  checkCompletion();',
       '});',
@@ -4552,6 +4752,8 @@
       '  function onConfirm(){',
       '    cleanup();',
       '    solutionRevealed = true;',
+      '    if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }',
+      '    cacherRappel();',
       '    for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value = data.solution[idx(r,c)]; el.disabled = true; el.parentElement.classList.remove("incorrect"); el.parentElement.classList.add("correct"); } }',
       '    tStop(); tFrozen = true;',
       '    document.getElementById("pStatus").textContent = "Solution affichée";',
@@ -4783,6 +4985,7 @@
       'document.getElementById("pWinClose").addEventListener("click", function(){',
       '  document.getElementById("pWin").classList.remove("show");',
       '});',
+      'armerRappel();',
       'tRender();'
     ].join('\n');
   }
@@ -4793,6 +4996,7 @@
   setFindLength(7, false);
   updateDifficultyUI();
   updateSfxUI();
+  updateNudgeUI();
   updateWinUI();
   try{ document.getElementById('pubBase').value = localStorage.getItem('mf-base-url') || ''; }catch(err){}
   initFirebase();
