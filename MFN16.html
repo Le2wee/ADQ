@@ -174,6 +174,15 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .pscore{display:none;margin-top:16px;gap:8px;justify-content:center;flex-wrap:wrap;}
 .pscore.show{display:flex;}
 .pscore input{flex:1;min-width:130px;padding:8px 10px;border:2px solid var(--ink);border-radius:5px;font-size:14px;color:var(--ink);}
+.pavis{display:none;margin-top:10px;text-align:center;}
+.pavis.show{display:block;}
+.pavis-t{font-size:10px;letter-spacing:1.6px;color:var(--mag-yellow);margin-bottom:6px;}
+.pavis-stars{display:flex;justify-content:center;gap:4px;margin-bottom:7px;}
+.pavis-stars button{background:none;border:none;padding:0 2px;font-size:25px;line-height:1;cursor:pointer;color:rgba(255,255,255,0.38);}
+.pavis-stars button.on{color:var(--mag-yellow);}
+.pavis textarea{width:100%;padding:7px 9px;border:2px solid var(--ink);border-radius:5px;font-size:13px;color:var(--ink);font-family:inherit;resize:vertical;}
+.pavis-msg{margin-top:5px;font-size:11.5px;color:var(--mag-yellow);}
+.pavis #pScoreSend{margin-top:9px;width:100%;}
 .pboard{margin-top:14px;text-align:left;font-size:13px;color:#fff;}
 .pboard-title{text-align:center;font-size:11px;letter-spacing:2.5px;color:var(--mag-yellow);margin-bottom:8px;}
 .pboard ol{margin:0;padding:0;list-style:none;max-height:170px;overflow-y:auto;}
@@ -283,7 +292,12 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 <div class="pwin-hints" id="pWinHints"></div>
 <div class="pscore" id="pScore">
 <input id="pScoreName" maxlength="20" placeholder="Ton prénom" autocomplete="off" name="mfjoueur" inputmode="text" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">
-<button class="pbtn pbtn-primary" id="pScoreSend">Envoyer mon temps</button>
+</div>
+<div class="pavis" id="pAvis">
+<div class="pavis-t">TON AVIS — vu uniquement par l'auteur</div>
+<div class="pavis-stars" id="pAvisStars"></div>
+<textarea id="pAvisTxt" maxlength="400" rows="2" placeholder="Un mot sur la grille ? (facultatif)" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other"></textarea>
+<button class="pbtn pbtn-primary" id="pScoreSend">Envoyer</button>
 </div>
 <div class="pboard" id="pBoard"></div>
 <button class="pbtn" id="pWinClose">Fermer</button>
@@ -694,6 +708,7 @@ function checkCompletion(){
     try{ nameEl.value = localStorage.getItem("mf-name") || ""; }catch(e){}
     document.getElementById("pScoreSend").disabled = false;
     document.getElementById("pScore").classList.add("show");
+    document.getElementById("pAvis").classList.add("show");
     loadBoard();
   }
   if(winAudio && !soundMuted){
@@ -1207,6 +1222,49 @@ function loadBoard(){
     try{ console.error("MAXI-FLECHES / lecture du classement:", err); }catch(e){}
   });
 }
+// ---------- avis prive ----------
+// Ecrit dans avis/{grille}/entries/{uid}. Les regles Firestore n accordent
+// la lecture qu au compte de l auteur : le joueur ecrit le sien et ne voit
+// jamais ceux des autres. Un refus ici ne doit pas faire echouer le score,
+// d ou les deux ecritures separees.
+var avisNote = 0;
+function avisRef(){ return boardDb.collection("avis").doc(data.gridId).collection("avisEntries"); }
+function peindreEtoiles(){
+  var box = document.getElementById("pAvisStars");
+  if(!box) return;
+  [].forEach.call(box.children, function(b, i){ b.classList.toggle("on", i < avisNote); });
+}
+(function initAvis(){
+  var box = document.getElementById("pAvisStars");
+  if(!box) return;
+  for(var i=1;i<=5;i++){
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "★"; b.dataset.n = i;
+    b.setAttribute("aria-label", i + " sur 5");
+    b.addEventListener("click", function(ev){
+      var n = +ev.currentTarget.dataset.n;
+      avisNote = (avisNote === n) ? 0 : n;
+      peindreEtoiles();
+    });
+    box.appendChild(b);
+  }
+})();
+function envoyerAvis(nom){
+  var txt = (document.getElementById("pAvisTxt").value || "").trim().slice(0,400);
+  if(!avisNote && !txt) return Promise.resolve(null);
+  if(!boardReady || !boardUid) return Promise.reject(new Error("hors ligne"));
+  return avisRef().doc(boardUid).set({
+    name: nom || "Anonyme",
+    note: parseInt(avisNote, 10) || 0,
+    texte: txt,
+    ms: parseInt(Math.round(tElapsed()), 10),
+    hints: parseInt(hintsUsed, 10) || 0,
+    tips: parseInt(tipsUsed, 10) || 0,
+    secret: !!secretTrouve,
+    titre: data.title || "",
+    at: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
 function sendScore(){
   var btn = document.getElementById("pScoreSend");
   var nameEl = document.getElementById("pScoreName");
@@ -1223,7 +1281,17 @@ function sendScore(){
     at: firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
     document.getElementById("pScore").classList.remove("show");
-    loadBoard();
+    var av = document.getElementById("pAvis");
+    return envoyerAvis(name).then(function(envoye){
+      if(av) av.classList.remove("show");
+      loadBoard();
+      if(envoye !== null) boardMsg("Merci, ton avis est parti.");
+    }).catch(function(e){
+      if(av) av.classList.remove("show");
+      loadBoard();
+      boardMsg("Temps enregistré, mais l'avis n'est pas passé.");
+      try{ console.error("MAXI-FLECHES / avis:", e); }catch(x){}
+    });
   }).catch(function(err){
     btn.disabled = false;
     var code = (err && (err.code || err.message)) || "inconnu";
@@ -1234,6 +1302,7 @@ function sendScore(){
 document.getElementById("pScoreSend").addEventListener("click", sendScore);
 document.getElementById("pBoardBtn").addEventListener("click", function(){
   document.getElementById("pScore").classList.remove("show");
+  document.getElementById("pAvis").classList.remove("show");
   document.getElementById("pWin").classList.add("show");
   loadBoard();
 });

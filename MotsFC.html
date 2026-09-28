@@ -445,6 +445,12 @@
   .gallery-item-info{flex:1;min-width:0;}
   .gallery-item-title{font-weight:600;font-size:14.5px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .gallery-item-date{font-size:12px;color:var(--muted);margin-top:2px;}
+  .avis-pastille{
+    border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);
+    border-radius:20px;padding:1px 9px;font-size:11.5px;font-weight:600;
+    cursor:pointer;margin-left:4px;vertical-align:1px;
+  }
+  .avis-pastille:hover{background:var(--accent);color:#fff;}
   .gallery-item-actions{display:flex;gap:6px;flex:none;}
   .gallery-empty{font-size:13px;color:var(--muted);font-style:italic;margin-top:20px;text-align:center;}
 
@@ -484,6 +490,19 @@
   }
   #winTitleInput{width:150px;}
   #winMsgInput{flex:1;min-width:200px;}
+  .avis-list{margin:8px 24px 0;display:none;}
+  .avis-list.on{display:block;}
+  .avis-moy{font-size:13px;color:var(--ink-soft);margin-bottom:8px;}
+  .avis-moy b{color:var(--accent);}
+  .avis-item{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:9px 12px;margin-bottom:6px;
+  }
+  .avis-head{display:flex;align-items:baseline;gap:8px;font-size:12.5px;}
+  .avis-head .nom{font-weight:700;}
+  .avis-head .note{color:var(--accent);letter-spacing:1px;}
+  .avis-head .meta{color:var(--muted);font-size:11.5px;margin-left:auto;}
+  .avis-item p{margin:5px 0 0;font-size:13px;white-space:pre-wrap;}
   .pub-state{font-size:12.5px;color:var(--muted);}
   .pub-state.on{color:var(--ok);font-weight:600;}
 </style>
@@ -739,6 +758,15 @@
     <button class="btn small" id="pubIndexBtn">Générer la page sommaire ↓</button>
     <span class="pub-state" id="pubState"></span>
   </div>
+
+  <div class="pub-bar">
+    <span class="audio-label">💬 Avis des joueurs</span>
+    <button class="btn small" id="avisBtn" type="button">Charger pour cette grille</button>
+    <button class="btn small" id="avisAllBtn" type="button">Toutes les grilles</button>
+    <span class="pub-state" id="avisState"></span>
+    <button class="btn small" id="avisUidBtn" type="button" title="Identifiant à coller dans la règle Firestore">Mon identifiant</button>
+  </div>
+  <div id="avisList" class="avis-list"></div>
 
   <div class="actions">
     <button class="btn small" id="saveBtn">Enregistrer</button>
@@ -2905,6 +2933,9 @@
     document.getElementById('galleryScreen').style.display = 'block';
     document.getElementById('editorScreen').style.display = 'none';
     subscribeGalleryList();
+    chargerResumeAvis(false).then(carte=>{
+      if(carte && Object.keys(carte).length && dernierSnapGalerie) renderGalleryList(dernierSnapGalerie);
+    });
   }
 
   function showEditor(){
@@ -2912,10 +2943,12 @@
     document.getElementById('editorScreen').style.display = 'block';
   }
 
+  let dernierSnapGalerie = null;
+
   function subscribeGalleryList(){
     if(unsubscribeGalleryList || !currentUser) return;
     unsubscribeGalleryList = gridsCollection().orderBy('updatedAt','desc').onSnapshot(
-      (snap)=>renderGalleryList(snap.docs.filter(d => d.id !== INDEX_DOC)),
+      (snap)=>{ dernierSnapGalerie = snap.docs.filter(d => d.id !== INDEX_DOC); renderGalleryList(dernierSnapGalerie); },
       (err)=>setStatus('Erreur de chargement des grilles : ' + err.message)
     );
   }
@@ -2946,6 +2979,14 @@
       date.className = 'gallery-item-date';
       date.textContent = formatUpdatedAt(data.updatedAt) + (data.rows && data.cols ? ` · ${data.rows}\u00D7${data.cols}` : '');
       info.appendChild(title); info.appendChild(date);
+      const past = pastilleAvis(data.shareId || doc.id);
+      if(past){
+        past.addEventListener('click', async ()=>{
+          try{ await openGrid(doc.id); chargerAvis(false); }catch(err){}
+        });
+        date.appendChild(document.createTextNode(' '));
+        date.appendChild(past);
+      }
 
       const actions = document.createElement('div');
       actions.className = 'gallery-item-actions';
@@ -3321,9 +3362,194 @@
   // jouables sans reseau ; rien de leur contenu ne transite ici.
   function catalogueRef(){ return fbDb.collection('catalogue'); }
 
+  // ---------- avis des joueurs ----------
+  // Chaque joueur ecrit son avis dans avis/{grille}/avisEntries/{son uid}. La
+  // regle Firestore ne concede la lecture qu'a un uid : le mien. Le nom de la
+  // sous-collection differe de celle des scores pour que la requete de groupe
+  // ne ramasse pas les classements au passage.
+  function avisRefAtelier(gridId){
+    return fbDb.collection('avis').doc(gridId).collection('avisEntries');
+  }
+
+  // Resume par grille, pour la pastille du sommaire. Une seule requete de
+  // groupe par session : le sommaire se redessine souvent (abonnement temps
+  // reel sur les grilles), il ne faut surtout pas relire Firestore a chaque
+  // fois. Le bouton du sommaire force le rafraichissement.
+  let avisParGrille = null;
+  let avisEnCours = null;
+
+  function resumerAvis(avis){
+    const carte = {};
+    avis.forEach(a=>{
+      const g = a.gridId || '';
+      if(!g) return;
+      if(!carte[g]) carte[g] = {n:0, notes:[], commentaires:0};
+      carte[g].n++;
+      const note = parseInt(a.note, 10) || 0;
+      if(note) carte[g].notes.push(note);
+      if((a.texte || '').trim()) carte[g].commentaires++;
+    });
+    return carte;
+  }
+
+  async function chargerResumeAvis(force){
+    if(!currentUser || !fbDb) return null;
+    if(avisParGrille && !force) return avisParGrille;
+    if(avisEnCours && !force) return avisEnCours;
+    avisEnCours = (async ()=>{
+      try{
+        const snap = await fbDb.collectionGroup('avisEntries').get();
+        avisParGrille = resumerAvis(snap.docs.map(d=>{
+          const o = d.data();
+          o.gridId = d.ref.parent.parent ? d.ref.parent.parent.id : '';
+          return o;
+        }));
+      }catch(err){
+        avisParGrille = {};
+        try{ console.warn('MAXI-FLECHES / resume des avis:', err); }catch(e){}
+      }
+      avisEnCours = null;
+      return avisParGrille;
+    })();
+    return avisEnCours;
+  }
+
+  function pastilleAvis(cle){
+    const r = cle && avisParGrille ? avisParGrille[cle] : null;
+    if(!r || !r.n) return null;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'avis-pastille';
+    const moy = r.notes.length ? (r.notes.reduce((s,n)=>s+n,0) / r.notes.length) : 0;
+    el.textContent = (r.notes.length ? ('\u2605 ' + moy.toFixed(1) + ' · ') : '') +
+      r.n + ' avis' + (r.commentaires ? (' · \uD83D\uDCAC ' + r.commentaires) : '');
+    el.title = 'Ouvrir la grille et afficher les avis';
+    return el;
+  }
+
+  function etoilesTexte(n){
+    n = Math.max(0, Math.min(5, parseInt(n, 10) || 0));
+    return n ? ('\u2605'.repeat(n) + '\u2606'.repeat(5 - n)) : '—';
+  }
+
+  function dateCourte(ts){
+    try{
+      const d = ts && ts.toDate ? ts.toDate() : null;
+      if(!d) return '';
+      return d.toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'2-digit'});
+    }catch(e){ return ''; }
+  }
+
+  function afficherAvis(avis, avecTitre){
+    const el = document.getElementById('avisList');
+    el.innerHTML = '';
+    if(!avis.length){ el.classList.remove('on'); return; }
+    avis.sort((a,b)=>{
+      const ta = (a.at && a.at.seconds) || 0, tb = (b.at && b.at.seconds) || 0;
+      return tb - ta;
+    });
+    const notes = avis.map(a=>parseInt(a.note,10)||0).filter(n=>n>0);
+    const moy = notes.length ? (notes.reduce((s,n)=>s+n,0) / notes.length) : 0;
+    const head = document.createElement('div');
+    head.className = 'avis-moy';
+    head.innerHTML = avis.length + ' avis' +
+      (notes.length ? (' · moyenne <b>' + moy.toFixed(1) + '/5</b> sur ' + notes.length + ' note' + (notes.length>1?'s':'')) : '');
+    el.appendChild(head);
+    avis.forEach(a=>{
+      const item = document.createElement('div');
+      item.className = 'avis-item';
+      const h = document.createElement('div');
+      h.className = 'avis-head';
+      const nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = a.name || 'Anonyme';
+      const note = document.createElement('span'); note.className = 'note'; note.textContent = etoilesTexte(a.note);
+      const meta = document.createElement('span'); meta.className = 'meta';
+      const bouts = [];
+      if(avecTitre && (a.titre || a.gridId)) bouts.push(a.titre || a.gridId);
+      if(a.secret) bouts.push('mot mystère \u2713');
+      const aides = (parseInt(a.hints,10)||0) + (parseInt(a.tips,10)||0);
+      bouts.push(aides ? (aides + ' aide' + (aides>1?'s':'')) : 'sans aide');
+      const d = dateCourte(a.at); if(d) bouts.push(d);
+      meta.textContent = bouts.join(' · ');
+      h.appendChild(nom); h.appendChild(note); h.appendChild(meta);
+      item.appendChild(h);
+      if((a.texte || '').trim()){
+        const p = document.createElement('p');
+        p.textContent = a.texte;
+        item.appendChild(p);
+      }
+      el.appendChild(item);
+    });
+    el.classList.add('on');
+  }
+
+  async function chargerAvis(tout){
+    const st = document.getElementById('avisState');
+    const el = document.getElementById('avisList');
+    if(!currentUser || !fbDb){ st.textContent = 'Connecte-toi pour lire les avis.'; return; }
+    st.textContent = 'Chargement…';
+    try{
+      let avis = [];
+      if(tout){
+        const snap = await fbDb.collectionGroup('avisEntries').get();
+        avis = snap.docs.map(d=>{
+          const o = d.data();
+          o.gridId = d.ref.parent.parent ? d.ref.parent.parent.id : '';
+          return o;
+        });
+      } else {
+        if(!state.shareId){ st.textContent = 'Cette grille n\'a pas encore été générée.'; el.classList.remove('on'); return; }
+        const snap = await avisRefAtelier(state.shareId).get();
+        avis = snap.docs.map(d=>d.data());
+      }
+      afficherAvis(avis, !!tout);
+      st.textContent = avis.length ? '' : 'Aucun avis pour l\'instant.';
+    }catch(err){
+      el.classList.remove('on');
+      const code = (err && (err.code || err.message)) || 'inconnu';
+      st.textContent = 'Lecture refusée (' + code + ') — vérifie la règle Firestore.';
+      try{ console.error('MAXI-FLECHES / avis:', err); }catch(e){}
+    }
+  }
+
+  document.getElementById('avisBtn').addEventListener('click', ()=> chargerAvis(false));
+  document.getElementById('avisAllBtn').addEventListener('click', ()=>{ avisParGrille = null; chargerResumeAvis(true); chargerAvis(true); });
+  document.getElementById('avisUidBtn').addEventListener('click', ()=>{
+    const st = document.getElementById('avisState');
+    if(!currentUser){ st.textContent = 'Connecte-toi d\'abord.'; return; }
+    st.textContent = 'Ton identifiant : ' + currentUser.uid;
+    try{ navigator.clipboard.writeText(currentUser.uid); st.textContent += ' (copié)'; }catch(e){}
+  });
+
+  // L'identifiant de partage sert de cle au classement ET a l'entree du
+  // sommaire : il est fige a la premiere generation et ne doit plus bouger,
+  // meme si le titre change ensuite. On le fabrique lisible (titre en minuscules
+  // + 4 caracteres au hasard contre les collisions) pour s'y retrouver dans la
+  // console Firebase. Aucune lecture ni ecriture supplementaire : c'est juste
+  // une chaine differente.
+  function slugTitre(t){
+    return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,40).replace(/-$/,'') || 'grille';
+  }
+  // Numero du titre + les 5 premieres lettres du nom qui suit :
+  // "MFN\u00b016 \u2014 Chien et froid" donne "16-chien". Aucun garde-fou contre
+  // les collisions : deux grilles au meme numero partageraient leur classement
+  // et leur entree au sommaire. Titre sans numero : nom tronque + 4 caracteres
+  // au hasard, sinon le risque de doublon serait trop gros. Meme traitement
+  // pour un titre reduit a son numero : "MFN15" donne "15-x1ij".
+  function nouvelIdPartage(){
+    const titre = String(state.title || '');
+    const num = titre.match(/\d+/);
+    const reste = num ? titre.slice(titre.indexOf(num[0]) + num[0].length) : titre;
+    const nom = String(reste).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,5).replace(/-$/,'');
+    const hasard = Math.random().toString(36).slice(2,6);
+    if(num) return nom ? (num[0] + '-' + nom) : (num[0] + '-' + hasard);
+    return (nom || 'grille') + '-' + hasard;
+  }
+
   function ensureShareId(){
     if(!state.shareId){
-      state.shareId = currentGridId || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+      state.shareId = nouvelIdPartage();
       markDirty();
       autoSave();
     }
@@ -3915,7 +4141,7 @@
     // Il doit imperativement etre persiste : sans cela, une reexportation
     // ulterieure en fabriquerait un nouveau et repartirait sur un classement vide.
     if(!state.shareId){
-      state.shareId = currentGridId || ('g' + Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+      state.shareId = nouvelIdPartage();
       markDirty();
       autoSave();
     }
@@ -4036,7 +4262,12 @@
       '<div class="pwin-hints" id="pWinHints"></div>',
       '<div class="pscore" id="pScore">',
       '<input id="pScoreName" maxlength="20" placeholder="Ton prénom" autocomplete="off" name="mfjoueur" inputmode="text" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" data-form-type="other">',
-      '<button class="pbtn pbtn-primary" id="pScoreSend">Envoyer mon temps</button>',
+      '</div>',
+      '<div class="pavis" id="pAvis">',
+      '<div class="pavis-t">TON AVIS — vu uniquement par l\'auteur</div>',
+      '<div class="pavis-stars" id="pAvisStars"></div>',
+      '<textarea id="pAvisTxt" maxlength="400" rows="2" placeholder="Un mot sur la grille ? (facultatif)" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other"></textarea>',
+      '<button class="pbtn pbtn-primary" id="pScoreSend">Envoyer</button>',
       '</div>',
       '<div class="pboard" id="pBoard"></div>',
       '<button class="pbtn" id="pWinClose">Fermer</button>',
@@ -4229,6 +4460,15 @@
       '.pscore{display:none;margin-top:16px;gap:8px;justify-content:center;flex-wrap:wrap;}',
       '.pscore.show{display:flex;}',
       '.pscore input{flex:1;min-width:130px;padding:8px 10px;border:2px solid var(--ink);border-radius:5px;font-size:14px;color:var(--ink);}',
+      '.pavis{display:none;margin-top:10px;text-align:center;}',
+      '.pavis.show{display:block;}',
+      '.pavis-t{font-size:10px;letter-spacing:1.6px;color:var(--mag-yellow);margin-bottom:6px;}',
+      '.pavis-stars{display:flex;justify-content:center;gap:4px;margin-bottom:7px;}',
+      '.pavis-stars button{background:none;border:none;padding:0 2px;font-size:25px;line-height:1;cursor:pointer;color:rgba(255,255,255,0.38);}',
+      '.pavis-stars button.on{color:var(--mag-yellow);}',
+      '.pavis textarea{width:100%;padding:7px 9px;border:2px solid var(--ink);border-radius:5px;font-size:13px;color:var(--ink);font-family:inherit;resize:vertical;}',
+      '.pavis-msg{margin-top:5px;font-size:11.5px;color:var(--mag-yellow);}',
+      '.pavis #pScoreSend{margin-top:9px;width:100%;}',
       '.pboard{margin-top:14px;text-align:left;font-size:13px;color:#fff;}',
       '.pboard-title{text-align:center;font-size:11px;letter-spacing:2.5px;color:var(--mag-yellow);margin-bottom:8px;}',
       '.pboard ol{margin:0;padding:0;list-style:none;max-height:170px;overflow-y:auto;}',
@@ -4668,6 +4908,7 @@
       '    try{ nameEl.value = localStorage.getItem("mf-name") || ""; }catch(e){}',
       '    document.getElementById("pScoreSend").disabled = false;',
       '    document.getElementById("pScore").classList.add("show");',
+      '    document.getElementById("pAvis").classList.add("show");',
       '    loadBoard();',
       '  }',
       '  if(winAudio && !soundMuted){',
@@ -5181,6 +5422,49 @@
       '    try{ console.error("MAXI-FLECHES / lecture du classement:", err); }catch(e){}',
       '  });',
       '}',
+      '// ---------- avis prive ----------',
+      '// Ecrit dans avis/{grille}/entries/{uid}. Les regles Firestore n accordent',
+      '// la lecture qu au compte de l auteur : le joueur ecrit le sien et ne voit',
+      '// jamais ceux des autres. Un refus ici ne doit pas faire echouer le score,',
+      '// d ou les deux ecritures separees.',
+      'var avisNote = 0;',
+      'function avisRef(){ return boardDb.collection("avis").doc(data.gridId).collection("avisEntries"); }',
+      'function peindreEtoiles(){',
+      '  var box = document.getElementById("pAvisStars");',
+      '  if(!box) return;',
+      '  [].forEach.call(box.children, function(b, i){ b.classList.toggle("on", i < avisNote); });',
+      '}',
+      '(function initAvis(){',
+      '  var box = document.getElementById("pAvisStars");',
+      '  if(!box) return;',
+      '  for(var i=1;i<=5;i++){',
+      '    var b = document.createElement("button");',
+      '    b.type = "button"; b.textContent = "\u2605"; b.dataset.n = i;',
+      '    b.setAttribute("aria-label", i + " sur 5");',
+      '    b.addEventListener("click", function(ev){',
+      '      var n = +ev.currentTarget.dataset.n;',
+      '      avisNote = (avisNote === n) ? 0 : n;',
+      '      peindreEtoiles();',
+      '    });',
+      '    box.appendChild(b);',
+      '  }',
+      '})();',
+      'function envoyerAvis(nom){',
+      '  var txt = (document.getElementById("pAvisTxt").value || "").trim().slice(0,400);',
+      '  if(!avisNote && !txt) return Promise.resolve(null);',
+      '  if(!boardReady || !boardUid) return Promise.reject(new Error("hors ligne"));',
+      '  return avisRef().doc(boardUid).set({',
+      '    name: nom || "Anonyme",',
+      '    note: parseInt(avisNote, 10) || 0,',
+      '    texte: txt,',
+      '    ms: parseInt(Math.round(tElapsed()), 10),',
+      '    hints: parseInt(hintsUsed, 10) || 0,',
+      '    tips: parseInt(tipsUsed, 10) || 0,',
+      '    secret: !!secretTrouve,',
+      '    titre: data.title || "",',
+      '    at: firebase.firestore.FieldValue.serverTimestamp()',
+      '  });',
+      '}',
       'function sendScore(){',
       '  var btn = document.getElementById("pScoreSend");',
       '  var nameEl = document.getElementById("pScoreName");',
@@ -5197,7 +5481,17 @@
       '    at: firebase.firestore.FieldValue.serverTimestamp()',
       '  }).then(function(){',
       '    document.getElementById("pScore").classList.remove("show");',
-      '    loadBoard();',
+      '    var av = document.getElementById("pAvis");',
+      '    return envoyerAvis(name).then(function(envoye){',
+      '      if(av) av.classList.remove("show");',
+      '      loadBoard();',
+      '      if(envoye !== null) boardMsg("Merci, ton avis est parti.");',
+      '    }).catch(function(e){',
+      '      if(av) av.classList.remove("show");',
+      '      loadBoard();',
+      '      boardMsg("Temps enregistré, mais l\'avis n\'est pas passé.");',
+      '      try{ console.error("MAXI-FLECHES / avis:", e); }catch(x){}',
+      '    });',
       '  }).catch(function(err){',
       '    btn.disabled = false;',
       '    var code = (err && (err.code || err.message)) || "inconnu";',
@@ -5208,6 +5502,7 @@
       'document.getElementById("pScoreSend").addEventListener("click", sendScore);',
       'document.getElementById("pBoardBtn").addEventListener("click", function(){',
       '  document.getElementById("pScore").classList.remove("show");',
+      '  document.getElementById("pAvis").classList.remove("show");',
       '  document.getElementById("pWin").classList.add("show");',
       '  loadBoard();',
       '});',
