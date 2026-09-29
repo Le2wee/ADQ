@@ -478,6 +478,8 @@
   #pubBase{flex:1;min-width:190px;}
   #pubFile{width:130px;}
   #pubNum{width:56px;text-align:center;}
+  #pubDate{width:146px;}
+  #ghRepo{width:190px;}
   .win-bar{
     display:flex;align-items:center;gap:8px;flex-wrap:wrap;
     margin:12px 24px 0;padding:10px 14px;
@@ -748,15 +750,26 @@
   <div class="pub-bar">
     <span class="audio-label">📖 Sommaire</span>
     <label for="pubBase">Adresse du site</label>
-    <input type="text" id="pubBase" placeholder="https://moi.github.io/fleches/" autocomplete="off">
+    <input type="text" id="pubBase" placeholder="https://le2wee.github.io/ADQ/" autocomplete="off">
     <label for="pubFile">Fichier</label>
     <input type="text" id="pubFile" placeholder="MFN1.html" autocomplete="off">
     <label for="pubNum">N°</label>
     <input type="text" id="pubNum" placeholder="1" maxlength="6" autocomplete="off">
+    <label for="pubDate">En ligne le</label>
+    <input type="date" id="pubDate" autocomplete="off">
     <button class="btn small primary" id="pubBtn">Publier au sommaire</button>
     <button class="btn small danger" id="unpubBtn" style="display:none;">Retirer</button>
     <button class="btn small" id="pubIndexBtn">Générer la page sommaire ↓</button>
     <span class="pub-state" id="pubState"></span>
+  </div>
+
+  <div class="pub-bar">
+    <span class="audio-label">🗓️ Dates de mise en ligne</span>
+    <label for="ghRepo">Dépôt GitHub</label>
+    <input type="text" id="ghRepo" placeholder="le2wee/ADQ" autocomplete="off">
+    <button class="btn small" id="ghDatesBtn" type="button">Récupérer les dates manquantes</button>
+    <button class="btn small" id="ghDatesAllBtn" type="button">Tout réécrire</button>
+    <span class="pub-state" id="ghState"></span>
   </div>
 
   <div class="pub-bar">
@@ -1005,7 +1018,7 @@
     band.className = kind;
     const inner = document.createElement('span');
     inner.className = 'mf-text';
-    inner.textContent = text;
+    inner.textContent = avecCesures(text);
     band.appendChild(inner);
     cellDiv.appendChild(band);
     return band;
@@ -1026,6 +1039,58 @@
     // depuis la case du dessus, puis vers la droite
     above:  '<path class="mf-line" d="M3 12 V4 H7"/><polygon class="mf-fill" points="7,1 7,7 12,4"/>'
   };
+
+  // ---------- cesure francaise ----------
+  // Les cases de definition sont etroites : sans points de coupe, le navigateur
+  // tronconne les mots n'importe ou et sans trait d'union. La cesure automatique
+  // du navigateur n'est pas une option : elle depend d'un dictionnaire que
+  // Chrome telecharge a part, et elle n'existe pas du tout dans le PDF, qui a
+  // son propre moteur de mise en page. On place donc nous-memes des traits
+  // d'union conditionnels (U+00AD), invisibles tant que la ligne passe.
+  // Regles retenues : deux lettres minimum avant la coupe, trois apres, jamais
+  // entre deux voyelles, jamais autour d'un x ou d'un y, les groupes
+  // inseparables (ch, gn, bl, tr, qu...) restent souds, et pas de fragment
+  // d'une seule lettre entre deux coupes.
+  const CES_VOY = 'AEIOUY\u00C0\u00C2\u00C4\u00C9\u00C8\u00CA\u00CB\u00CE\u00CF\u00D4\u00D6\u00D9\u00DB\u00DC\u0178';
+  const CES_INSEP = ['CH','PH','TH','GN','BL','BR','CL','CR','DR','FL','FR','GL','GR','PL','PR','TR','VR','QU'];
+  function cesVoyelle(c){ return CES_VOY.indexOf(String(c || '').toUpperCase()) >= 0; }
+  function cesConsonne(c){
+    const u = String(c || '').toUpperCase();
+    return /[A-Z\u00C7]/.test(u) && !cesVoyelle(u);
+  }
+  function cesInsep(a, b){
+    return CES_INSEP.indexOf(String(a || '').toUpperCase() + String(b || '').toUpperCase()) >= 0;
+  }
+  function pointsDeCoupe(mot){
+    const p = [], n = mot.length;
+    if(n < 6 || /[0-9]/.test(mot)) return p;
+    for(let i = 2; i <= n - 3; i++){
+      const a = mot[i-1], b = mot[i], c = mot[i+1] || '';
+      if(!/[a-z\u00e0-\u00f6\u00f8-\u00ff]/i.test(a) || !/[a-z\u00e0-\u00f6\u00f8-\u00ff]/i.test(b)) continue;
+      if('xXyY'.indexOf(a) >= 0 || 'xXyY'.indexOf(b) >= 0) continue;
+      let ok = false;
+      if(cesVoyelle(a) && cesConsonne(b)){
+        if(cesVoyelle(c)) ok = true;
+        else if(cesInsep(b, c)) ok = true;
+      } else if(cesConsonne(a) && cesConsonne(b)){
+        if(!cesInsep(a, b)) ok = true;
+      }
+      if(ok && (!p.length || i - p[p.length-1] >= 2)) p.push(i);
+    }
+    return p;
+  }
+  // Les sigles tout en majuscules sont laisses intacts : RODENTICIDE se coupe,
+  // URSSAF non.
+  function avecCesures(txt){
+    return String(txt == null ? '' : txt).replace(/[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u00FF]{6,}/g, (m)=>{
+      if(m === m.toUpperCase()) return m;
+      const p = pointsDeCoupe(m);
+      if(!p.length) return m;
+      let out = '', prev = 0;
+      p.forEach(i => { out += m.slice(prev, i) + '\u00AD'; prev = i; });
+      return out + m.slice(prev);
+    });
+  }
 
   function addArrow(host, type){
     const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -3511,6 +3576,83 @@
     }
   }
 
+  // ---------- dates de mise en ligne, depuis l'historique GitHub ----------
+  // L'API publique de GitHub donne tous les commits touchant un fichier ; le
+  // dernier de la liste est le plus ancien, donc le depot initial. Une mise a
+  // jour ulterieure du fichier n'y change rien. L'appel part de l'atelier et
+  // non du sommaire : 60 requetes par heure et par adresse, ca ne tiendrait pas
+  // a l'echelle des visiteurs.
+  function depotGitHub(){
+    let v = (document.getElementById('ghRepo').value || '').trim();
+    if(!v){
+      const m = (document.getElementById('pubBase').value || '')
+        .match(/^https?:\/\/([^.\/]+)\.github\.io\/([^\/]+)/i);
+      if(m) v = m[1] + '/' + m[2];
+    }
+    return v.replace(/^https?:\/\/github\.com\//i, '').replace(/^\/+|\/+$/g, '');
+  }
+
+  async function premierDepot(repo, fichier){
+    const url = 'https://api.github.com/repos/' + repo + '/commits?per_page=100&path='
+      + encodeURIComponent(fichier);
+    const r = await fetch(url);
+    if(r.status === 403) throw new Error('quota GitHub atteint (60 requêtes par heure), réessaie plus tard');
+    if(r.status === 404) throw new Error('dépôt ou fichier introuvable — vérifie « ' + repo + ' » et que le dépôt est public');
+    if(!r.ok) throw new Error('GitHub a répondu ' + r.status);
+    const liste = await r.json();
+    if(!Array.isArray(liste) || !liste.length) return null;
+    const vieux = liste[liste.length - 1];
+    const d = vieux && vieux.commit && vieux.commit.author && vieux.commit.author.date;
+    return d ? d.slice(0, 10) : null;
+  }
+
+  function setGhState(txt, ok){
+    const el = document.getElementById('ghState');
+    el.textContent = txt;
+    el.classList.toggle('on', !!ok);
+  }
+
+  async function rapatrierDates(tout){
+    if(!currentUser || !fbDb){ setGhState('Connecte-toi d\'abord.'); return; }
+    const repo = depotGitHub();
+    if(!repo || repo.indexOf('/') < 0){
+      setGhState('Indique le dépôt sous la forme compte/nom.'); return;
+    }
+    document.getElementById('ghRepo').value = repo;
+    try{ localStorage.setItem('mf-gh-repo', repo); }catch(e){}
+    setGhState('Lecture du sommaire…');
+    let docs;
+    try{ docs = (await catalogueRef().get()).docs; }
+    catch(err){ setGhState('Sommaire illisible (' + (err.code || err.message) + ')'); return; }
+    const aFaire = docs.filter(d => {
+      const x = d.data();
+      return x.file && (tout || !x.createdAt);
+    });
+    if(!aFaire.length){ setGhState('Toutes les dates sont déjà renseignées.', true); return; }
+    let ok = 0, vides = [];
+    for(let i = 0; i < aFaire.length; i++){
+      const x = aFaire[i].data();
+      setGhState('GitHub… ' + (i + 1) + '/' + aFaire.length + ' (' + x.file + ')');
+      let d = null;
+      try{ d = await premierDepot(repo, x.file); }
+      catch(err){ setGhState(err.message); return; }
+      if(!d){ vides.push(x.file); continue; }
+      try{ await catalogueRef().doc(aFaire[i].id).set({createdAt: d}, {merge:true}); ok++; }
+      catch(err){ setGhState('Écriture refusée (' + (err.code || err.message) + ')'); return; }
+    }
+    setGhState(ok + ' date' + (ok > 1 ? 's' : '') + ' récupérée' + (ok > 1 ? 's' : '') +
+      (vides.length ? ' · aucun commit pour : ' + vides.join(', ') : ''), ok > 0);
+    if(state.shareId){
+      try{
+        const moi = await catalogueRef().doc(state.shareId).get();
+        if(moi.exists) document.getElementById('pubDate').value = moi.data().createdAt || '';
+      }catch(e){}
+    }
+  }
+
+  document.getElementById('ghDatesBtn').addEventListener('click', ()=> rapatrierDates(false));
+  document.getElementById('ghDatesAllBtn').addEventListener('click', ()=> rapatrierDates(true));
+
   document.getElementById('avisBtn').addEventListener('click', ()=> chargerAvis(false));
   document.getElementById('avisAllBtn').addEventListener('click', ()=>{ avisParGrille = null; chargerResumeAvis(true); chargerAvis(true); });
   document.getElementById('avisUidBtn').addEventListener('click', ()=>{
@@ -3583,6 +3725,7 @@
         const d = doc.data();
         if(!document.getElementById('pubFile').value) document.getElementById('pubFile').value = d.file || '';
         if(!document.getElementById('pubNum').value) document.getElementById('pubNum').value = d.num || '';
+        document.getElementById('pubDate').value = d.createdAt || '';
         document.getElementById('unpubBtn').style.display = 'inline-block';
         setPubState('Au sommaire ✓', true);
       } else {
@@ -3604,8 +3747,22 @@
     document.getElementById('pubFile').value = file;
     if(!base){ setStatus('Renseigne d\u2019abord l\u2019adresse de ton site.'); return; }
     const id = ensureShareId();
+    // La date de premiere mise en ligne ne bouge plus une fois posee : seule une
+    // saisie explicite dans le champ la remplace. Une republication conserve donc
+    // la date d'origine, contrairement a updatedAt.
+    const saisie = (document.getElementById('pubDate').value || '').trim();
+    let dateOrigine = saisie;
+    if(!dateOrigine){
+      try{
+        const ancien = await catalogueRef().doc(id).get();
+        if(ancien.exists) dateOrigine = ancien.data().createdAt || '';
+      }catch(err){}
+    }
+    if(!dateOrigine) dateOrigine = new Date().toISOString().slice(0,10);
+    document.getElementById('pubDate').value = dateOrigine;
     try{
       await catalogueRef().doc(id).set({
+        createdAt: dateOrigine,
         num: (document.getElementById('pubNum').value || '').trim(),
         title: state.title || 'Sans titre',
         difficulty: state.difficulty || 2,
@@ -3652,6 +3809,14 @@
       '.d{font-size:12px;color:var(--muted);margin-top:3px;}',
       '.stars{flex:none;color:var(--accent);font-size:15px;letter-spacing:2px;}',
       '.msg{font-size:13px;color:var(--muted);font-style:italic;}',
+      '.bilan{font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;}',
+      '.bilan b{color:var(--accent);}',
+      '.fait{display:inline-block;align-self:flex-start;margin-top:4px;font-size:11px;font-weight:700;',
+      '  border-radius:20px;padding:1px 8px;border:1px solid;}',
+      '.fait.ok{color:#2F6B4F;border-color:#2F6B4F;background:#E4F1E9;}',
+      '.fait.sol{color:var(--muted);border-color:var(--line);background:var(--paper);}',
+      '.fait.cours{color:var(--accent);border-color:var(--accent);background:var(--accent-soft);}',
+      '.item.done .num{background:#2F6B4F;}',
       'footer{text-align:center;font-size:11.5px;color:var(--muted);font-style:italic;padding:0 0 28px;}'
     ].join('\n');
 
@@ -3662,16 +3827,52 @@
       'function stars(n){ return "\\u2605".repeat(Math.max(1, Math.min(5, n||2))); }',
       'function esc(t){ return String(t==null?"":t).replace(/[&<>"]/g, function(c){',
       '  return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]; }); }',
+      '// Ce que le visiteur a deja fait est lu dans son propre navigateur : la',
+      '// grille y ecrit sa partie sous mf-partie-<identifiant>. Meme domaine que',
+      '// les grilles, donc aucun reseau et aucun compte. Revers : c est par',
+      '// navigateur, et vider le cache efface tout.',
+      'function partie(id){',
+      '  if(!id) return null;',
+      '  try{',
+      '    var g = JSON.parse(localStorage.getItem("mf-partie-" + id) || "null");',
+      '    return (g && g.v === 1) ? g : null;',
+      '  }catch(e){ return null; }',
+      '}',
+      'function chrono(ms){',
+      '  var t = Math.max(0, Math.round((ms||0)/1000));',
+      '  var m = Math.floor(t/60), s = t%60;',
+      '  return (m<10?"0":"") + m + ":" + (s<10?"0":"") + s;',
+      '}',
+      'function marque(g){',
+      '  if(!g) return "";',
+      '  if(g.etat === "finie") return \'<span class="fait ok">\\u2713 Terminée en \' + chrono(g.ms) + \'</span>\';',
+      '  if(g.etat === "solution") return \'<span class="fait sol">Solution affichée</span>\';',
+      '  return \'<span class="fait cours">\\u23F1 Commencée</span>\';',
+      '}',
+      'function dateFr(iso){',
+      '  if(!iso) return "";',
+      '  var m = String(iso).match(/^(\\d{4})-(\\d{2})-(\\d{2})/);',
+      '  return m ? (m[3] + "/" + m[2] + "/" + m[1].slice(2)) : "";',
+      '}',
       'function render(rows){',
       '  if(!rows.length){ msgEl.textContent = "Aucune grille au sommaire pour le moment."; return; }',
       '  msgEl.textContent = "";',
+      '  var finies = 0;',
       '  listEl.innerHTML = rows.map(function(g){',
-      '    return \'<a class="item" href="\' + esc(g.url) + \'">\' +',
+      '    var p = partie(g.id);',
+      '    if(p && p.etat === "finie") finies++;',
+      '    var d = dateFr(g.createdAt);',
+      '    return \'<a class="item\' + (p && p.etat === "finie" ? " done" : "") + \'" href="\' + esc(g.url) + \'">\' +',
       '      \'<span class="num">\' + esc(g.num || "?") + \'</span>\' +',
       '      \'<span class="meta"><span class="t">\' + esc(g.title || "Sans titre") + \'</span>\' +',
-      '      \'<span class="d">Grille \' + (g.rows||"?") + " \\u00D7 " + (g.cols||"?") + \'</span></span>\' +',
+      '      \'<span class="d">Grille \' + (g.rows||"?") + " \\u00D7 " + (g.cols||"?") +',
+      '      (d ? " \\u00B7 en ligne le " + d : "") + \'</span>\' + marque(p) + \'</span>\' +',
       '      \'<span class="stars">\' + stars(g.difficulty) + \'</span></a>\';',
       '  }).join("");',
+      '  var b = document.getElementById("bilan");',
+      '  b.innerHTML = finies',
+      '    ? ("Tu en as terminé <b>" + finies + "</b> sur " + rows.length + ".")',
+      '    : "";',
       '}',
       'function fromCache(){',
       '  try{ var c = localStorage.getItem("mf-catalogue");',
@@ -3681,7 +3882,7 @@
       'try{',
       '  firebase.initializeApp(CFG);',
       '  firebase.firestore().collection("catalogue").get().then(function(snap){',
-      '    var rows = snap.docs.map(function(d){ return d.data(); });',
+      '    var rows = snap.docs.map(function(d){ var x = d.data(); x.id = d.id; return x; });',
       '    rows.sort(function(a,b){',
       '      var x = parseInt(a.num,10), y = parseInt(b.num,10);',
       '      if(!isNaN(x) && !isNaN(y)) return x - y;',
@@ -3712,7 +3913,7 @@
       '<p class="mag-sub">Le magazine 100 % fléchés de Bébou &amp; Claude-san</p></div>',
       '</div><div class="mag-strip"><span>TOUTES LES GRILLES</span><span>ACCÈS LIBRE</span><span>3,50 F</span></div></header>',
       '<div class="wrap"><h2>Sommaire</h2>',
-      '<p class="msg" id="msg">Chargement…</p><div id="list"></div></div>',
+      '<p class="msg" id="msg">Chargement…</p><p class="bilan" id="bilan"></p><div id="list"></div></div>',
       '<footer>DV Maxence Brossette et Claude-san</footer>',
       '<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"><\/script>',
       '<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"><\/script>',
@@ -3804,6 +4005,19 @@
       }
       while(pdfTextWidth(cur, size, bold) > maxW && cur.length > 1){
         broke = true;
+        // On cherche d'abord un point de cesure legitime : la ligne se termine
+        // alors par un vrai trait d'union, comme dans un journal. A defaut
+        // seulement, on tranche dans le mot.
+        const legaux = pointsDeCoupe(cur);
+        let coupe = 0;
+        for(let k = legaux.length - 1; k >= 0; k--){
+          if(pdfTextWidth(cur.slice(0, legaux[k]) + '-', size, bold) <= maxW){ coupe = legaux[k]; break; }
+        }
+        if(coupe){
+          lines.push(cur.slice(0, coupe) + '-');
+          cur = cur.slice(coupe);
+          continue;
+        }
         let cut = cur.length - 1;
         while(cut > 1 && pdfTextWidth(cur.slice(0, cut), size, bold) > maxW) cut--;
         lines.push(cur.slice(0, cut));
@@ -4594,6 +4808,38 @@
       '    size -= 0.5; band.style.fontSize = size+"px"; guard++;',
       '  }',
       '}',
+      '// Cesure francaise : le navigateur coupe sinon les mots au hasard et sans',
+      '// trait d union. Deux lettres avant, trois apres, jamais entre deux',
+      '// voyelles ni autour d un x ou d un y, groupes inseparables preserves.',
+      'var CES_VOY = "AEIOUY\\u00C0\\u00C2\\u00C4\\u00C9\\u00C8\\u00CA\\u00CB\\u00CE\\u00CF\\u00D4\\u00D6\\u00D9\\u00DB\\u00DC\\u0178";',
+      'var CES_INSEP = ["CH","PH","TH","GN","BL","BR","CL","CR","DR","FL","FR","GL","GR","PL","PR","TR","VR","QU"];',
+      'function cesVoyelle(c){ return CES_VOY.indexOf(String(c||"").toUpperCase()) >= 0; }',
+      'function cesConsonne(c){ var u = String(c||"").toUpperCase(); return /[A-Z\\u00C7]/.test(u) && !cesVoyelle(u); }',
+      'function cesInsep(a,b){ return CES_INSEP.indexOf(String(a||"").toUpperCase() + String(b||"").toUpperCase()) >= 0; }',
+      'function pointsDeCoupe(mot){',
+      '  var p = [], n = mot.length;',
+      '  if(n < 6 || /[0-9]/.test(mot)) return p;',
+      '  for(var i = 2; i <= n - 3; i++){',
+      '    var a = mot[i-1], b = mot[i], c = mot[i+1] || "";',
+      '    if(!/[a-z\\u00e0-\\u00f6\\u00f8-\\u00ff]/i.test(a) || !/[a-z\\u00e0-\\u00f6\\u00f8-\\u00ff]/i.test(b)) continue;',
+      '    if("xXyY".indexOf(a) >= 0 || "xXyY".indexOf(b) >= 0) continue;',
+      '    var ok = false;',
+      '    if(cesVoyelle(a) && cesConsonne(b)){ if(cesVoyelle(c)) ok = true; else if(cesInsep(b,c)) ok = true; }',
+      '    else if(cesConsonne(a) && cesConsonne(b)){ if(!cesInsep(a,b)) ok = true; }',
+      '    if(ok && (!p.length || i - p[p.length-1] >= 2)) p.push(i);',
+      '  }',
+      '  return p;',
+      '}',
+      'function avecCesures(txt){',
+      '  return String(txt == null ? "" : txt).replace(/[A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u00FF]{6,}/g, function(m){',
+      '    if(m === m.toUpperCase()) return m;',
+      '    var p = pointsDeCoupe(m);',
+      '    if(!p.length) return m;',
+      '    var out = "", prev = 0;',
+      '    for(var k = 0; k < p.length; k++){ out += m.slice(prev, p[k]) + "\\u00AD"; prev = p[k]; }',
+      '    return out + m.slice(prev);',
+      '  });',
+      '}',
       'var HY = {}; (data.hyphens||[]).forEach(function(h){ HY[idx(h[0],h[1])+h[2]] = true; });',
       '// Zones illustrees : posees par-dessus la grille une fois les cases placees.',
       'function poserZones(){',
@@ -4688,7 +4934,7 @@
       '    var hasA = data.aboveClue && data.aboveClue[i] && data.aboveClue[i].trim()!=="";',
       '    var maxPx = cw*0.32, minPx = 3.8;',
       '    var slots = [];',
-      '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=text; band.appendChild(inner); div.appendChild(band); return band; }',
+      '    function addBand(kind, text){ var band=document.createElement("span"); band.className=kind; var inner=document.createElement("span"); inner.className="mf-text"; inner.textContent=avecCesures(text); band.appendChild(inner); div.appendChild(band); return band; }',
       '    if(hasU){ slots.push(addBand("uc", data.upClue[i]));    addArrow(div,"up"); }',
       '    if(hasA){ slots.push(addBand("ac", data.aboveClue[i])); addArrow(div,"above"); }',
       '    if(hasR){ var bR=addBand("rc", data.rightClue[i]);  slots.push(bR); addArrow(bR,"right"); }',
@@ -5649,7 +5895,11 @@
   updateSfxUI();
   updateNudgeUI();
   updateWinUI();
-  try{ document.getElementById('pubBase').value = localStorage.getItem('mf-base-url') || ''; }catch(err){}
+  // Adresse du site par defaut : elle ne change jamais, autant ne pas la
+  // ressaisir a chaque session. Une valeur enregistree l'emporte.
+  const BASE_PAR_DEFAUT = 'https://le2wee.github.io/ADQ/';
+  try{ document.getElementById('pubBase').value = localStorage.getItem('mf-base-url') || BASE_PAR_DEFAUT; }catch(err){ document.getElementById('pubBase').value = BASE_PAR_DEFAUT; }
+  try{ document.getElementById('ghRepo').value = localStorage.getItem('mf-gh-repo') || ''; }catch(err){}
   initFirebase();
 
 })();
