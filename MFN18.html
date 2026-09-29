@@ -163,7 +163,7 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .ptimer.paused{background:var(--muted);color:#fff;}
 .pwin{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(23,33,46,0.78);z-index:60;padding:20px;}
 .pwin.show{display:flex;}
-.pwin-card{position:relative;background:var(--mag-red);color:#fff;border:4px solid var(--ink);border-radius:8px;padding:38px 34px 26px;text-align:center;max-width:340px;box-shadow:0 16px 44px rgba(0,0,0,0.45);animation:pwin-pop 0.55s cubic-bezier(0.2,1.5,0.4,1);}
+.pwin-card{position:relative;background:var(--mag-red);color:#fff;border:4px solid var(--ink);border-radius:8px;padding:38px 34px 26px;text-align:center;width:100%;max-width:min(420px,92vw);box-shadow:0 16px 44px rgba(0,0,0,0.45);animation:pwin-pop 0.55s cubic-bezier(0.2,1.5,0.4,1);}
 .pwin-star{position:absolute;top:-30px;left:50%;width:66px;height:66px;background:var(--mag-yellow);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:27px;transform:translateX(-50%) rotate(-10deg);animation:pwin-spin 3.5s ease-in-out infinite;clip-path:polygon(50% 0%,61% 20%,83% 13%,80% 36%,100% 50%,80% 64%,83% 87%,61% 80%,50% 100%,39% 80%,17% 87%,20% 64%,0% 50%,20% 36%,17% 13%,39% 20%);}
 .pwin-title{font-family:Iowan Old Style,"Palatino Linotype",Georgia,serif;font-style:italic;font-weight:700;font-size:44px;line-height:1;margin-top:14px;text-shadow:3px 3px 0 var(--ink);}
 .pwin-sub{margin-top:10px;font-size:12px;letter-spacing:3px;color:var(--mag-yellow);}
@@ -185,18 +185,20 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .pavis #pScoreSend{margin-top:9px;width:100%;}
 .pboard{margin-top:14px;text-align:left;font-size:13px;color:#fff;}
 .pboard-title{text-align:center;font-size:11px;letter-spacing:2.5px;color:var(--mag-yellow);margin-bottom:8px;}
-.pboard ol{margin:0;padding:0;list-style:none;max-height:170px;overflow-y:auto;}
-.pboard li{display:flex;justify-content:space-between;gap:10px;padding:4px 8px;border-radius:4px;}
+.pboard ol{margin:0;padding:0;list-style:none;max-height:min(238px,42vh);overflow-y:auto;}
+.pboard li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;border-radius:4px;}
 .pboard li:nth-child(odd){background:rgba(0,0,0,0.18);}
 .pboard li.me{background:var(--mag-yellow);color:var(--ink);font-weight:700;}
 .pboard .rk{opacity:0.8;min-width:22px;}
-.pboard .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.pboard .sec{flex:none;margin-right:6px;font-size:12px;}
-.pboard .tm{font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+.pboard .nm{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px;}
+.pboard .who{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pboard .sec{margin-left:5px;font-size:12px;}
+.pboard .tm{flex:none;font-family:ui-monospace,"SF Mono",Consolas,monospace;}
 .pboard .hn{font-size:10.5px;opacity:0.85;white-space:nowrap;}
 .pboard .hn.net{font-style:italic;}
 .pboard li.me .hn{opacity:1;}
 .pboard-msg{text-align:center;font-size:12px;color:#FFE9B0;font-style:italic;}
+@media (max-width:560px){ .pwin-card{padding:34px 18px 22px;} }
 @keyframes pwin-pop{0%{opacity:0;transform:scale(0.6) rotate(-8deg);}100%{opacity:1;transform:scale(1) rotate(-1deg);}}
 @keyframes pwin-spin{0%,100%{transform:translateX(-50%) rotate(-10deg);}50%{transform:translateX(-50%) rotate(10deg);}}
 .pmodal-overlay{position:fixed;inset:0;background:rgba(23,33,46,0.55);display:none;align-items:center;justify-content:center;z-index:50;}
@@ -1236,7 +1238,7 @@ function renderBoard(docs){
     var cle = v.secret ? '<span class="sec" title="Mot myst\u00e8re trouv\u00e9">\uD83D\uDD11</span>' : "";
     var marque = aides.length ? ('<span class="hn">' + aides.join(" ") + "</span>") : '<span class="hn net">sans aide</span>';
     html += "<li" + mine + "><span class=\"rk\">" + (i+1) + ".</span>" +
-            "<span class=\"nm\">" + escapeHtml(v.name || "?") + "</span>" + cle + marque +
+            "<span class=\"nm\"><span class=\"who\">" + escapeHtml(v.name || "?") + cle + "</span>" + marque + "</span>" +
             "<span class=\"tm\">" + tFormat(v.ms || 0) + "</span></li>";
   });
   el.innerHTML = html + "</ol>";
