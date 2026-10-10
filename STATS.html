@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journal de jeux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  body { font-family: sans-serif; max-width: 1400px; margin: 20px auto; padding: 0 16px; color: #e8e8f0;
+    background-color: #0b0d1e;
+    background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(rgba(140,180,255,.8) 1px, transparent 1.5px), radial-gradient(rgba(255,255,255,.5) 1px, transparent 1.5px);
+    background-size: 97px 89px, 151px 137px, 53px 61px; background-position: 0 0, 40px 70px, 20px 10px; background-attachment: fixed; }
+  a { color: #8fb8ff; }
+
+  /* Fond dynamique : jaquettes floutées (tous les onglets) */
+  #fondPage { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+  .fondImg { position: absolute; inset: -60px; background: center / cover no-repeat; opacity: 0;
+    filter: blur(24px) brightness(.5) saturate(1.3); transition: opacity 1s ease; will-change: transform, opacity; }
+  .fondImg.visible { opacity: 1; }
+  #fondDegrade { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease;
+    background: linear-gradient(180deg, rgba(11,13,30,.35) 0%, rgba(11,13,30,.55) 45%, rgba(11,13,30,.92) 100%); }
+  #fondDegrade.visible { opacity: 1; }
+  /* ===== Interface neutre (onglets, formulaire, stats) : verre dépoli ===== */
+  body { font-family: Inter, system-ui, sans-serif; }
+  h1 { font-weight: 800; letter-spacing: -.01em; }
+  [hidden] { display: none !important; }
+  nav { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  button, .btn { font: 600 14px Inter, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 10px; padding: 9px 16px; cursor: pointer; backdrop-filter: blur(8px); transition: background .15s, border-color .15s; display: inline-block; }
+  button:hover, .btn:hover { background: rgba(255,255,255,.16); }
+  button.prim { background: linear-gradient(135deg, #ff2a6d, #7a5cff); border-color: transparent; box-shadow: 0 4px 16px rgba(255,42,109,.35); }
+  button.prim:hover { filter: brightness(1.1); }
+  button.dang { color: #ff8095; border-color: rgba(255,128,149,.4); }
+  button.mini { padding: 5px 10px; font-size: 12px; }
+  nav button[aria-pressed="true"] { background: rgba(255,255,255,.24); border-color: rgba(255,255,255,.45); }
+  .ligne { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* ----- Fiche de saisie (option B) ----- */
+  #vue-entree { max-width: 1100px; }
+  #titreForm { font-size: 14px; text-transform: uppercase; letter-spacing: .12em; color: #a8a8c0; margin: 0 0 10px; }
+  .fiche { color-scheme: dark; background: rgba(20,22,40,.72); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; overflow: hidden;
+    backdrop-filter: blur(10px); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .fiche input, .fiche select, .fiche textarea { font: 14px Inter, system-ui, sans-serif; color: #fff; background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 9px 11px; box-sizing: border-box; }
+  .fiche input:focus, .fiche select:focus, .fiche textarea:focus { outline: none; border-color: #b7a6ff; box-shadow: 0 0 0 3px rgba(122,92,255,.3); }
+  .fiche select option, .fiche select optgroup { color: #111; background: #fff; }
+  .fiche label.titre-champ { display: block; font-size: 12px; font-weight: 600; color: #a8a8c0; margin: 14px 0 6px; letter-spacing: .02em; }
+  .fiche h3 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: #ff7aa2; }
+
+  .fiche-tete { position: relative; overflow: hidden; display: flex; gap: 24px; align-items: flex-start; padding: 24px; }
+  .fiche-tete::before { content: ""; position: absolute; inset: -40px; pointer-events: none;
+    background: var(--fondTete, linear-gradient(120deg, #2a1f55, #10324a)) center / cover; filter: blur(26px) brightness(.55) saturate(1.3); }
+  .fiche-tete::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(11,13,30,.1), rgba(11,13,30,.75)); }
+  .fiche-tete > * { position: relative; z-index: 1; }
+  .colJaq { flex: none; width: 160px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  #jaqZone { width: 160px; height: 213px; border: 2px dashed rgba(255,255,255,.3); border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    text-align: center; color: #c8c8dc; font-size: 13px; cursor: pointer; overflow: hidden; box-sizing: border-box; padding: 10px; transition: border-color .15s, background .15s; }
+  #jaqZone.survol { border-color: #ff7aa2; background: rgba(255,42,109,.12); }
+  #jaqZone.pleine { border: none; padding: 0; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+  #apercu { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .colInfos { flex: 1; min-width: 0; }
+  .h-titre { display: flex; gap: 10px; align-items: center; }
+  .fiche #titre { flex: 1; min-width: 0; font-size: 26px; font-weight: 800; background: rgba(0,0,0,.15); border-color: rgba(255,255,255,.25); padding: 8px 14px; }
+  #resultats { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+  #resultats button { width: 100%; text-align: left; font-weight: 400; }
+  #rawgMsg { display: block; margin-top: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 12px; border-radius: 999px; background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.16); font-size: 13px; }
+  .chip small { color: #c0c0d8; font-size: 11px; white-space: nowrap; }
+  .fiche .chip input { background: transparent; border: none; border-radius: 999px; padding: 5px 8px; font-size: 13px; }
+  .fiche .chip input:focus { box-shadow: none; background: rgba(255,255,255,.1); }
+  .aide { font-size: 12px; color: #a8a8c0; margin-top: 8px; }
+
+  .fiche-corps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px 24px 0; }
+  .bloc { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 16px; min-width: 0; }
+  .bloc select, .bloc textarea { width: 100%; }
+  .bloc textarea { min-height: 190px; resize: vertical; }
+  .seg { display: flex; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 9px 4px; font-size: 13px; color: #c8c8dc; backdrop-filter: none; }
+  .seg button + button { border-left: 1px solid rgba(255,255,255,.1); }
+  .seg button.on { background: linear-gradient(135deg, #ff2a6d, #7a5cff); color: #fff; }
+  .noteBox { display: flex; gap: 10px; align-items: center; }
+  #noteRange { flex: 1; accent-color: #ff2a6d; }
+  #noteRange.vide { opacity: .35; }
+  .fiche #note { width: 72px; text-align: center; font-weight: 800; font-size: 16px; }
+  #ancienneNote { display: block; margin-top: 6px; color: #ffcf7a; }
+  .nr { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #c8c8dc; cursor: pointer; margin: 10px 0; }
+  .ligneTemps { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+  .ligneTemps input { min-width: 0; width: 100%; }
+  #totalForm { margin-top: 14px; font-size: 30px; font-weight: 800; }
+  #totalForm small { display: block; font-size: 12px; font-weight: 400; color: #a8a8c0; }
+  .pied { display: flex; justify-content: flex-end; gap: 10px; padding: 20px 24px 24px; }
+  .cle { margin-top: 20px; color: #a8a8c0; }
+  .cle summary { cursor: pointer; }
+  .cle input { font: 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 10px; flex: 1; min-width: 220px; }
+  @media (max-width: 900px) {
+    .fiche-tete { flex-direction: column; align-items: center; }
+    .colInfos { width: 100%; }
+    .fiche-corps { grid-template-columns: 1fr; }
+  }
+
+  /* ----- Statistiques ----- */
+  #vue-stats { max-width: 1100px; }
+  .panneau { background: rgba(20,22,40,.78); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 20px; margin-bottom: 16px; backdrop-filter: blur(10px); }
+  .panneau h3 { margin: 0 0 4px; font-size: 15px; }
+  .panneau .sous { margin: 0 0 16px; font-size: 12px; color: #a8a8c0; }
+  .annees { display: flex; gap: 10px; flex-wrap: wrap; }
+  .annee { text-align: left; min-width: 150px; padding: 12px 14px; }
+  .annee.on { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.45); }
+  .annee b { display: block; font-size: 18px; }
+  .annee span { font-size: 12px; color: #c8c8dc; font-weight: 400; }
+  .annee i { display: block; height: 6px; margin-top: 8px; border-radius: 0 3px 3px 0; background: #8b74ff; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+  .kpi.large { grid-column: span 2; }
+  .kpi .detailKpi { display: block; font-size: 13px; color: #c8c8dc; margin-top: 6px; }
+  .kpi { background: rgba(20,22,40,.78); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 16px 20px; }
+  .kpi small { display: block; font-size: 12px; color: #a8a8c0; }
+  .kpi b { display: block; font-size: 28px; font-weight: 600; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kpi.hero b { font-size: 48px; line-height: 1.1; }
+  .barres { display: grid; grid-template-columns: minmax(120px, 240px) 1fr; row-gap: 2px; align-items: center; }
+  .barres .rang { display: contents; }
+  .barres .lib { font-size: 13px; color: #e8e8f0; padding: 6px 12px 6px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+  .barres .piste { display: flex; align-items: center; gap: 8px; height: 30px; border-left: 1px solid rgba(255,255,255,.25); }
+  .barres .barre { height: 18px; background: #8b74ff; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .barres .val { font-size: 12px; color: #c8c8dc; white-space: nowrap; }
+  .barres .rang:hover .lib { color: #fff; }
+  .barres .rang:hover .barre { filter: brightness(1.2); }
+  #infobulle { position: fixed; pointer-events: none; background: #0b0d1e; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 6px 10px;
+    font-size: 12px; color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.5); z-index: 10; }
+  table.stats { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.stats th { text-align: left; color: #a8a8c0; font-weight: 600; padding: 8px; border-bottom: 1px solid rgba(255,255,255,.15); }
+  table.stats td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  table.stats .num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.stats tfoot td { font-weight: 700; border-bottom: none; }
+  @media (max-width: 700px) { .kpis { grid-template-columns: 1fr; } .kpi.large { grid-column: auto; } }
+
+  /* Pastilles */
+  #liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 12px; align-items: start; }
+  .pastille { border: 1px solid #999; background: #fff; color: #111; position: relative; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+  .chiffres b { display: block; font-weight: inherit; }
+  /* Taille identique pour toutes les pastilles fermées : la hauteur compense l'épaisseur de bordure de chaque époque (--bord = haut + bas) */
+  .pastille { --bord: 2px; }
+  .pastille > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 90px 1fr; gap: 12px; padding: 10px;
+    box-sizing: border-box; height: calc(172px - var(--bord)); overflow: hidden; }
+  .pastille > summary::-webkit-details-marker { display: none; }
+  .jaq { width: 90px; height: 120px; object-fit: cover; display: block; background: #ddd; }
+  .jaq-vide { display: flex; align-items: center; justify-content: center; font-size: 12px; color: #666; text-align: center; }
+  .entete { display: flex; flex-direction: column; min-width: 0; }
+  .nom { font-weight: bold; font-size: 1.05em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .studio { color: #444; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chiffres { margin-top: auto; align-self: flex-end; display: flex; border: 1px solid #999; }
+  .chiffres div { padding: 4px 10px; text-align: center; border-left: 1px solid #999; }
+  .chiffres div:first-child { border-left: none; }
+  .chiffres small { display: block; font-size: 11px; color: #666; }
+  .detail { border-top: 1px solid #ccc; padding: 10px; }
+  .detail dl { display: grid; grid-template-columns: 140px 1fr; gap: 4px 10px; margin: 0 0 10px; }
+  .detail dt { color: #666; }
+  .detail dd { margin: 0; }
+  .ligneTemps input { max-width: 200px; }
+
+  /* =====================================================
+     STYLES PAR ÉPOQUE (année de sortie)
+     ===================================================== */
+
+  /* --- Avant 1985 : arcade, écran cathodique --- */
+  .ep-arcade { background: #050805; color: #39ff6a; border: 2px solid #1d6b2e; font-family: "VT323", monospace; font-size: 19px; text-shadow: 0 0 6px rgba(57,255,106,.55); --bord: 4px; }
+  .ep-arcade::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.35) 2px 3px); }
+  .ep-arcade .nom { font-weight: normal; font-size: 26px; }
+  .ep-arcade .studio, .ep-arcade small, .ep-arcade dt { color: #1fae47; }
+  .ep-arcade .chiffres, .ep-arcade .chiffres div { border-color: #1d6b2e; }
+  .ep-arcade .chiffres b { font-size: 24px; }
+  .ep-arcade small { font-size: 15px; }
+  .ep-arcade .detail { border-top-color: #1d6b2e; }
+  .ep-arcade .jaq { border: 2px solid #1d6b2e; }
+
+  /* --- 1985-1995 : 8/16 bits, boîte de dialogue de RPG --- */
+  .ep-8bit { background: linear-gradient(#2340b8, #0d1a6b); color: #fff; border: 4px double #fff; border-radius: 8px; --bord: 8px; }
+  .ep-8bit .nom { font-family: "Press Start 2P", monospace; font-weight: normal; font-size: 12px; line-height: 1.7; }
+  .ep-8bit .studio, .ep-8bit small, .ep-8bit dt { color: #c8d2ff; }
+  .ep-8bit .chiffres { border: 2px solid #fff; }
+  .ep-8bit .chiffres div { border-color: #fff; border-left-width: 2px; }
+  .ep-8bit .chiffres b { font-family: "Press Start 2P", monospace; font-size: 11px; margin-top: 3px; }
+  .ep-8bit .detail { border-top: 2px solid rgba(255,255,255,.4); }
+  .ep-8bit .jaq { border: 3px solid #fff; }
+
+  /* --- 1996-2004 : fenêtre façon Windows XP --- */
+  .ep-y2k { background: #ece9d8; color: #000; border: 3px solid #0831d9; border-top: none; border-radius: 8px 8px 0 0; font-family: Tahoma, Verdana, sans-serif; font-size: 14px; box-shadow: 2px 3px 8px rgba(0,0,0,.35); --bord: 3px; }
+  .ep-y2k::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 30px; border-radius: 6px 6px 0 0;
+    background: linear-gradient(180deg, #3d95ff 0%, #0a5ce8 8%, #0a58e0 40%, #0548d4 88%, #0335b8 100%); pointer-events: none; }
+  .ep-y2k::after { content: "✕"; position: absolute; top: 4px; right: 6px; width: 21px; height: 21px; border-radius: 3px; border: 1px solid #fff;
+    background: linear-gradient(#e87a5a, #c3401c); color: #fff; font: bold 13px/21px Tahoma, sans-serif; text-align: center; pointer-events: none; }
+  .ep-y2k > summary { padding-top: 40px; }
+  .ep-y2k .nom { display: block; position: absolute; top: 0; left: 0; right: 36px; height: 30px; line-height: 30px; padding-left: 10px; color: #fff; font-weight: bold; font-size: 14px;
+    text-shadow: 1px 1px 0 #0a1e8c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ep-y2k .studio, .ep-y2k dt { color: #444; }
+  .ep-y2k .chiffres { border: none; gap: 5px; }
+  .ep-y2k .chiffres div { border: 1px solid #003c74; border-radius: 3px; padding: 3px 10px; background: linear-gradient(#ffffff, #f0efe8 60%, #d6d0c0); box-shadow: inset 0 -1px 0 #c2bfb0; }
+  .ep-y2k .chiffres small { color: #555; }
+  .ep-y2k .chiffres b { font-weight: bold; color: #003c74; }
+  .ep-y2k .detail { border-top: 1px solid #aca899; background: #f5f4ea; }
+  .ep-y2k .jaq { border: 1px solid #7f9db9; }
+
+  /* --- 2005-2012 : ère HD, brillant « web 2.0 » --- */
+  .ep-hd { background: #f2f4f6; border: 1px solid #b9c2cc; border-radius: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.2); font-family: "Segoe UI", Tahoma, Arial, sans-serif; }
+  .ep-hd > summary { background: linear-gradient(180deg, #fdfdfd 0%, #eef1f4 49%, #e1e6eb 50%, #f2f4f6 100%); }
+  .ep-hd .studio, .ep-hd dt { color: #666; }
+  .ep-hd .chiffres { border: none; gap: 6px; }
+  .ep-hd .chiffres div { border: none; border-radius: 8px; color: #fff; background: linear-gradient(#8fdc5a 0%, #5cb82f 50%, #3f9a1a 51%, #56b82a 100%); text-shadow: 0 -1px 0 rgba(0,0,0,.3); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .ep-hd .chiffres small { color: rgba(255,255,255,.88); }
+  .ep-hd .chiffres b { font-weight: bold; }
+  .ep-hd .jaq { border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+
+  /* --- 2013-2019 : jaquette floutée en fond --- */
+  .ep-jaqfond { color: #fff; border: none; border-radius: 10px; background: #2b2f38; font-family: Inter, sans-serif; --bord: 0px; }
+  .ep-jaqfond::before { content: ""; position: absolute; inset: -30px; background: var(--fond, linear-gradient(135deg, #3a4150, #1d2028)) center / cover;
+    filter: blur(22px) brightness(.45) saturate(1.3); pointer-events: none; }
+  .ep-jaqfond > summary, .ep-jaqfond > .detail { position: relative; }
+  .ep-jaqfond .nom { font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .ep-jaqfond .studio, .ep-jaqfond dt, .ep-jaqfond small { color: rgba(255,255,255,.72); }
+  .ep-jaqfond .chiffres { border: none; border-radius: 8px; background: rgba(0,0,0,.42); }
+  .ep-jaqfond .chiffres div { border: none; }
+  .ep-jaqfond .chiffres b { font-weight: 600; }
+  .ep-jaqfond .detail { border-top: 1px solid rgba(255,255,255,.18); }
+  .ep-jaqfond .jaq { border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+
+  /* --- 2020 et après : sombre, verre dépoli, néon --- */
+  .ep-now { background: radial-gradient(circle at 15% 0%, rgba(255,42,109,.35), transparent 45%), radial-gradient(circle at 100% 100%, rgba(0,229,255,.3), transparent 50%), #0f1020; color: #f2f2f7; border: 1px solid rgba(255,255,255,.14); border-radius: 16px; font-family: Inter, sans-serif; }
+  .ep-now .studio, .ep-now dt, .ep-now small { color: #a3a3b8; }
+  .ep-now .chiffres { border: 1px solid rgba(255,255,255,.18); border-radius: 10px; background: rgba(255,255,255,.06); }
+  .ep-now .chiffres div { border-color: rgba(255,255,255,.12); }
+  .ep-now .chiffres b { font-weight: 600; }
+  .ep-now .c-note b { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,.6); }
+  .ep-now .detail { border-top-color: rgba(255,255,255,.12); }
+  .ep-now .jaq { border-radius: 10px; }
+  /* =====================================================
+     BOUTONS DES PASTILLES, PAR ÉPOQUE
+     ===================================================== */
+  .pastille .detail button { backdrop-filter: none; margin-right: 6px; }
+  /* sans date */
+  .ep-none .detail button { color: #222; background: #f2f2f2; border: 1px solid #bbb; border-radius: 6px; }
+  .ep-none .detail button:hover { background: #e4e4e4; }
+  .ep-none .detail button[data-del] { color: #c62828; }
+  /* arcade */
+  .ep-arcade .detail button { font: 20px "VT323", monospace; color: #39ff6a; background: transparent; border: 2px solid #39ff6a; border-radius: 0; padding: 2px 12px;
+    text-shadow: 0 0 6px rgba(57,255,106,.6); position: relative; z-index: 1; }
+  .ep-arcade .detail button:hover { background: #39ff6a; color: #050805; text-shadow: none; }
+  .ep-arcade .detail button[data-del] { color: #ff4d4d; border-color: #ff4d4d; text-shadow: 0 0 6px rgba(255,77,77,.6); }
+  .ep-arcade .detail button[data-del]:hover { background: #ff4d4d; color: #050805; }
+  /* 8/16 bits : menu de RPG, curseur ▶ au survol */
+  .ep-8bit .detail button { font: 10px "Press Start 2P", monospace; color: #fff; background: #0d1a6b; border: 2px solid #fff; border-radius: 4px; padding: 9px 12px 9px 22px; position: relative; }
+  .ep-8bit .detail button::before { content: "▶"; position: absolute; left: 7px; opacity: 0; }
+  .ep-8bit .detail button:hover::before { opacity: 1; }
+  .ep-8bit .detail button:hover { background: #2340b8; }
+  .ep-8bit .detail button[data-del] { color: #ffb3b3; }
+  /* Windows XP */
+  .ep-y2k .detail button { font: 13px Tahoma, Verdana, sans-serif; color: #000; background: linear-gradient(#ffffff, #ece9d8 85%, #d6d0c0); border: 1px solid #003c74; border-radius: 3px; padding: 4px 16px; }
+  .ep-y2k .detail button:hover { box-shadow: inset 0 0 0 2px #f8b636; background: linear-gradient(#ffffff, #ece9d8 85%, #d6d0c0); }
+  .ep-y2k .detail button[data-del] { color: #a80000; }
+  /* ère HD : pilule brillante */
+  .ep-hd .detail button { font: 600 13px "Segoe UI", Tahoma, sans-serif; color: #333; border: 1px solid #8a9aa8; border-radius: 999px; padding: 5px 16px;
+    background: linear-gradient(#ffffff 0%, #e8edf1 50%, #d5dde4 51%, #eef2f5 100%); box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .ep-hd .detail button:hover { background: linear-gradient(#ffffff 0%, #f2f6f9 50%, #e2e9ef 51%, #f6f9fb 100%); }
+  .ep-hd .detail button[data-del] { color: #fff; border-color: #a12020; text-shadow: 0 -1px 0 rgba(0,0,0,.3);
+    background: linear-gradient(#ff8a80 0%, #e53935 50%, #c62828 51%, #e53935 100%); }
+  /* jaquette en fond : verre */
+  .ep-jaqfond .detail button { color: #fff; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); border-radius: 8px; backdrop-filter: blur(6px); }
+  .ep-jaqfond .detail button:hover { background: rgba(255,255,255,.22); }
+  .ep-jaqfond .detail button[data-del] { color: #ffb3c1; border-color: rgba(255,179,193,.45); }
+  /* actuel : néon */
+  .ep-now .detail button { color: #00e5ff; background: transparent; border: 1px solid #00e5ff; border-radius: 8px; box-shadow: 0 0 8px rgba(0,229,255,.35); }
+  .ep-now .detail button:hover { background: rgba(0,229,255,.12); }
+  .ep-now .detail button[data-del] { color: #ff2a6d; border-color: #ff2a6d; box-shadow: 0 0 8px rgba(255,42,109,.35); }
+  .ep-now .detail button[data-del]:hover { background: rgba(255,42,109,.12); }
+
+  .io { margin-top: 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .tri { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; font-size: 13px; color: #c8c8dc; }
+  .tri select { color-scheme: dark; font: 600 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 10px; padding: 8px 10px; backdrop-filter: blur(8px); }
+  .tri select option { color: #111; background: #fff; }
+  small { color: #a8a8c0; }
+  .pastille :where(small) { color: #666; }
+</style>
+</head>
+<body>
+
+<div id="fondPage"><div class="fondImg" id="fondA"></div><div class="fondImg" id="fondB"></div><div id="fondDegrade"></div></div>
+
+<h1>Journal de jeux</h1>
+
+<nav>
+  <button type="button" data-vue="entree" aria-pressed="true">Entrée d'un nouveau jeu</button>
+  <button type="button" data-vue="catalogue" aria-pressed="false">Catalogue (<span id="nbJeux">0</span>)</button>
+  <button type="button" data-vue="stats" aria-pressed="false">Statistiques</button>
+</nav>
+
+<!-- ===== VUE ENTRÉE ===== -->
+<section id="vue-entree" class="vue">
+  <h2 id="titreForm">Nouveau jeu</h2>
+  <form id="f" class="fiche" novalidate>
+    <input type="hidden" id="id">
+    <input type="hidden" id="statut">
+
+    <!-- En-tête : jaquette + titre + infos RAWG -->
+    <div class="fiche-tete" id="ficheTete">
+      <div class="colJaq">
+        <label id="jaqZone" title="Clique ou glisse une image">
+          <img id="apercu" alt="" hidden>
+          <span id="jaqTexte">Glisse une image ici<br>ou clique pour choisir</span>
+          <input type="file" id="fichierJaquette" accept="image/*" hidden>
+        </label>
+        <button type="button" id="btnRetirerJaquette" class="mini dang" hidden>Retirer l'image</button>
+      </div>
+      <div class="colInfos">
+        <div class="h-titre">
+          <input id="titre" placeholder="Titre du jeu" autocomplete="off">
+          <button type="button" id="btnRawg">🔍 RAWG</button>
+        </div>
+        <ul id="resultats"></ul>
+        <small id="rawgMsg"></small>
+        <div id="lienRawg" class="aide" hidden>Fiche RAWG liée : <b id="nomRawgAff"></b> <button type="button" id="btnDelier" class="mini">Délier</button></div>
+        <div class="chips">
+          <label class="chip"><small>Sortie</small><input id="sortie" type="date" style="width:140px"></label>
+          <label class="chip"><small>Studio</small><input id="studio" style="width:170px"></label>
+          <label class="chip"><small>Compositeur</small><input id="compositeur" style="width:190px"></label>
+          <label class="chip"><small>Genre</small><input id="genre" style="width:170px"></label>
+          <label class="chip"><small>Metacritic</small><input id="metacritic" type="number" min="0" max="100" step="1" style="width:60px"></label>
+        </div>
+        <div class="aide">Remplis automatiquement par la recherche RAWG ; clique dans une étiquette pour corriger.</div>
+      </div>
+    </div>
+
+    <!-- Corps : trois blocs -->
+    <div class="fiche-corps">
+      <div class="bloc">
+        <h3>Ma partie</h3>
+        <label class="titre-champ" for="console">Console</label>
+        <select id="console">
+          <option value="">—</option>
+          <optgroup label="Nintendo — salon">
+            <option>NES</option><option>Super Nintendo</option><option>Nintendo 64</option><option>GameCube</option>
+            <option>Wii</option><option>Wii U</option><option>Switch</option><option>Switch 2</option>
+          </optgroup>
+          <optgroup label="Nintendo — portables">
+            <option>Game &amp; Watch</option><option>Game Boy</option><option>Virtual Boy</option><option>Game Boy Color</option>
+            <option>Game Boy Advance</option><option>DS</option><option>3DS</option>
+          </optgroup>
+          <optgroup label="Xbox">
+            <option>Xbox</option><option>Xbox 360</option><option>Xbox One</option>
+          </optgroup>
+          <optgroup label="Autres">
+            <option>PC</option><option>PS5</option>
+          </optgroup>
+        </select>
+        <label class="titre-champ">Statut</label>
+        <div class="seg" id="segStatut">
+          <button type="button" data-statut="Fini">Fini</button>
+          <button type="button" data-statut="En cours">En cours</button>
+          <button type="button" data-statut="Abandonné">Abandonné</button>
+        </div>
+        <label class="titre-champ" for="note">Ma note (sur 100)</label>
+        <div class="noteBox">
+          <input type="range" id="noteRange" min="0" max="100" step="1" value="50" class="vide">
+          <input type="number" id="note" min="0" max="100" step="1" placeholder="—">
+        </div>
+        <small id="ancienneNote" hidden></small>
+      </div>
+
+      <div class="bloc">
+        <h3>Temps de jeu</h3>
+        <label class="nr"><input type="checkbox" id="tempsNR"> NR (je ne sais pas combien de temps j'y ai joué)</label>
+        <div id="blocAnnees">
+          <div id="lignesTemps"></div>
+          <button type="button" id="btnAjoutAnnee" class="mini">+ Ajouter une année</button>
+          <div id="totalForm"></div>
+        </div>
+      </div>
+
+      <div class="bloc">
+        <h3>Mon avis</h3>
+        <label class="titre-champ" for="description">Description</label>
+        <textarea id="description" placeholder="Ce que j'en ai pensé…"></textarea>
+      </div>
+    </div>
+
+    <div class="pied">
+      <button type="button" id="btnCancel" hidden>Annuler</button>
+      <button type="submit" id="btnSave" class="prim">Ajouter au catalogue</button>
+    </div>
+  </form>
+
+  <details class="cle">
+    <summary>Clé API RAWG</summary>
+    <div class="ligne" style="margin-top:8px">
+      <input id="cleRawg" placeholder="Colle ta clé ici">
+      <button type="button" id="btnCle">Enregistrer la clé</button>
+    </div>
+    <small>Clé gratuite sur rawg.io/apidocs. Stockée dans ce navigateur uniquement.</small>
+  </details>
+  <p><small>Date de sortie, studio, compositeur, genre et Metacritic : données issues de <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</small></p>
+</section>
+
+<!-- ===== VUE CATALOGUE ===== -->
+<section id="vue-catalogue" class="vue" hidden>
+  <div class="tri">
+    <label for="triCle">Trier par</label>
+    <select id="triCle">
+      <option value="titre">Nom</option>
+      <option value="sortie">Date de sortie</option>
+      <option value="note">Ma note</option>
+      <option value="metacritic">Note Metacritic</option>
+      <option value="genre">Genre</option>
+      <option value="console">Console</option>
+    </select>
+    <button type="button" id="triSens" class="mini"></button>
+  </div>
+  <div id="liste"></div>
+  <p id="vide"><small>Aucun jeu pour l'instant.</small></p>
+
+  <div class="io">
+    <button id="btnExport">Exporter (JSON, avec images)</button>
+    <label class="btn">Importer (remplace tout)<input type="file" id="fileImport" accept=".json,application/json" hidden></label>
+  </div>
+</section>
+
+<!-- ===== VUE STATISTIQUES ===== -->
+<section id="vue-stats" class="vue" hidden>
+  <div class="panneau">
+    <h3>Temps de jeu par année</h3>
+    <p class="sous">De 2020 à 2027. Clique sur une année pour voir le détail.</p>
+    <div class="annees" id="statsAnnees"></div>
+    <p id="statsVide" hidden><small>Aucun temps de jeu daté entre 2020 et 2027 pour l'instant.</small></p>
+  </div>
+  <div id="statsDetail" hidden>
+    <div class="kpis">
+      <div class="kpi hero"><small>Temps total</small><b id="kpiTotal"></b><span class="detailKpi" id="kpiJours"></span></div>
+      <div class="kpi"><small>Part de l'année</small><b id="kpiPart"></b><span class="detailKpi" id="kpiPartDetail"></span></div>
+      <div class="kpi"><small>Par jour (lissé)</small><b id="kpiParJour"></b><span class="detailKpi" id="kpiParJourDetail"></span></div>
+      <div class="kpi"><small>Jeux joués</small><b id="kpiJeux"></b></div>
+      <div class="kpi large"><small>Le plus joué</small><b id="kpiTop"></b></div>
+    </div>
+    <div class="panneau">
+      <h3>Répartition du temps</h3>
+      <p class="sous" id="sousBarres"></p>
+      <div class="barres" id="barres"></div>
+    </div>
+    <div class="panneau">
+      <h3>Tous les jeux de l'année</h3>
+      <p class="sous">Tous les jeux, y compris ceux à moins de 10 h.</p>
+      <table class="stats">
+        <thead><tr><th>Jeu</th><th>Console</th><th class="num">Heures</th><th class="num">Part</th><th>Statut</th><th class="num">Ma note</th></tr></thead>
+        <tbody id="tableStats"></tbody>
+        <tfoot id="tableStatsPied"></tfoot>
+      </table>
+    </div>
+  </div>
+</section>
+<div id="infobulle" hidden></div>
+
+<script>
+const KEY = 'journalJeux_v1';
+const KEY_RAWG = 'journalJeux_cleRawg';
+const CHAMPS = ['titre','console','note','genre','sortie','studio','compositeur','metacritic','statut','description'];
+const NON_RENSEIGNE = 'Non renseigné';
+const LARGEUR_JAQUETTE = 300;
+const $ = id => document.getElementById(id);
+
+/* ---------- Données (localStorage) ---------- */
+/* Ancien format : un seul nombre "temps" sans année → rangé en "année inconnue" */
+function migrer(g) {
+  if (!Array.isArray(g.tempsAnnees)) {
+    g.tempsAnnees = (g.temps !== null && g.temps !== undefined && g.temps !== '')
+      ? [{ annee: null, h: Number(g.temps) }] : [];
+  }
+  g.tempsNR = !!g.tempsNR;
+  delete g.temps;
+  // Ancienne note en lettre (F à S+) : conservée à part, la note devient un nombre 0-100
+  if (typeof g.note === 'string') {
+    const t = g.note.trim();
+    if (t === '') g.note = null;
+    else if (isNaN(Number(t))) { g.noteLettre = t; g.note = null; }
+    else g.note = Number(t);
+  }
+  if (g.note === undefined) g.note = null;
+  return g;
+}
+function charger() {
+  try { return (JSON.parse(localStorage.getItem(KEY)) || []).map(migrer); } catch { return []; }
+}
+
+/* Temps total : 'NR', null (rien saisi) ou nombre d'heures */
+function tempsTotal(g) {
+  if (g.tempsNR) return 'NR';
+  if (!g.tempsAnnees || !g.tempsAnnees.length) return null;
+  return Math.round(g.tempsAnnees.reduce((s, t) => s + (Number(t.h) || 0), 0) * 100) / 100;
+}
+function tempsTrie(g) {
+  return [...(g.tempsAnnees || [])].sort((a, b) =>
+    (a.annee ?? Infinity) - (b.annee ?? Infinity));
+}
+function sauver() { localStorage.setItem(KEY, JSON.stringify(jeux)); }
+let jeux = charger();
+
+/* ---------- Images (IndexedDB) ---------- */
+const dbPromise = new Promise((resolve, reject) => {
+  const req = indexedDB.open('journalJeux', 1);
+  req.onupgradeneeded = () => req.result.createObjectStore('jaquettes');
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function idb(mode, fn) {
+  const db = await dbPromise;
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('jaquettes', mode);
+    const r = fn(tx.objectStore('jaquettes'));
+    tx.oncomplete = () => resolve(r && r.result);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+const imgGet   = id => idb('readonly',  s => s.get(id));
+const imgSet   = (id, dataUrl) => idb('readwrite', s => s.put(dataUrl, id));
+const imgDel   = id => idb('readwrite', s => s.delete(id));
+const imgClear = () => idb('readwrite', s => s.clear());
+
+function redimensionner(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, LARGEUR_JAQUETTE / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * ratio);
+      c.height = Math.round(img.height * ratio);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image illisible')); };
+    img.src = url;
+  });
+}
+
+/* ---------- Navigation ---------- */
+function montrer(vue) {
+  for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-pressed', b.dataset.vue === vue);
+  $('vue-entree').hidden = vue !== 'entree';
+  $('vue-catalogue').hidden = vue !== 'catalogue';
+  $('vue-stats').hidden = vue !== 'stats';
+  if (vue === 'catalogue') afficher();          // le fond se fige si une pastille est ouverte
+  else majDiaporama(false);                     // ailleurs : défilement simple
+  if (vue === 'stats') afficherStats();
+}
+document.querySelector('nav').addEventListener('click', e => {
+  if (e.target.dataset.vue) montrer(e.target.dataset.vue);
+});
+
+/* ---------- Formulaire ---------- */
+let jaquetteEnCours = undefined; // undefined = inchangée, null = retirée, string = nouvelle
+
+function majApercu(dataUrl) {
+  $('apercu').src = dataUrl || '';
+  $('apercu').hidden = !dataUrl;
+  $('jaqTexte').hidden = !!dataUrl;
+  $('jaqZone').classList.toggle('pleine', !!dataUrl);
+  $('btnRetirerJaquette').hidden = !dataUrl;
+  if (dataUrl) $('ficheTete').style.setProperty('--fondTete', `url('${dataUrl}')`);
+  else $('ficheTete').style.removeProperty('--fondTete');
+}
+
+/* Statut : boutons côte à côte (re-cliquer le bouton actif le désélectionne) */
+function setStatut(v) {
+  $('statut').value = v || '';
+  for (const b of document.querySelectorAll('#segStatut button')) b.classList.toggle('on', b.dataset.statut === v);
+}
+$('segStatut').addEventListener('click', e => {
+  const v = e.target.dataset.statut;
+  if (v !== undefined) setStatut($('statut').value === v ? '' : v);
+});
+
+/* Note sur 100 : curseur + case synchronisés ; case vide = pas de note */
+function setNote(v) {
+  const vide = v === '' || v === null || v === undefined;
+  $('note').value = vide ? '' : v;
+  if (!vide) $('noteRange').value = v;
+  $('noteRange').classList.toggle('vide', vide);
+}
+$('noteRange').addEventListener('input', () => setNote($('noteRange').value));
+$('note').addEventListener('input', () => {
+  const t = $('note').value;
+  if (t === '') return setNote('');
+  setNote(Math.max(0, Math.min(100, Math.round(Number(t)))));
+});
+
+function lireForm() {
+  const g = {};
+  for (const c of CHAMPS) g[c] = $(c).value.trim();
+  g.tempsNR = $('tempsNR').checked;
+  g.tempsAnnees = g.tempsNR ? [] : lireLignesTemps();
+  g.metacritic = g.metacritic === '' ? null : Number(g.metacritic);
+  g.note = g.note === '' ? null : Number(g.note);
+  g.idRawg = lienRawg ? lienRawg.id : null;
+  g.nomRawg = lienRawg ? lienRawg.nom : null;
+  return g;
+}
+
+/* Lignes "temps par année" */
+function ajouterLigneTemps(annee = '', h = '') {
+  const div = document.createElement('div');
+  div.className = 'ligneTemps';
+  div.innerHTML = `
+    <input type="number" class="tA" min="2020" max="2027" step="1" placeholder="Année" title="2020 à 2027 (vide = année inconnue)">
+    <input type="number" class="tH" min="0" step="0.25" placeholder="Heures">
+    <button type="button" class="tSuppr mini" title="Retirer cette ligne">✕</button>`;
+  div.querySelector('.tA').value = annee ?? '';
+  div.querySelector('.tH').value = h ?? '';
+  $('lignesTemps').appendChild(div);
+  majTotalForm();
+}
+function lireLignesTemps() {
+  return [...document.querySelectorAll('.ligneTemps')]
+    .map(l => ({ a: l.querySelector('.tA').value.trim(), h: l.querySelector('.tH').value.trim() }))
+    .filter(l => l.h !== '')
+    .map(l => ({ annee: l.a === '' ? null : Number(l.a), h: Number(l.h) }));
+}
+function majTotalForm() {
+  const total = lireLignesTemps().reduce((s, t) => s + t.h, 0);
+  $('totalForm').innerHTML = `${total ? fmtH(Math.round(total * 100) / 100) : '0 h'}<small>au total</small>`;
+}
+function majModeNR() { $('blocAnnees').hidden = $('tempsNR').checked; }
+function remplirTemps(g) {
+  $('lignesTemps').innerHTML = '';
+  $('tempsNR').checked = !!(g && g.tempsNR);
+  const lignes = g ? tempsTrie(g) : [];
+  if (lignes.length) lignes.forEach(t => ajouterLigneTemps(t.annee, t.h));
+  else ajouterLigneTemps();
+  majModeNR();
+}
+$('btnAjoutAnnee').addEventListener('click', () => ajouterLigneTemps());
+$('tempsNR').addEventListener('change', majModeNR);
+$('lignesTemps').addEventListener('input', majTotalForm);
+$('lignesTemps').addEventListener('click', e => {
+  if (!e.target.classList.contains('tSuppr')) return;
+  e.target.closest('.ligneTemps').remove();
+  if (!document.querySelector('.ligneTemps')) ajouterLigneTemps();
+  majTotalForm();
+});
+
+/* Lien vers la fiche RAWG choisie (id + nom exact) */
+let lienRawg = null;
+function majLienRawg(lien) {
+  lienRawg = lien;
+  $('lienRawg').hidden = !lien;
+  $('nomRawgAff').textContent = lien ? lien.nom : '';
+}
+$('btnDelier').addEventListener('click', () => majLienRawg(null));
+
+function resetForm() {
+  $('f').reset();
+  $('id').value = '';
+  $('btnSave').textContent = 'Ajouter au catalogue';
+  $('btnCancel').hidden = true;
+  setStatut('');
+  setNote('');
+  $('ancienneNote').hidden = true;
+  $('titreForm').textContent = 'Nouveau jeu';
+  $('resultats').innerHTML = '';
+  $('rawgMsg').textContent = '';
+  jaquetteEnCours = undefined;
+  majApercu(null);
+  majLienRawg(null);
+  remplirTemps(null);
+}
+
+async function prendreImage(file) {
+  if (!file) return;
+  try {
+    jaquetteEnCours = await redimensionner(file);
+    majApercu(jaquetteEnCours);
+  } catch {
+    alert('Image illisible.');
+    $('fichierJaquette').value = '';
+  }
+}
+$('fichierJaquette').addEventListener('change', e => prendreImage(e.target.files[0]));
+for (const ev of ['dragenter', 'dragover']) $('jaqZone').addEventListener(ev, e => { e.preventDefault(); $('jaqZone').classList.add('survol'); });
+for (const ev of ['dragleave', 'drop']) $('jaqZone').addEventListener(ev, e => { e.preventDefault(); $('jaqZone').classList.remove('survol'); });
+$('jaqZone').addEventListener('drop', e => {
+  const f = [...(e.dataTransfer.files || [])].find(f => f.type.startsWith('image/'));
+  if (f) prendreImage(f); else alert('Dépose un fichier image.');
+});
+
+$('btnRetirerJaquette').addEventListener('click', () => {
+  jaquetteEnCours = null;
+  $('fichierJaquette').value = '';
+  majApercu(null);
+});
+
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!$('titre').value.trim()) { $('titre').focus(); $('rawgMsg').textContent = 'Il faut au moins un titre.'; return; }
+  const g = lireForm();
+  let id = $('id').value;
+  if (id) {
+    const i = jeux.findIndex(x => x.id === id);
+    jeux[i] = { ...jeux[i], ...g, modifie: new Date().toISOString() };
+  } else {
+    id = crypto.randomUUID();
+    jeux.push({ id, ...g, cree: new Date().toISOString() });
+  }
+  sauver();
+  if (typeof jaquetteEnCours === 'string') await imgSet(id, jaquetteEnCours);
+  else if (jaquetteEnCours === null) await imgDel(id);
+  const etaitEdition = $('btnCancel').hidden === false;
+  resetForm();
+  majCompteur();
+  if (etaitEdition) montrer('catalogue'); else majDiaporama(false);
+});
+
+$('btnCancel').addEventListener('click', () => { resetForm(); montrer('catalogue'); });
+
+async function editer(id) {
+  const g = jeux.find(x => x.id === id);
+  if (!g) return;
+  resetForm();
+  $('id').value = g.id;
+  for (const c of CHAMPS) $(c).value = g[c] ?? '';
+  majLienRawg(g.idRawg ? { id: g.idRawg, nom: g.nomRawg } : null);
+  remplirTemps(g);
+  setStatut(g.statut || '');
+  setNote(g.note ?? '');
+  if (g.noteLettre && (g.note === null || g.note === undefined)) {
+    $('ancienneNote').textContent = `Ancienne note : ${g.noteLettre}. Mets une note sur 100 pour la remplacer.`;
+    $('ancienneNote').hidden = false;
+  }
+  $('btnSave').textContent = 'Enregistrer';
+  $('btnCancel').hidden = false;
+  $('titreForm').textContent = 'Modifier : ' + g.titre;
+  majApercu(await imgGet(id));
+  montrer('entree');
+  window.scrollTo(0, 0);
+}
+
+/* ---------- RAWG (année + studio uniquement) ---------- */
+$('cleRawg').value = localStorage.getItem(KEY_RAWG) || '';
+$('btnCle').addEventListener('click', () => {
+  localStorage.setItem(KEY_RAWG, $('cleRawg').value.trim());
+  $('rawgMsg').textContent = 'Clé enregistrée.';
+});
+
+async function rawg(chemin, params) {
+  const cle = localStorage.getItem(KEY_RAWG);
+  if (!cle) throw new Error('Pas de clé RAWG (voir « Clé API RAWG » en bas).');
+  const q = new URLSearchParams({ key: cle, ...params });
+  const r = await fetch(`https://api.rawg.io/api/${chemin}?${q}`);
+  if (!r.ok) throw new Error(`RAWG a répondu ${r.status}${r.status === 401 ? ' (clé invalide ?)' : ''}.`);
+  return r.json();
+}
+
+$('btnRawg').addEventListener('click', async () => {
+  const titre = $('titre').value.trim();
+  $('resultats').innerHTML = '';
+  if (!titre) { $('rawgMsg').textContent = 'Tape un titre d\'abord.'; return; }
+  $('rawgMsg').textContent = 'Recherche…';
+  try {
+    const data = await rawg('games', { search: titre, page_size: 8 });
+    if (!data.results.length) { $('rawgMsg').textContent = 'Aucun résultat.'; return; }
+    $('rawgMsg').textContent = 'Clique sur le bon jeu :';
+    $('resultats').innerHTML = data.results.map(r =>
+      `<li><button type="button" data-rawg="${r.id}">${esc(r.name)} (${r.released ? r.released.slice(0,4) : '?'})</button></li>`
+    ).join('');
+  } catch (err) {
+    $('rawgMsg').textContent = 'Erreur : ' + (err.message || 'réseau');
+  }
+});
+
+$('resultats').addEventListener('click', async e => {
+  const idRawg = e.target.dataset.rawg;
+  if (!idRawg) return;
+  $('rawgMsg').textContent = 'Chargement…';
+  try {
+    const d = await rawg('games/' + idRawg, {});
+    majLienRawg({ id: d.id, nom: d.name });
+    if (d.name) $('titre').value = d.name;
+    if (d.released) $('sortie').value = d.released;
+    if (d.developers && d.developers.length) $('studio').value = d.developers[0].name;
+    $('metacritic').value = d.metacritic ?? '';
+    if (d.genres && d.genres.length) $('genre').value = d.genres.map(x => x.name).join(', ');
+    const msgs = ['Rempli.'];
+    if (d.developers && d.developers.length > 1)
+      msgs.push('Autres studios listés par RAWG : ' + d.developers.slice(1).map(x => x.name).join(', ') + '.');
+    try {
+      const equipe = await rawg(`games/${idRawg}/development-team`, { page_size: 40 });
+      const compos = (equipe.results || []).filter(p =>
+        (p.positions || []).some(pos => pos.slug === 'composer' || /compos/i.test(pos.name || '')));
+      $('compositeur').value = compos.length ? compos.map(p => p.name).join(', ') : NON_RENSEIGNE;
+    } catch {
+      $('compositeur').value = NON_RENSEIGNE;
+      msgs.push('Équipe de développement inaccessible, compositeur mis à « Non renseigné ».');
+    }
+    $('resultats').innerHTML = '';
+    $('rawgMsg').textContent = msgs.join(' ');
+  } catch (err) {
+    $('rawgMsg').textContent = 'Erreur : ' + (err.message || 'réseau');
+  }
+});
+
+/* ---------- Fond dynamique ----------
+   Tous les onglets : les jaquettes défilent floutées en fondu. Dans le catalogue, ouvrir une
+   pastille fige le fond sur sa jaquette. Sans aucune jaquette : fond étoilé. */
+const DUREE_DIAPO = 5000;   // une jaquette toutes les 5 s
+const MOUVEMENT_REDUIT = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let diapo = { images: [], index: 0, timer: null, fige: null, couche: 'A' };
+
+/* Zoom + glissement dans une direction tirée au hasard pour chaque image */
+function animerFond(el, fige) {
+  if (MOUVEMENT_REDUIT) return;
+  if (el._anim) el._anim.cancel();
+  const r = () => (Math.random() * 2 - 1) * 5;           // -5 % à +5 %
+  const [z1, z2] = Math.random() < .5 ? [1.05, 1.28] : [1.28, 1.05]; // zoom avant ou arrière
+  el._anim = el.animate([
+    { transform: `scale(${z1}) translate(${r()}%, ${r()}%)` },
+    { transform: `scale(${z2}) translate(${r()}%, ${r()}%)` }
+  ], fige
+    ? { duration: 14000, iterations: Infinity, direction: 'alternate', easing: 'ease-in-out' }
+    : { duration: DUREE_DIAPO + 1200, fill: 'forwards', easing: 'linear' });
+}
+function fondAfficher(url, fige = false) {
+  const suivante = diapo.couche === 'A' ? 'B' : 'A';
+  const elNew = $('fond' + suivante), elOld = $('fond' + diapo.couche);
+  if (url) {
+    elNew.style.backgroundImage = `url('${url}')`;
+    animerFond(elNew, fige);
+    elNew.classList.add('visible');
+    elOld.classList.remove('visible');
+    diapo.couche = suivante;
+    $('fondDegrade').classList.add('visible');
+  } else {
+    elNew.classList.remove('visible');
+    elOld.classList.remove('visible');
+    $('fondDegrade').classList.remove('visible');
+  }
+}
+function fondTourner() {
+  clearInterval(diapo.timer); diapo.timer = null;
+  if (!diapo.images.length) { fondAfficher(null); return; }
+  diapo.index %= diapo.images.length;
+  fondAfficher(diapo.images[diapo.index]);
+  if (diapo.images.length > 1) diapo.timer = setInterval(() => {
+    diapo.index = (diapo.index + 1) % diapo.images.length;
+    fondAfficher(diapo.images[diapo.index]);
+  }, DUREE_DIAPO);
+}
+async function majDiaporama(permettreFige = true) {
+  const imgs = await Promise.all(jeux.map(g => imgGet(g.id)));
+  diapo.images = imgs.filter(Boolean);
+  const ouverte = permettreFige && document.querySelector('.pastille[open]');
+  if (ouverte) figerSur(ouverte.dataset.id);
+  else { diapo.fige = null; fondTourner(); }
+}
+async function figerSur(id) {
+  clearInterval(diapo.timer); diapo.timer = null;
+  if (diapo.fige === id) return;   // déjà affiché
+  diapo.fige = id;
+  fondAfficher((await imgGet(id)) || null, true);
+}
+// L'événement "toggle" ne remonte pas : écoute en phase de capture
+$('liste').addEventListener('toggle', e => {
+  const d = e.target;
+  if (!d.classList || !d.classList.contains('pastille')) return;
+  if (d.open) {
+    for (const autre of document.querySelectorAll('.pastille[open]')) if (autre !== d) autre.open = false;
+    figerSur(d.dataset.id);
+  }
+  else {
+    const autre = document.querySelector('.pastille[open]');
+    if (autre) figerSur(autre.dataset.id); else { diapo.fige = null; fondTourner(); }
+  }
+}, true);
+
+/* ---------- Catalogue ---------- */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+function dateFR(iso) {
+  const [a, m, j] = String(iso).split('-');
+  return j ? `${j}/${m}/${a}` : esc(iso);
+}
+function majCompteur() { $('nbJeux').textContent = jeux.length; }
+
+/* Style de pastille selon l'année de sortie */
+function epoque(g) {
+  const y = Number(g.sortie ? String(g.sortie).slice(0, 4) : g.annee);
+  if (!y) return 'none';
+  if (y <= 1984) return 'arcade';
+  if (y <= 1995) return '8bit';
+  if (y <= 2004) return 'y2k';
+  if (y <= 2012) return 'hd';
+  if (y <= 2019) return 'jaqfond';
+  return 'now';
+}
+function fmtH(n) { return `${String(n).replace('.', ',')} h`; }
+function noteAff(g) {
+  if (g.note !== null && g.note !== undefined && g.note !== '') return esc(g.note);
+  return g.noteLettre ? esc(g.noteLettre) : '—';
+}
+
+/* Tri : sens par défaut propre à chaque critère ; valeurs vides toujours en fin de liste ; à égalité, tri par nom */
+const KEY_TRI = 'journalJeux_tri';
+const TRI_DEFAUT = { titre: false, sortie: true, note: true, metacritic: true, genre: false, console: false }; // true = décroissant
+const TRI_LIBELLES = {
+  titre: ['A → Z', 'Z → A'], genre: ['A → Z', 'Z → A'], console: ['A → Z', 'Z → A'],
+  sortie: ["Ancien d'abord", "Récent d'abord"],
+  note: ["Moins bonne d'abord", "Meilleure d'abord"], metacritic: ["Moins bonne d'abord", "Meilleure d'abord"],
+};
+let tri = (() => { try { return JSON.parse(localStorage.getItem(KEY_TRI)) || null; } catch { return null; } })()
+  || { cle: 'titre', desc: false };
+function valeurTri(g, cle) {
+  const v = cle === 'sortie' ? (g.sortie || (g.annee ? `${g.annee}-01-01` : null)) : g[cle];
+  return (v === null || v === undefined || v === '') ? null : v;
+}
+function trier(liste) {
+  const cmpTxt = (a, b) => String(a).localeCompare(String(b), 'fr', { sensitivity: 'base', numeric: true });
+  return liste.sort((a, b) => {
+    const va = valeurTri(a, tri.cle), vb = valeurTri(b, tri.cle);
+    if (va === null && vb !== null) return 1;
+    if (vb === null && va !== null) return -1;
+    let r = 0;
+    if (va !== null) r = typeof va === 'number' && typeof vb === 'number' ? va - vb : cmpTxt(va, vb);
+    if (tri.desc) r = -r;
+    return r || cmpTxt(a.titre, b.titre);
+  });
+}
+function majTriUI() {
+  $('triCle').value = tri.cle;
+  $('triSens').textContent = (tri.desc ? '↓ ' : '↑ ') + TRI_LIBELLES[tri.cle][tri.desc ? 1 : 0];
+  try { localStorage.setItem(KEY_TRI, JSON.stringify(tri)); } catch {}
+}
+$('triCle').addEventListener('change', () => { tri = { cle: $('triCle').value, desc: TRI_DEFAUT[$('triCle').value] }; majTriUI(); afficher(); });
+$('triSens').addEventListener('click', () => { tri.desc = !tri.desc; majTriUI(); afficher(); });
+majTriUI();
+
+async function afficher() {
+  majCompteur();
+  $('vide').hidden = jeux.length > 0;
+  const ouverts = new Set([...document.querySelectorAll('.pastille[open]')].map(d => d.dataset.id));
+  const tiret = v => (v === null || v === undefined || v === '') ? '—' : esc(v);
+  const cartes = await Promise.all(trier([...jeux]).map(async g => {
+    const img = await imgGet(g.id);
+    const annee = g.sortie ? String(g.sortie).slice(0, 4) : (g.annee ?? '');
+    const champ = (label, val) => `<dt>${label}</dt><dd>${val}</dd>`;
+    const total = tempsTotal(g);
+    const totalAff = total === 'NR' ? 'NR' : total === null ? '—' : fmtH(total);
+    const parAnnee = g.tempsNR ? 'NR'
+      : (g.tempsAnnees || []).length
+        ? tempsTrie(g).map(t => `${t.annee ?? 'Année inconnue'} : ${fmtH(t.h)}`).join('<br>')
+        : '—';
+    return `
+    <details class="pastille ep-${epoque(g)}" data-id="${g.id}"${img ? ` style="--fond:url('${img}')"` : ''}${ouverts.has(g.id) ? ' open' : ''}>
+      <summary>
+        ${img ? `<img class="jaq" src="${img}" alt="">` : `<div class="jaq jaq-vide">Pas d'image</div>`}
+        <div class="entete">
+          <span class="nom">${esc(g.titre)}${annee ? ` (${esc(annee)})` : ''}</span>
+          <span class="studio">${tiret(g.studio)}</span>
+          <div class="chiffres">
+            <div class="c-temps"><small>Mon temps</small><b>${totalAff}</b></div>
+            <div class="c-meta"><small>Metacritic</small><b>${tiret(g.metacritic)}</b></div>
+            <div class="c-note"><small>Ma note</small><b>${noteAff(g)}</b></div>
+          </div>
+        </div>
+      </summary>
+      <div class="detail">
+        <dl>
+          ${champ('Temps par année', parAnnee)}
+          ${champ('Console', tiret(g.console))}
+          ${champ('Genre', tiret(g.genre))}
+          ${champ('Statut', tiret(g.statut))}
+          ${champ('Sortie', g.sortie ? dateFR(g.sortie) : tiret(g.annee))}
+          ${champ('Compositeur', tiret(g.compositeur))}
+          ${g.nomRawg ? champ('Fiche RAWG', esc(g.nomRawg)) : ''}
+          ${champ('Description', g.description ? esc(g.description).replace(/\n/g, '<br>') : '—')}
+        </dl>
+        <button data-edit="${g.id}">Modifier</button>
+        <button data-del="${g.id}">Supprimer</button>
+      </div>
+    </details>`;
+  }));
+  $('liste').innerHTML = cartes.join('');
+  await majDiaporama();
+}
+
+$('liste').addEventListener('click', async e => {
+  const { edit, del } = e.target.dataset;
+  if (edit) editer(edit);
+  if (del && confirm('Supprimer ce jeu ?')) {
+    jeux = jeux.filter(x => x.id !== del);
+    sauver();
+    await imgDel(del);
+    afficher();
+  }
+});
+
+/* ---------- Statistiques ----------
+   Temps par année de 2020 à 2027. Les heures sans année et les jeux en NR sont ignorés.
+   Graphique : seulement les jeux à plus de 10 h ; tableau : tous les jeux. */
+const ANNEE_MIN_STATS = 2020;
+const ANNEE_MAX_STATS = 2027;
+const SEUIL_GRAPHIQUE = 10;
+let anneeStats = null;
+
+function tempsParAnnee() {
+  const parAnnee = new Map();   // annee -> Map(idJeu -> heures)
+  for (const g of jeux) {
+    if (g.tempsNR) continue;
+    for (const t of g.tempsAnnees || []) {
+      if (t.annee === null || t.annee === undefined || t.annee < ANNEE_MIN_STATS || t.annee > ANNEE_MAX_STATS) continue;
+      const h = Number(t.h) || 0;
+      if (!h) continue;
+      if (!parAnnee.has(t.annee)) parAnnee.set(t.annee, new Map());
+      const m = parAnnee.get(t.annee);
+      m.set(g.id, (m.get(g.id) || 0) + h);
+    }
+  }
+  return parAnnee;
+}
+const arrondi = n => Math.round(n * 100) / 100;
+const nf = (n, d = 1) => n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: d });
+
+/* Jours pris en compte pour une année : année passée = année entière ; année en cours = jusqu'à aujourd'hui inclus */
+function joursDeReference(annee) {
+  const debut = new Date(annee, 0, 1), finAnnee = new Date(annee + 1, 0, 1);
+  const joursAnnee = Math.round((finAnnee - debut) / 864e5);           // 365 ou 366
+  const auj = new Date(); auj.setHours(0, 0, 0, 0);
+  if (auj >= finAnnee) return { jours: joursAnnee, complete: true, joursAnnee };
+  if (auj < debut) return { jours: 0, complete: false, joursAnnee };
+  return { jours: Math.round((auj - debut) / 864e5) + 1, complete: false, joursAnnee };
+}
+/* 1,4 h → "1 h 24" ; 0,48 h → "29 min" */
+function fmtHM(h) {
+  const min = Math.round(h * 60);
+  if (min < 60) return `${min} min`;
+  const hh = Math.floor(min / 60), mm = min % 60;
+  return mm ? `${hh} h ${String(mm).padStart(2, '0')}` : `${hh} h`;
+}
+const pct = (a, b) => b ? `${(a / b * 100).toFixed(1).replace('.', ',')} %` : '—';
+
+function afficherStats() {
+  const parAnnee = tempsParAnnee();
+  const annees = [...parAnnee.keys()].sort((a, b) => b - a);
+  $('statsVide').hidden = annees.length > 0;
+  $('statsDetail').hidden = annees.length === 0;
+  if (!annees.length) { $('statsAnnees').innerHTML = ''; return; }
+  if (!annees.includes(anneeStats)) anneeStats = annees[0];
+
+  const totaux = new Map(annees.map(a => [a, arrondi([...parAnnee.get(a).values()].reduce((s, h) => s + h, 0))]));
+  const maxAn = Math.max(...totaux.values());
+  $('statsAnnees').innerHTML = annees.map(a => `
+    <button type="button" class="annee${a === anneeStats ? ' on' : ''}" data-annee="${a}">
+      <b>${a}</b><span>${fmtH(totaux.get(a))} · ${parAnnee.get(a).size} jeu${parAnnee.get(a).size > 1 ? 'x' : ''}</span>
+      <i style="width:${Math.max(2, totaux.get(a) / maxAn * 100)}%"></i>
+    </button>`).join('');
+
+  // Détail de l'année choisie
+  const lignes = [...parAnnee.get(anneeStats).entries()]
+    .map(([id, h]) => ({ g: jeux.find(x => x.id === id), h: arrondi(h) }))
+    .sort((a, b) => b.h - a.h);
+  const total = totaux.get(anneeStats);
+  $('kpiTotal').textContent = fmtH(total);
+  // Temps total converti en jours de 24 h
+  const j = Math.floor(total / 24), hReste = Math.round(total - j * 24);
+  $('kpiJours').textContent = `soit ${nf(total / 24, 1)} jour${total / 24 >= 2 ? 's' : ''} de 24 h` +
+    (j >= 1 ? ` (${j} j ${hReste} h)` : '');
+  // Part de l'année et moyenne lissée par jour
+  const ref = joursDeReference(anneeStats);
+  if (ref.jours > 0) {
+    const heuresDispo = ref.jours * 24;
+    $('kpiPart').textContent = `${nf(total / heuresDispo * 100, 2)} %`;
+    $('kpiParJour').textContent = fmtHM(total / ref.jours);
+    const base = ref.complete ? `sur les ${ref.jours} jours de ${anneeStats}` : `sur les ${ref.jours} premiers jours de ${anneeStats} (année en cours)`;
+    $('kpiPartDetail').textContent = `de tout le temps écoulé, ${base}`;
+    $('kpiParJourDetail').textContent = `${nf(total / ref.jours * 7, 1)} h par semaine · ${base}`;
+  } else {
+    $('kpiPart').textContent = '—'; $('kpiParJour').textContent = '—';
+    $('kpiPartDetail').textContent = $('kpiParJourDetail').textContent = `${anneeStats} n'a pas encore commencé`;
+  }
+  $('kpiJeux').textContent = lignes.length;
+  $('kpiTop').textContent = lignes[0].g.titre;
+  $('kpiTop').title = `${lignes[0].g.titre} — ${fmtH(lignes[0].h)}`;
+
+  const grands = lignes.filter(l => l.h > SEUIL_GRAPHIQUE);
+  const petits = lignes.filter(l => l.h <= SEUIL_GRAPHIQUE);
+  const maxJeu = grands.length ? grands[0].h : 1;
+  $('barres').innerHTML = grands.map(l => `
+    <div class="rang" data-info="${esc(l.g.titre)} — ${fmtH(l.h)} (${pct(l.h, total)})">
+      <div class="lib">${esc(l.g.titre)}</div>
+      <div class="piste"><div class="barre" style="width:calc(${l.h / maxJeu} * (100% - 70px))"></div><span class="val">${fmtH(l.h)}</span></div>
+    </div>`).join('') || '<small>Aucun jeu à plus de 10 h cette année.</small>';
+  const hPetits = arrondi(petits.reduce((s, l) => s + l.h, 0));
+  $('sousBarres').textContent = `Jeux à plus de ${SEUIL_GRAPHIQUE} h en ${anneeStats}.` +
+    (petits.length ? ` ${petits.length} jeu${petits.length > 1 ? 'x' : ''} à ${SEUIL_GRAPHIQUE} h ou moins (${fmtH(hPetits)}) non affiché${petits.length > 1 ? 's' : ''}, voir le tableau.` : '');
+
+  $('tableStats').innerHTML = lignes.map(l => `
+    <tr><td>${esc(l.g.titre)}</td><td>${esc(l.g.console || '—')}</td><td class="num">${fmtH(l.h)}</td>
+    <td class="num">${pct(l.h, total)}</td><td>${esc(l.g.statut || '—')}</td><td class="num">${noteAff(l.g)}</td></tr>`).join('');
+  $('tableStatsPied').innerHTML = `<tr><td>Total</td><td></td><td class="num">${fmtH(total)}</td><td class="num">100 %</td><td></td><td></td></tr>`;
+}
+$('statsAnnees').addEventListener('click', e => {
+  const b = e.target.closest('[data-annee]');
+  if (b) { anneeStats = Number(b.dataset.annee); afficherStats(); }
+});
+// Infobulle au survol d'une barre
+$('barres').addEventListener('mousemove', e => {
+  const r = e.target.closest('.rang');
+  const bulle = $('infobulle');
+  if (!r) { bulle.hidden = true; return; }
+  bulle.textContent = r.dataset.info;
+  bulle.hidden = false;
+  bulle.style.left = (e.clientX + 14) + 'px';
+  bulle.style.top = (e.clientY + 14) + 'px';
+});
+$('barres').addEventListener('mouseleave', () => { $('infobulle').hidden = true; });
+
+/* ---------- Export / import ---------- */
+$('btnExport').addEventListener('click', async () => {
+  const data = await Promise.all(jeux.map(async g => {
+    const jaquette = await imgGet(g.id);
+    return jaquette ? { ...g, jaquette } : { ...g };
+  }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'journal-jeux-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+$('fileImport').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!Array.isArray(data)) throw new Error('format');
+    if (!confirm(`Remplacer les ${jeux.length} jeux actuels par les ${data.length} du fichier ?`)) return;
+    await imgClear();
+    jeux = [];
+    for (const brut of data) {
+      const { jaquette, ...g } = brut;
+      if (!g.id) g.id = crypto.randomUUID();
+      jeux.push(migrer(g));
+      if (jaquette) await imgSet(g.id, jaquette);
+    }
+    sauver();
+    afficher();
+  } catch {
+    alert('Fichier invalide.');
+  } finally {
+    e.target.value = '';
+  }
+});
+
+remplirTemps(null);
+majCompteur();
+majDiaporama(false);
+</script>
+</body>
+</html>

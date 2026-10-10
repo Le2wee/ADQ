@@ -473,6 +473,14 @@
     cursor:pointer;margin-left:4px;vertical-align:1px;
   }
   .avis-pastille:hover{background:var(--accent);color:#fff;}
+  .gal-finis{
+    margin-top:5px;font-size:11.5px;color:var(--ink-soft);line-height:1.5;
+    border-top:1px dashed var(--line);padding-top:5px;
+  }
+  .gal-finis b{color:var(--accent);font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+  .gal-finis .noms{color:var(--ink);}
+  .gal-finis.vide{color:var(--muted);font-style:italic;}
+  .gallery-item{align-items:flex-start;}
   .gallery-item-actions{display:flex;gap:6px;flex:none;}
   .gallery-empty{font-size:13px;color:var(--muted);font-style:italic;margin-top:20px;text-align:center;}
 
@@ -513,6 +521,11 @@
     font-size:13px;background:var(--paper);color:var(--ink);
   }
   #winTitleInput{width:150px;}
+  #introTitleInput{width:150px;}
+  #introMsgInput{flex:1;min-width:180px;}
+  #introTitleInput:disabled, #introMsgInput:disabled{
+    opacity:0.4;cursor:not-allowed;background:var(--paper);
+  }
   #winMsgInput{flex:1;min-width:200px;}
   .gallery-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
   #galAvisList{margin:0 0 16px;}
@@ -580,7 +593,9 @@
     <div class="gallery-actions">
       <button class="btn primary" id="newGridFromGalleryBtn">+ Nouvelle grille</button>
       <button class="btn small" id="galAvisBtn" type="button">💬 Charger les avis</button>
+      <button class="btn small" id="galFiniBtn" type="button">🏆 Qui a fini quoi</button>
       <span class="pub-state" id="galAvisState"></span>
+      <span class="pub-state" id="galFiniState"></span>
     </div>
     <div id="galAvisList" class="avis-list"></div>
     <div id="galleryList" class="gallery-list"></div>
@@ -771,6 +786,19 @@
   </div>
 
   <div class="win-bar">
+    <span class="audio-label">👋 Fenêtre d'accueil</span>
+    <div class="pillgroup" id="introGroup">
+      <button type="button" data-intro="1">Affichée</button>
+      <button type="button" data-intro="0">Masquée</button>
+    </div>
+    <label for="introTitleInput">Titre</label>
+    <input type="text" id="introTitleInput" maxlength="40" placeholder="Le titre de la grille" autocomplete="off">
+    <label for="introMsgInput">Message</label>
+    <input type="text" id="introMsgInput" maxlength="160" placeholder="Mot d'accueil facultatif, au-dessus des rappels" autocomplete="off">
+    <button class="btn small" id="introResetBtn">Par défaut</button>
+  </div>
+
+  <div class="win-bar">
     <span class="audio-label">🎉 Message de victoire</span>
     <label for="winTitleInput">Titre</label>
     <input type="text" id="winTitleInput" maxlength="24" placeholder="BRAVO !" autocomplete="off">
@@ -825,7 +853,6 @@
   <div class="pub-bar">
     <span class="audio-label">🏆 Ont terminé la grille</span>
     <button class="btn small" id="finiBtn" type="button">Charger pour cette grille</button>
-    <button class="btn small" id="finiAllBtn" type="button">Toutes les grilles</button>
     <span class="pub-state" id="finiState"></span>
   </div>
   <div id="finiList" class="avis-list"></div>
@@ -931,6 +958,9 @@
     sfxEnabled: true,      // embarquer ou non les pets, rots et encouragements
     winTitle: '',          // vides = on garde les formules par defaut
     winMessage: '',
+    introOn: true,         // fenetre d accueil a la premiere ouverture
+    introTitle: '',        // vide = le titre de la grille
+    introMsg: '',          // vide = pas de mot d accueil, juste les rappels
     audioMode: 'default',  // 'default' | 'custom' | 'none'
     audioData: null,       // base64 data URL, only when audioMode === 'custom'
     audioName: '',
@@ -2668,9 +2698,11 @@
     state.shareId = null;
     state.sfxEnabled = true;
     state.winTitle = ''; state.winMessage = '';
+    state.introOn = true; state.introTitle = ''; state.introMsg = '';
     updateDifficultyUI();
     updateSfxUI();
     updateWinUI();
+    updateIntroUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -3181,6 +3213,23 @@
         date.appendChild(past);
       }
 
+      // Qui a fini cette grille : noms seuls, tous affiches, sans les temps.
+      // Le detail chiffre reste dans l'editeur, grille par grille.
+      if(finisParGrille){
+        const cle = data.shareId || doc.id;
+        const f = finisParGrille[cle];
+        const ligne = document.createElement('div');
+        if(f && f.length){
+          ligne.className = 'gal-finis';
+          ligne.innerHTML = '\ud83c\udfc6 <b>' + f.length + '</b> \u2014 <span class="noms"></span>';
+          ligne.querySelector('.noms').textContent = f.join(', ');
+        } else {
+          ligne.className = 'gal-finis vide';
+          ligne.textContent = 'Personne n\u2019a encore termin\u00e9 cette grille.';
+        }
+        info.appendChild(ligne);
+      }
+
       const actions = document.createElement('div');
       actions.className = 'gallery-item-actions';
       const openBtn = document.createElement('button');
@@ -3229,6 +3278,9 @@
     state.nudge = data.nudge !== false;
     state.winTitle = data.winTitle || '';
     state.winMessage = data.winMessage || '';   // grilles anterieures : bonus inclus
+    state.introOn = data.introOn !== false;     // grilles anterieures : fenetre affichee
+    state.introTitle = data.introTitle || '';
+    state.introMsg = data.introMsg || '';
     state.audioMode = data.audioMode || (data.audioData ? 'custom' : 'default');
     state.audioData = state.audioMode === 'custom' ? (data.audioData || null) : null;
     state.audioName = state.audioMode === 'custom' ? (data.audioName || '') : '';
@@ -3245,6 +3297,7 @@
     updateDifficultyUI();
     updateSfxUI();
     updateWinUI();
+    updateIntroUI();
     updateSecretUI();
     updateNudgeUI();
     document.getElementById('pubFile').value = '';
@@ -3274,6 +3327,9 @@
       nudge: state.nudge !== false,
       winTitle: state.winTitle || '',
       winMessage: state.winMessage || '',
+      introOn: state.introOn !== false,
+      introTitle: state.introTitle || '',
+      introMsg: state.introMsg || '',
       audioMode: state.audioMode || 'default',
       audioData: state.audioMode === 'custom' ? (state.audioData || null) : null,
       audioName: state.audioMode === 'custom' ? (state.audioName || '') : '',
@@ -3320,9 +3376,11 @@
     state.shareId = null;
     state.sfxEnabled = true;
     state.winTitle = ''; state.winMessage = '';
+    state.introOn = true; state.introTitle = ''; state.introMsg = '';
     updateDifficultyUI();
     updateSfxUI();
     updateWinUI();
+    updateIntroUI();
     state.audioMode = 'default';
     state.audioData = null;
     state.audioName = '';
@@ -3535,6 +3593,35 @@
     state.winTitle = ''; state.winMessage = '';
     markDirty(); updateWinUI();
     setStatus('Message de victoire remis par défaut.');
+  });
+
+  function updateIntroUI(){
+    const on = state.introOn !== false;
+    document.querySelectorAll('#introGroup button').forEach(btn=>{
+      btn.classList.toggle('active', (btn.dataset.intro === '1') === on);
+    });
+    document.getElementById('introTitleInput').value = state.introTitle || '';
+    document.getElementById('introMsgInput').value = state.introMsg || '';
+    document.getElementById('introTitleInput').disabled = !on;
+    document.getElementById('introMsgInput').disabled = !on;
+  }
+
+  document.getElementById('introGroup').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-intro]');
+    if(!btn) return;
+    state.introOn = btn.dataset.intro === '1';
+    updateIntroUI(); markDirty();
+  });
+  document.getElementById('introTitleInput').addEventListener('input', (e)=>{
+    state.introTitle = e.target.value; markDirty();
+  });
+  document.getElementById('introMsgInput').addEventListener('input', (e)=>{
+    state.introMsg = e.target.value; markDirty();
+  });
+  document.getElementById('introResetBtn').addEventListener('click', ()=>{
+    state.introOn = true; state.introTitle = ''; state.introMsg = '';
+    markDirty(); updateIntroUI();
+    setStatus('Fenêtre d\u2019accueil remise par défaut.');
   });
 
   function updateNudgeUI(){
@@ -3890,81 +3977,56 @@
     el.classList.add('on');
   }
 
-  function afficherFinisseursParGrille(lignes){
-    const el = document.getElementById('finiList');
-    el.innerHTML = '';
-    if(!lignes.length){ el.classList.remove('on'); return; }
-    lignes.sort((a, b) => b.n - a.n || (a.titre || '').localeCompare(b.titre || ''));
-    const total = lignes.reduce((s, x) => s + x.n, 0);
-    const head = document.createElement('div');
-    head.className = 'avis-moy';
-    head.innerHTML = '<b>' + total + '</b> fin' + (total > 1 ? 's' : '') +
-      ' au total sur ' + lignes.length + ' grille' + (lignes.length > 1 ? 's' : '');
-    el.appendChild(head);
-    lignes.forEach(x => {
-      const item = document.createElement('div');
-      item.className = 'avis-item fini-item';
-      const h = document.createElement('div');
-      h.className = 'avis-head';
-      const nb = document.createElement('span'); nb.className = 'fini-rang'; nb.textContent = x.n;
-      const nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = x.titre || x.id;
-      const tps = document.createElement('span'); tps.className = 'fini-tps'; tps.textContent = dureeCourte(x.best);
-      const meta = document.createElement('span'); meta.className = 'meta';
-      meta.textContent = x.noms.slice(0, 7).join(', ') +
-        (x.noms.length > 7 ? ' +' + (x.noms.length - 7) : '');
-      h.appendChild(nb); h.appendChild(nom); h.appendChild(tps); h.appendChild(meta);
-      item.appendChild(h);
-      el.appendChild(item);
-    });
-    el.classList.add('on');
-  }
-
-  async function chargerFinisseurs(tout){
+  // Detail chiffre, pour la grille ouverte dans l'editeur uniquement.
+  async function chargerFinisseurs(){
     const el = document.getElementById('finiList');
     if(!currentUser || !fbDb){ setFiniState('Connecte-toi d\'abord.'); return; }
-    if(!tout){
-      if(!state.shareId){
-        setFiniState('Cette grille n\'a pas encore \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9e.');
-        el.classList.remove('on'); return;
-      }
-      setFiniState('Lecture du classement\u2026');
-      try{
-        const snap = await scoresRefAtelier(state.shareId).get();
-        const liste = snap.docs.map(d => d.data());
-        afficherFinisseurs(liste);
-        setFiniState(liste.length ? '' : 'Personne n\'a encore termin\u00e9 cette grille.');
-      }catch(err){
-        el.classList.remove('on');
-        setFiniState('Lecture refus\u00e9e (' + ((err && (err.code || err.message)) || 'inconnu') + ')');
-        try{ console.error('MAXI-FLECHES / classement:', err); }catch(e){}
-      }
-      return;
+    if(!state.shareId){
+      setFiniState('Cette grille n\'a pas encore \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9e.');
+      el.classList.remove('on'); return;
     }
-    setFiniState('Lecture du sommaire\u2026');
-    let docs;
-    try{ docs = (await catalogueRef().get()).docs; }
-    catch(err){ setFiniState('Sommaire illisible (' + ((err && (err.code || err.message)) || 'inconnu') + ')'); return; }
-    const lignes = [];
+    setFiniState('Lecture du classement\u2026');
+    try{
+      const snap = await scoresRefAtelier(state.shareId).get();
+      const liste = snap.docs.map(d => d.data());
+      afficherFinisseurs(liste);
+      setFiniState(liste.length ? '' : 'Personne n\'a encore termin\u00e9 cette grille.');
+    }catch(err){
+      el.classList.remove('on');
+      setFiniState('Lecture refus\u00e9e (' + ((err && (err.code || err.message)) || 'inconnu') + ')');
+      try{ console.error('MAXI-FLECHES / classement:', err); }catch(e){}
+    }
+  }
+
+  // Sommaire : juste les noms, sous chaque grille, tous affiches. Une lecture
+  // par grille de la galerie (et non du catalogue) : ce sont mes grilles, donc
+  // le shareId est a portee de main et aucune requete de groupe n'est requise.
+  let finisParGrille = null;
+
+  async function chargerFinisGalerie(){
+    const st = document.getElementById('galFiniState');
+    if(!currentUser || !fbDb){ st.textContent = 'Connecte-toi d\'abord.'; return; }
+    const docs = dernierSnapGalerie || [];
+    if(!docs.length){ st.textContent = 'Aucune grille.'; return; }
+    const carte = {};
+    let refus = 0, total = 0;
     for(let i = 0; i < docs.length; i++){
-      const info = docs[i].data() || {};
-      setFiniState('Classements\u2026 ' + (i + 1) + '/' + docs.length);
+      const d = docs[i].data() || {};
+      const cle = d.shareId || docs[i].id;
+      st.textContent = 'Classements\u2026 ' + (i + 1) + '/' + docs.length;
       let snap;
-      try{ snap = await scoresRefAtelier(docs[i].id).get(); }
-      catch(err){ continue; }
-      const ent = snap.docs.map(d => d.data());
-      if(!ent.length) continue;
+      try{ snap = await scoresRefAtelier(cle).get(); }
+      catch(err){ refus++; continue; }
+      const ent = snap.docs.map(x => x.data());
       ent.sort((a, b) => (parseInt(a.ms, 10) || 0) - (parseInt(b.ms, 10) || 0));
-      lignes.push({
-        id: docs[i].id,
-        titre: info.title || info.titre || docs[i].id,
-        n: ent.length,
-        best: ent[0].ms,
-        bestNom: ent[0].name || 'Anonyme',
-        noms: ent.map(x => x.name || 'Anonyme')
-      });
+      carte[cle] = ent.map(x => (x.name || 'Anonyme'));
+      total += ent.length;
     }
-    afficherFinisseursParGrille(lignes);
-    setFiniState(lignes.length ? '' : 'Aucune grille n\'a encore \u00e9t\u00e9 termin\u00e9e.', !!lignes.length);
+    finisParGrille = carte;
+    renderGalleryList(docs);
+    st.textContent = (refus ? (refus + ' lecture' + (refus > 1 ? 's' : '') + ' refus\u00e9e' + (refus > 1 ? 's' : '') + ' \u00b7 ') : '') +
+      total + ' fin' + (total > 1 ? 's' : '') + ' au total';
+    st.classList.toggle('on', !refus && total > 0);
   }
 
   // ---------- dates de mise en ligne, depuis l'historique GitHub ----------
@@ -4058,8 +4120,8 @@
     if(dernierSnapGalerie) renderGalleryList(dernierSnapGalerie);
   });
 
-  document.getElementById('finiBtn').addEventListener('click', ()=> chargerFinisseurs(false));
-  document.getElementById('finiAllBtn').addEventListener('click', ()=> chargerFinisseurs(true));
+  document.getElementById('finiBtn').addEventListener('click', ()=> chargerFinisseurs());
+  document.getElementById('galFiniBtn').addEventListener('click', ()=> chargerFinisGalerie());
   document.getElementById('avisBtn').addEventListener('click', ()=> chargerAvis(false));
   document.getElementById('avisAllBtn').addEventListener('click', ()=>{ avisParGrille = null; chargerResumeAvis(true); chargerAvis(true); });
   document.getElementById('avisUidBtn').addEventListener('click', ()=>{
@@ -5005,6 +5067,9 @@
       nudge: state.nudge !== false,
       winTitle: state.winTitle || '',
       winMessage: state.winMessage || '',
+      introOn: state.introOn !== false,
+      introTitle: (state.introTitle || '').trim(),
+      introMsg: (state.introMsg || '').trim(),
       gridId: state.shareId,
       firebase: (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey !== 'REMPLACE_MOI') ? FIREBASE_CONFIG : null };
     let dataJson = JSON.stringify(payload).replace(/</g, '\\u003c');
@@ -5152,6 +5217,7 @@
       '<div class="pmodal pintro">',
       '<div class="pintro-band">MAXI-FL\u00C9CH\u00C9S</div>',
       '<div class="pintro-t" id="pIntroTitle"></div>',
+      '<p class="pintro-msg" id="pIntroMsg"></p>',
       '<div class="pintro-nums" id="pIntroNums"></div>',
       '<ul class="pintro-list" id="pIntroList"></ul>',
       '<div class="pmodal-row">',
@@ -5387,6 +5453,8 @@
       '.pintro{max-width:360px;width:min(360px,92vw);padding:0 0 18px;overflow:hidden;text-align:center;}',
       '.pintro-band{background:var(--mag-red);color:#fff;font-weight:700;letter-spacing:3px;font-size:12px;padding:9px 0;}',
       '.pintro-t{font-size:15px;font-weight:700;color:var(--ink);padding:14px 18px 0;line-height:1.3;}',
+      '.pintro-msg{display:none;margin:9px 0 0;padding:0 20px;font-size:12.5px;color:var(--ink-soft);line-height:1.5;}',
+      '.pintro-msg.on{display:block;}',
       '.pintro-nums{display:flex;justify-content:center;gap:8px;padding:14px 18px 0;}',
       '.pintro-num{flex:1;max-width:104px;background:var(--paper);border:2px solid var(--ink);border-radius:6px;padding:8px 4px;}',
       '.pintro-num b{display:block;font-size:21px;line-height:1;color:var(--mag-red);font-family:ui-monospace,"SF Mono",Consolas,monospace;}',
@@ -6735,13 +6803,17 @@
       '(function intro(){',
       '  var ov = document.getElementById("pIntroOverlay");',
       '  if(!ov) return;',
+      '  if(data.introOn === false){ ov.parentNode.removeChild(ov); return; }',
       '  var CLE = SAVE_KEY + "-vu";',
       '  var deja = false;',
       '  try{ deja = !!localStorage.getItem(CLE) || !!localStorage.getItem(SAVE_KEY); }catch(e){ deja = false; }',
       '  var nMots = (data.rightWords || []).length + (data.downWords || []).length;',
       '  var nCases = 0;',
       '  for(var i=0;i<data.types.length;i++){ if(data.types[i] === "letter") nCases++; }',
-      '  document.getElementById("pIntroTitle").textContent = data.title || "";',
+      '  document.getElementById("pIntroTitle").textContent = (data.introTitle || "").trim() || data.title || "";',
+      '  var msgEl = document.getElementById("pIntroMsg");',
+      '  var msg = (data.introMsg || "").trim();',
+      '  if(msg){ msgEl.textContent = msg; msgEl.classList.add("on"); }',
       '  document.getElementById("pIntroNums").innerHTML =',
       '    \'<div class="pintro-num"><b>\' + nMots + \'</b><span>mot\' + (nMots>1?"s":"") + \'</span></div>\' +',
       '    \'<div class="pintro-num"><b>\' + nCases + \'</b><span>cases</span></div>\' +',
@@ -6774,6 +6846,7 @@
   updateSfxUI();
   updateNudgeUI();
   updateWinUI();
+  updateIntroUI();
   // Adresse du site par defaut : elle ne change jamais, autant ne pas la
   // ressaisir a chaque session. Une valeur enregistree l'emporte.
   const BASE_PAR_DEFAUT = 'https://le2wee.github.io/ADQ/';

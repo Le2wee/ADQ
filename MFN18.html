@@ -23,7 +23,17 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .mag-force b{font-size:13px;letter-spacing:0;}
 .mag-strip{display:flex;flex-wrap:wrap;gap:6px 18px;background:var(--ink);color:var(--mag-yellow);padding:6px 24px;font-size:10.5px;letter-spacing:1.4px;}
 .mag-strip span::before{content:"\2605 ";color:var(--mag-red);}
-.ptitle-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;}
+.ptitle-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;}
+.pprog{margin:0 0 18px;}
+.pprog-head{display:flex;align-items:baseline;gap:10px;margin:0 0 6px;font-size:12.5px;color:var(--ink-soft);}
+.pprog-nb b{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:16px;color:var(--ink);}
+.pprog-nb span{font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+.pprog-mot{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;transition:color .5s ease;}
+.pprog-pct{margin-left:auto;font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:16px;font-weight:700;transition:color .5s ease;}
+.pprog-rail{height:10px;background:#DCE2E9;border-radius:3px;overflow:hidden;}
+.pprog-fill{height:100%;width:0;border-radius:3px;background:#425067;
+  transition:width .4s cubic-bezier(.22,.9,.3,1),background-color .5s ease;}
+@media (max-width:560px){ .pprog-mot{display:none;} }
 .psound{display:none;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
 .psound.show{display:inline-flex;}
 .psound:hover{filter:brightness(0.97);}
@@ -205,7 +215,32 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 .pmodal-overlay.show{display:flex;}
 .pmodal{background:var(--panel);border-radius:8px;padding:20px 22px;max-width:320px;box-shadow:0 12px 32px rgba(0,0,0,0.25);}
 .pmodal p{margin:0 0 16px;font-size:14px;color:var(--ink);}
-.pmodal-row{display:flex;justify-content:flex-end;gap:8px;}
+.pmodal-row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+.pintro{max-width:360px;width:min(360px,92vw);padding:0 0 18px;overflow:hidden;text-align:center;}
+.pintro-band{background:var(--mag-red);color:#fff;font-weight:700;letter-spacing:3px;font-size:12px;padding:9px 0;}
+.pintro-t{font-size:15px;font-weight:700;color:var(--ink);padding:14px 18px 0;line-height:1.3;}
+.pintro-nums{display:flex;justify-content:center;gap:8px;padding:14px 18px 0;}
+.pintro-num{flex:1;max-width:104px;background:var(--paper);border:2px solid var(--ink);border-radius:6px;padding:8px 4px;}
+.pintro-num b{display:block;font-size:21px;line-height:1;color:var(--mag-red);font-family:ui-monospace,"SF Mono",Consolas,monospace;}
+.pintro-num span{display:block;margin-top:3px;font-size:9.5px;letter-spacing:1px;color:var(--ink-soft);text-transform:uppercase;}
+.pintro-list{list-style:none;margin:14px 0 0;padding:0 20px;text-align:left;}
+.pintro-list li{font-size:12.5px;color:var(--ink-soft);line-height:1.45;padding:5px 0 5px 24px;position:relative;}
+.pintro-list li::before{content:attr(data-emo);position:absolute;left:0;top:4px;font-size:14px;}
+.pintro-list li b{color:var(--ink);}
+.pintro .pmodal-row{justify-content:center;padding:16px 18px 0;}
+.pauth{max-width:330px;width:92vw;text-align:left;}
+.pauth-t{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;letter-spacing:1.6px;color:var(--ink-soft);}
+.pauth-sous{margin:6px 0 12px !important;font-size:12.5px;color:var(--muted) !important;}
+.pauth label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px;}
+.pauth input{width:100%;padding:8px 10px;margin-bottom:10px;border:2px solid var(--ink);border-radius:5px;font-size:14px;color:var(--ink);background:#fff;}
+.pauth-msg{min-height:16px;font-size:12px;color:var(--danger);margin-bottom:8px;}
+.pauth-msg.ok{color:var(--ok);}
+.pauth-mode{margin:0 0 9px !important;padding:8px 10px;font-size:12px;line-height:1.4;color:var(--ink) !important;
+  background:var(--paper);border-left:3px solid var(--ink-soft);border-radius:0 4px 4px 0;}
+.pauth-avert{margin:0 0 12px !important;padding:8px 10px;font-size:12px;line-height:1.35;color:var(--ink) !important;
+  background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:0 4px 4px 0;}
+.pauth-note{margin:12px 0 0 !important;font-size:11px;color:var(--muted) !important;font-style:italic;}
+.pbtn.compte-on{border-color:var(--ok);color:var(--ok);}
 @media print{.pactions{display:none;}}
 @media (max-width:720px){.board{flex-direction:column;}}
 /* en-tete compact sur telephone */
@@ -244,6 +279,14 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 </header>
 <div class="wrap">
 <div class="ptitle-row"><h1 id="pTitle"></h1><span class="ptimer" id="pTimer">⏱ 00:00</span><button id="pSoundBadge" class="psound" type="button"><span id="pSoundIcon">🔊</span><span id="pSoundLabel">Son activé</span></button><button id="pSfxBadge" class="psound psfx" type="button"><span id="pSfxIcon">💨</span><span id="pSfxLabel">Bonus activé</span></button></div>
+<div class="pprog" id="pProg">
+<div class="pprog-head">
+<span class="pprog-nb"><b id="pProgNb">0</b> / <span id="pProgTot">0</span> cases</span>
+<span class="pprog-mot" id="pProgMot"></span>
+<span class="pprog-pct" id="pProgPct">0 %</span>
+</div>
+<div class="pprog-rail"><div class="pprog-fill" id="pProgFill"></div></div>
+</div>
 <div class="board">
 <div class="gridwrap">
 <div class="clue-bar" id="pClueBar">
@@ -276,6 +319,7 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 <button id="pSolve" class="pbtn">Voir la solution</button>
 <button id="pReset" class="pbtn">Réinitialiser</button>
 <button id="pBoardBtn" class="pbtn">🏆 Classement</button>
+<button id="pCompte" class="pbtn">👤 Connexion</button>
 <span id="pStatus" class="pstatus"></span>
 </div>
 </div>
@@ -307,8 +351,38 @@ header.mag{background:var(--mag-red);color:#fff;border-bottom:5px solid var(--in
 </div>
 <footer class="psignature">DV Maxence Brossette et Claude-san</footer>
 </div>
-<div class="pbonus" id="pBonus"><span class="pbonus-emo">🍺</span>
+<div class="pbonus" id="pBonusToast"><span class="pbonus-emo">🍺</span>
 <b>BÉNÉDICTION DU ROT</b><span>Un indice offert&nbsp;!</span></div>
+<div class="pmodal-overlay" id="pAuthOverlay">
+<div class="pmodal pauth">
+<div class="pauth-t">TON COMPTE</div>
+<p class="pauth-sous">Facultatif. Il sert à retrouver vos grilles et vos scores sur tous vos appareils.</p>
+<p class="pauth-mode">Choisissez un pseudo — c'est lui qui s'affichera au classement — et un mot de passe d'au moins 6 caractères. Aucune adresse e-mail n'est demandée : le pseudo seul sert d'identifiant.</p>
+<p class="pauth-avert">Vos grilles terminées sont enregistrées via votre compte, pensez à vous connecter sur vos différents appareils (téléphone / ordinateur) pour mettre à jour l'intégralité de ce qui y a été fait&nbsp;!</p>
+<label for="pAuthNom">Pseudo</label>
+<input id="pAuthNom" maxlength="20" autocomplete="username" name="mfpseudo" autocapitalize="none" autocorrect="off" spellcheck="false">
+<label for="pAuthMdp">Mot de passe</label>
+<input id="pAuthMdp" type="password" maxlength="40" autocomplete="current-password" name="mfmdp">
+<div class="pauth-msg" id="pAuthMsg"></div>
+<div class="pmodal-row">
+<button class="pbtn" id="pAuthClose">Plus tard</button>
+<button class="pbtn" id="pAuthNew">Créer</button>
+<button class="pbtn pbtn-primary" id="pAuthGo">Se connecter</button>
+</div>
+<p class="pauth-note">Notez votre mot de passe : sans adresse e-mail, il n'y a pas de récupération automatique. Au pire envoie-moi un message si t'oublies, bouff…</p>
+</div>
+</div>
+<div class="pmodal-overlay" id="pIntroOverlay">
+<div class="pmodal pintro">
+<div class="pintro-band">MAXI-FLÉCHÉS</div>
+<div class="pintro-t" id="pIntroTitle"></div>
+<div class="pintro-nums" id="pIntroNums"></div>
+<ul class="pintro-list" id="pIntroList"></ul>
+<div class="pmodal-row">
+<button class="pbtn pbtn-primary" id="pIntroGo">C'est parti</button>
+</div>
+</div>
+</div>
 <div class="pmodal-overlay" id="pModalOverlay">
 <div class="pmodal">
 <p>Afficher la solution ? Ça remplira toutes les cases restantes.</p>
@@ -597,7 +671,7 @@ function onInputCell(e){
   var dr=dir==="R"?0:1, dc=dir==="R"?1:0; var nr=r+dr, nc=c+dc;
   if(v){ if(nr<rows && nc<cols && data.types[idx(nr,nc)]==="letter"){ moveTo(nr,nc); } }
   tStartClock();
-  if(typeof majPool === "function") majPool();
+  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();
   if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }
   checkCompletion();
 }
@@ -709,7 +783,9 @@ function checkCompletion(){
   if(solvedAlready || solutionRevealed) return;
   if(!isGridComplete()) return;
   solvedAlready = true;
+  if(typeof majProgres === "function") majProgres();
   if(typeof majBonusBtn === "function") majBonusBtn();
+  if(typeof rattraperProgres === "function") setTimeout(rattraperProgres, 0);
   if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }
   cacherRappel();
   tStop(); tFrozen = true;
@@ -740,6 +816,7 @@ function checkCompletion(){
   if(boardDb){
     var nameEl = document.getElementById("pScoreName");
     try{ nameEl.value = localStorage.getItem("mf-name") || ""; }catch(e){}
+    if(typeof mfConnecte === "function" && mfConnecte()) nameEl.value = mfPseudo();
     document.getElementById("pScoreSend").disabled = false;
     document.getElementById("pScore").classList.add("show");
     document.getElementById("pAvis").classList.add("show");
@@ -1047,7 +1124,7 @@ function donnerBonus(){
   });
   bonusLeft = 2;
   majBonusBtn();
-  if(typeof majPool === "function") majPool();
+  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();
   document.getElementById("pStatus").textContent =
     (n ? n + " case" + (n>1?"s":"") + " en valeur remplie" + (n>1?"s":"") + " · " : "") +
     "2 révélations offertes, gratuites";
@@ -1084,7 +1161,7 @@ function donnerBonus(){
       return;
     }
     bonusLeft--;
-    if(typeof majPool === "function") majPool();
+    if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();
     if(bonusLeft <= 0) desarmerBonus();
     majBonusBtn();
     document.getElementById("pStatus").textContent = bonusLeft
@@ -1096,6 +1173,65 @@ function donnerBonus(){
     checkCompletion();
   }, true);
 })();
+// ---------- progression ----------
+// On compte les cases REMPLIES, pas les cases justes : verifier la
+// solution au fil de la frappe reviendrait a dire au joueur ou il se
+// trompe sans qu il ait demande. La barre ne passe au vert que lorsque
+// la grille est reellement validee.
+var PROG_GAMME = [
+  [0.00, [66, 80, 103],  "on d\u00E9marre"],
+  [0.15, [122, 58, 92],  "\u00E7a commence"],
+  [0.33, [200, 16, 46],  "un tiers"],
+  [0.50, [201, 122, 43], "la moiti\u00E9"],
+  [0.70, [227, 168, 31], "dernier tiers"],
+  [0.88, [142, 154, 51], "presque"],
+  [1.00, [63, 125, 92],  "termin\u00E9 !"]
+];
+function progTeinte(p){
+  if(p <= 0) return {rgb: PROG_GAMME[0][1], mot: PROG_GAMME[0][2]};
+  if(p >= 1) return {rgb: PROG_GAMME[PROG_GAMME.length-1][1], mot: PROG_GAMME[PROG_GAMME.length-1][2]};
+  for(var i=1;i<PROG_GAMME.length;i++){
+    if(p <= PROG_GAMME[i][0]){
+      var a = PROG_GAMME[i-1], b = PROG_GAMME[i];
+      var t = (p - a[0]) / (b[0] - a[0]);
+      var rgb = [0,1,2].map(function(k){ return Math.round(a[1][k] + (b[1][k] - a[1][k]) * t); });
+      return {rgb: rgb, mot: t < 0.5 ? a[2] : b[2]};
+    }
+  }
+  return {rgb: PROG_GAMME[PROG_GAMME.length-1][1], mot: PROG_GAMME[PROG_GAMME.length-1][2]};
+}
+var progTotal = 0;
+function majProgres(){
+  var fill = document.getElementById("pProgFill");
+  if(!fill) return;
+  if(!progTotal){
+    for(var i=0;i<data.types.length;i++){ if(data.types[i] === "letter") progTotal++; }
+    document.getElementById("pProgTot").textContent = progTotal;
+  }
+  var faits = 0;
+  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){
+    if(data.types[idx(r,c)] !== "letter") continue;
+    var el = cellRefs[r] && cellRefs[r][c];
+    if(el && el.value) faits++;
+  } }
+  var p = progTotal ? faits / progTotal : 0;
+  var pct = Math.round(p * 100);
+  // plein mais pas valide : on reste en ocre, le vert est reserve a la victoire
+  var fini = (typeof solvedAlready !== "undefined" && solvedAlready) ||
+             (typeof solutionRevealed !== "undefined" && solutionRevealed);
+  var col = progTeinte(p >= 1 && !fini ? 0.93 : p);
+  if(p >= 1 && !fini) col.mot = "tout est rempli";
+  var teinte = "rgb(" + col.rgb.join(",") + ")";
+  fill.style.width = pct + "%";
+  fill.style.background = teinte;
+  document.getElementById("pProgNb").textContent = faits;
+  var pc = document.getElementById("pProgPct");
+  pc.textContent = pct + "\u00A0%";
+  pc.style.color = teinte;
+  var mo = document.getElementById("pProgMot");
+  mo.textContent = col.mot;
+  mo.style.color = teinte;
+}
 function playSfx(list){
   if(soundMuted || sfxMuted || !list || !list.length) return;
   var src = list[Math.floor(Math.random()*list.length)];
@@ -1112,7 +1248,8 @@ function playSfx(list){
   }catch(e){}
 }
 function showBonus(){
-  var el = document.getElementById("pBonus");
+  var el = document.getElementById("pBonusToast");
+  if(!el) return;
   el.classList.remove("show");
   void el.offsetWidth;
   el.classList.add("show");
@@ -1151,6 +1288,7 @@ document.getElementById("pHint").addEventListener("click", function(){
   tStartClock();
   if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }
   try{ cell.focus(); }catch(e){}
+  majProgres();
   checkCompletion();
 });
 document.getElementById("pSolve").addEventListener("click", function(){
@@ -1166,6 +1304,7 @@ document.getElementById("pSolve").addEventListener("click", function(){
     cacherRappel();
     for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value = data.solution[idx(r,c)]; el.disabled = true; el.parentElement.classList.remove("incorrect"); el.parentElement.classList.add("correct"); } }
     tStop(); tFrozen = true;
+    majProgres();
     document.getElementById("pStatus").textContent = "Solution affichée";
   }
   function onCancel(){ cleanup(); }
@@ -1184,7 +1323,7 @@ document.getElementById("pReset").addEventListener("click", function(){
   [].forEach.call(document.querySelectorAll("#pSecretBoxes input"), function(i){ i.value = ""; });
   var sb = document.getElementById("pSecret"); if(sb) sb.classList.remove("trouve");
   var sm = document.getElementById("pSecretMsg"); if(sm){ sm.textContent = ""; sm.className = "psecret-msg"; }
-  if(typeof majPool === "function") majPool();
+  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();
   data.rightWords.concat(data.downWords).forEach(function(w){
     if(w._tipBtn){ w._tipBtn.style.display = "inline-block"; }
     if(w._tipTxt){ w._tipTxt.style.display = "none"; w._tipTxt.textContent = ""; }
@@ -1198,6 +1337,122 @@ document.getElementById("pReset").addEventListener("click", function(){
 // ---------- classement ----------
 // Connexion anonyme : aucun compte a creer, Firebase attribue une identite
 // invisible au navigateur. Elle sert uniquement a eviter les doublons.
+var mfDb = null, mfUser = null, mfProfil = null;
+var MF_DOMAINE = "@joueurs.maxi-fleches.fr";
+function mfPseudoEmail(p){
+  var brut = String(p || "").trim();
+  // Beaucoup taperont leur adresse par habitude, et c est aussi le cas des
+  // comptes crees depuis l atelier : on la prend telle quelle plutot que de
+  // la mutiler en pseudo, sinon on tomberait sur un compte different.
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(brut)) return brut.toLowerCase();
+  var s = brut.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/[^a-z0-9._-]/g, "");
+  return s ? (s + MF_DOMAINE) : "";
+}
+function mfProfilRef(){ return mfDb.collection("joueurs").doc(mfUser.uid); }
+function mfConnecte(){ return !!(mfUser && !mfUser.isAnonymous); }
+// Un compte sans profil joueur - celui de l auteur, par exemple, si l atelier
+// est servi depuis le meme domaine - retombe sur le debut de son adresse
+// plutot que d afficher un nom vide.
+function mfPseudo(){
+  if(mfProfil && mfProfil.pseudo) return mfProfil.pseudo;
+  var m = (mfUser && mfUser.email) || "";
+  return m ? m.split("@")[0] : "";
+}
+function mfChargerProfil(){
+  if(!mfDb || !mfUser || mfUser.isAnonymous){ mfProfil = null; return Promise.resolve(null); }
+  return mfProfilRef().get().then(function(d){
+    mfProfil = d.exists ? d.data() : null;
+    return mfProfil;
+  }).catch(function(){ mfProfil = null; return null; });
+}
+function mfErreur(code){
+  if(code === "auth/email-already-in-use") return "Ce pseudo est déjà pris.";
+  if(code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-login-credentials") return "Pseudo ou mot de passe incorrect.";
+  if(code === "auth/weak-password") return "Mot de passe trop court : 6 caractères minimum.";
+  if(code === "auth/invalid-email") return "Ce pseudo ne peut pas servir d'identifiant, choisis-en un autre.";
+  if(code === "auth/network-request-failed") return "Pas de connexion.";
+  if(code === "auth/too-many-requests") return "Trop d'essais, réessaie dans un moment.";
+  if(code === "auth/operation-not-allowed") return "Les comptes ne sont pas activés côté Firebase.";
+  return "Échec (" + code + ")";
+}
+// Un joueur deja anonyme garde son identifiant : les scores qu il a deja
+// envoyes restent les siens au lieu de repartir a zero.
+function mfInscrire(pseudo, mdp){
+  var mail = mfPseudoEmail(pseudo);
+  if(!mail) return Promise.reject({code:"pseudo-vide"});
+  var actuel = firebase.auth().currentUser;
+  var p;
+  if(actuel && actuel.isAnonymous){
+    var cred = firebase.auth.EmailAuthProvider.credential(mail, mdp);
+    p = actuel.linkWithCredential(cred);
+  } else {
+    p = firebase.auth().createUserWithEmailAndPassword(mail, mdp);
+  }
+  return p.then(function(){
+    mfUser = firebase.auth().currentUser;
+    mfProfil = {pseudo: String(pseudo).trim().slice(0,20)};
+    return mfProfilRef().set(mfProfil, {merge:true});
+  });
+}
+function mfConnecter(pseudo, mdp){
+  var mail = mfPseudoEmail(pseudo);
+  if(!mail) return Promise.reject({code:"pseudo-vide"});
+  return firebase.auth().signInWithEmailAndPassword(mail, mdp).then(function(){
+    mfUser = firebase.auth().currentUser;
+    return mfChargerProfil();
+  });
+}
+function mfQuitter(){
+  return firebase.auth().signOut().then(function(){ mfUser = null; mfProfil = null; });
+}
+// set + merge fusionne les sous-objets : une grille ajoutee n ecrase pas les
+// autres, et un identifiant de grille quelconque ne casse pas le chemin.
+function mfMarquerGrille(gridId, infos){
+  if(!mfConnecte() || !gridId) return Promise.resolve();
+  var maj = {grilles:{}};
+  maj.grilles[gridId] = infos || {};
+  if(!mfProfil) mfProfil = {};
+  if(!mfProfil.grilles) mfProfil.grilles = {};
+  mfProfil.grilles[gridId] = infos || {};
+  return mfProfilRef().set(maj, {merge:true}).catch(function(){});
+}
+// A la connexion, tout ce que ce navigateur avait garde est verse au
+// compte, en une seule ecriture. Les grilles que le compte connait deja ne
+// sont pas ecrasees : il fait foi, puisqu il peut venir d un autre appareil.
+function mfVerserLocal(){
+  if(!mfConnecte()) return Promise.resolve(0);
+  var deja = (mfProfil && mfProfil.grilles) || {};
+  var maj = {grilles:{}}, n = 0;
+  try{
+    for(var i = 0; i < localStorage.length; i++){
+      var k = localStorage.key(i);
+      if(!k || k.indexOf("mf-partie-") !== 0) continue;
+      var id = k.slice(10);
+      if(!id || deja[id]) continue;
+      var g = null;
+      try{ g = JSON.parse(localStorage.getItem(k) || "null"); }catch(e){ g = null; }
+      if(!g || g.v !== 1) continue;
+      maj.grilles[id] = {etat: g.etat || "en cours", ms: parseInt(g.ms, 10) || 0,
+        hints: parseInt(g.hints, 10) || 0, tips: (g.tips || []).length || 0, repris: true};
+      n++;
+    }
+  }catch(e){ return Promise.resolve(0); }
+  if(!n) return Promise.resolve(0);
+  if(!mfProfil) mfProfil = {};
+  if(!mfProfil.grilles) mfProfil.grilles = {};
+  Object.keys(maj.grilles).forEach(function(id){ mfProfil.grilles[id] = maj.grilles[id]; });
+  return mfProfilRef().set(maj, {merge:true}).then(function(){ return n; }).catch(function(){ return 0; });
+}
+function mfMarquerAvis(gridId){
+  if(!mfConnecte() || !gridId) return Promise.resolve();
+  var maj = {avis:{}};
+  maj.avis[gridId] = true;
+  if(!mfProfil) mfProfil = {};
+  if(!mfProfil.avis) mfProfil.avis = {};
+  mfProfil.avis[gridId] = true;
+  return mfProfilRef().set(maj, {merge:true}).catch(function(){});
+}
 var boardDb = null, boardUid = null, boardReady = false;
 function boardMsg(t){ document.getElementById("pBoard").innerHTML = 
   '<div class="pboard-msg">' + t + '</div>'; }
@@ -1210,16 +1465,89 @@ function initBoard(){
   try{
     firebase.initializeApp(data.firebase);
     boardDb = firebase.firestore();
-    firebase.auth().signInAnonymously().then(function(){
-      boardUid = firebase.auth().currentUser.uid;
-      boardReady = true;
-    }).catch(function(err){
-      boardReady = false;
-      var code = (err && (err.code || err.message)) || "inconnu";
-      boardMsg("Connexion anonyme refusée (" + code + ")");
-      try{ console.error("MAXI-FLECHES / connexion anonyme:", err); }catch(e){}
+    mfDb = boardDb;
+    // Une session deja ouverte (sur le sommaire ou une autre grille, meme
+    // domaine) est reprise telle quelle ; sinon on retombe sur l anonyme.
+    firebase.auth().onAuthStateChanged(function(u){
+      if(!u){ firebase.auth().signInAnonymously().catch(function(err){
+        boardReady = false;
+        boardMsg("Connexion refusée (" + ((err && err.code) || "inconnu") + ")");
+      }); return; }
+      mfUser = u; boardUid = u.uid; boardReady = true;
+      mfChargerProfil().then(majCompteUI);
     });
   }catch(e){ boardReady = false; }
+}
+function majCompteUI(){
+  var b = document.getElementById("pCompte");
+  if(!b) return;
+  if(mfConnecte()){
+    b.textContent = "👤 " + (mfPseudo() || "Mon compte");
+    b.classList.add("compte-on");
+  } else {
+    b.textContent = "👤 Connexion";
+    b.classList.remove("compte-on");
+  }
+  var nameEl = document.getElementById("pScoreName");
+  if(nameEl && mfConnecte() && !nameEl.value) nameEl.value = mfPseudo();
+}
+(function initCompteUI(){
+  var ov = document.getElementById("pAuthOverlay");
+  var btn = document.getElementById("pCompte");
+  var msg = document.getElementById("pAuthMsg");
+  if(!ov || !btn) return;
+  function dire(t, ok){ msg.textContent = t || ""; msg.className = "pauth-msg" + (ok ? " ok" : ""); }
+  function ouvrir(){
+    if(mfConnecte()){
+      dire("Connecté en tant que " + mfPseudo() + ".", true);
+      document.getElementById("pAuthGo").textContent = "Se déconnecter";
+      document.getElementById("pAuthNew").style.display = "none";
+      document.getElementById("pAuthNom").value = mfPseudo();
+      document.getElementById("pAuthNom").disabled = true;
+      document.getElementById("pAuthMdp").style.display = "none";
+    } else {
+      dire("");
+      document.getElementById("pAuthGo").textContent = "Se connecter";
+      document.getElementById("pAuthNew").style.display = "inline-block";
+      document.getElementById("pAuthNom").disabled = false;
+      document.getElementById("pAuthMdp").style.display = "";
+    }
+    ov.classList.add("show");
+  }
+  function fermer(){ ov.classList.remove("show"); }
+  btn.addEventListener("click", ouvrir);
+  document.getElementById("pAuthClose").addEventListener("click", fermer);
+  document.getElementById("pAuthGo").addEventListener("click", function(){
+    if(mfConnecte()){ mfQuitter().then(function(){ majCompteUI(); fermer(); }); return; }
+    var p = document.getElementById("pAuthNom").value;
+    var m = document.getElementById("pAuthMdp").value;
+    if(!mfPseudoEmail(p)){ dire("Choisis un pseudo."); return; }
+    dire("Connexion…", true);
+    mfConnecter(p, m).then(function(){
+      majCompteUI(); rattraperProgres();
+      return mfVerserLocal();
+    }).then(fermer).catch(function(e){ dire(mfErreur(e && e.code)); });
+  });
+  document.getElementById("pAuthNew").addEventListener("click", function(){
+    var p = document.getElementById("pAuthNom").value;
+    var m = document.getElementById("pAuthMdp").value;
+    if(!mfPseudoEmail(p)){ dire("Choisis un pseudo."); return; }
+    if((m || "").length < 6){ dire("Mot de passe trop court : 6 caractères minimum."); return; }
+    dire("Création…", true);
+    mfInscrire(p, m).then(function(){
+      majCompteUI(); rattraperProgres();
+      return mfVerserLocal();
+    }).then(fermer).catch(function(e){ dire(mfErreur(e && e.code)); });
+  });
+})();
+// A la connexion, la partie en cours dans ce navigateur est versee au
+// compte : on ne perd pas ce qui a ete fait avant de s inscrire.
+function rattraperProgres(){
+  if(!mfConnecte()) return;
+  var etat = solutionRevealed ? "solution" : (solvedAlready ? "finie" : "en cours");
+  if(etat === "en cours" && !tElapsed()) return;
+  mfMarquerGrille(data.gridId, {etat: etat, ms: Math.round(tElapsed()),
+    hints: hintsUsed, tips: tipsUsed, secret: !!secretTrouve, titre: data.title || ""});
 }
 function renderBoard(docs){
   var el = document.getElementById("pBoard");
@@ -1287,6 +1615,7 @@ function envoyerAvis(nom){
   var txt = (document.getElementById("pAvisTxt").value || "").trim().slice(0,400);
   if(!avisNote && !txt) return Promise.resolve(null);
   if(!boardReady || !boardUid) return Promise.reject(new Error("hors ligne"));
+  if(typeof mfMarquerAvis === "function") mfMarquerAvis(data.gridId);
   return avisRef().doc(boardUid).set({
     name: nom || "Anonyme",
     note: parseInt(avisNote, 10) || 0,
@@ -1438,7 +1767,7 @@ function loadGame(){
     }
     if(typeof verifierSecret === "function") verifierSecret(true);
   }
-  if(typeof majPool === "function") majPool();
+  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();
   tAcc = parseInt(g.ms, 10) || 0;
   var st = document.getElementById("pStatus");
   if(g.etat === "solution"){
@@ -1472,5 +1801,39 @@ document.getElementById("pWinClose").addEventListener("click", function(){
 });
 armerRappel();
 tRender();
+majProgres();
+// Fenetre d accueil : une seule fois par grille et par navigateur. Une
+// sauvegarde deja presente signifie qu on n en est pas a la premiere ouverture.
+(function intro(){
+  var ov = document.getElementById("pIntroOverlay");
+  if(!ov) return;
+  var CLE = SAVE_KEY + "-vu";
+  var deja = false;
+  try{ deja = !!localStorage.getItem(CLE) || !!localStorage.getItem(SAVE_KEY); }catch(e){ deja = false; }
+  var nMots = (data.rightWords || []).length + (data.downWords || []).length;
+  var nCases = 0;
+  for(var i=0;i<data.types.length;i++){ if(data.types[i] === "letter") nCases++; }
+  document.getElementById("pIntroTitle").textContent = data.title || "";
+  document.getElementById("pIntroNums").innerHTML =
+    '<div class="pintro-num"><b>' + nMots + '</b><span>mot' + (nMots>1?"s":"") + '</span></div>' +
+    '<div class="pintro-num"><b>' + nCases + '</b><span>cases</span></div>' +
+    '<div class="pintro-num"><b>' + data.rows + "\u00D7" + data.cols + '</b><span>format</span></div>';
+  var items = [];
+  if(data.secret){
+    items.push(["\uD83D\uDD12", "Les cases color\u00E9es cachent un <b>mot myst\u00E8re</b>. Trouve-le avant la fin et tu gagnes des <b>cases offertes</b>."]);
+  }
+  items.push(["\uD83D\uDCA1", "Chaque indice co\u00FBte 15\u00A0s au chrono, une seule fois par d\u00E9finition."]);
+  items.push(["\uD83C\uDFC6", "Ton temps part au classement une fois la grille termin\u00E9e."]);
+  document.getElementById("pIntroList").innerHTML = items.map(function(it){
+    return '<li data-emo="' + it[0] + '">' + it[1] + "</li>";
+  }).join("");
+  function fermer(){
+    ov.classList.remove("show");
+    try{ localStorage.setItem(CLE, "1"); }catch(e){}
+  }
+  document.getElementById("pIntroGo").addEventListener("click", fermer);
+  ov.addEventListener("click", function(ev){ if(ev.target === ov) fermer(); });
+  if(!deja) ov.classList.add("show");
+})();
 </script>
 </body></html>
