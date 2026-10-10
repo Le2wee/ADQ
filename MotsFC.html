@@ -351,6 +351,28 @@
   }
   .clue-empty{font-size:12.5px;color:var(--muted);font-style:italic;padding:4px 0;}
 
+  .stats-top{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .stat-chip{
+    background:var(--paper);border:1px solid var(--line);border-radius:5px;
+    padding:5px 9px;font-size:11.5px;color:var(--muted);line-height:1.25;
+  }
+  .stat-chip b{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-size:15px;color:var(--ink);margin-right:4px;
+  }
+  .stats-letters{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:4px;}
+  .stat-let{
+    position:relative;overflow:hidden;border:1px solid var(--line);border-radius:4px;
+    background:var(--panel);padding:3px 0 4px;text-align:center;
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  .stat-let .bar{position:absolute;left:0;right:0;bottom:0;background:var(--accent-soft);}
+  .stat-let .lt{position:relative;font-size:12px;font-weight:700;color:var(--ink);}
+  .stat-let .nb{position:relative;display:block;font-size:11px;color:var(--ink-soft);}
+  .stat-let.zero{opacity:0.35;}
+  .stat-let.top .lt{color:var(--accent);}
+  .stats-foot{margin-top:9px;font-size:11.5px;color:var(--muted);line-height:1.45;}
+
   .finder .find-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
   .finder .find-row label{font-size:12px;color:var(--muted);}
   .finder #findLen{
@@ -507,6 +529,12 @@
   .avis-head .note{color:var(--accent);letter-spacing:1px;}
   .avis-head .meta{color:var(--muted);font-size:11.5px;margin-left:auto;}
   .avis-item p{margin:5px 0 0;font-size:13px;white-space:pre-wrap;}
+  .fini-rang{
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;
+    color:var(--muted);min-width:24px;flex:none;
+  }
+  .fini-tps{font-family:ui-monospace,"SF Mono",Consolas,monospace;color:var(--accent);font-weight:700;}
+  .fini-item.or .fini-rang{color:var(--mag-red);}
   .pub-state{font-size:12.5px;color:var(--muted);}
   .pub-state.on{color:var(--ok);font-weight:600;}
 </style>
@@ -676,6 +704,12 @@
       <div id="grid" tabindex="0" class="mode-letters"></div>
     </div>
     <div class="clues-panel">
+      <details class="clue-col" id="statsCol" open>
+        <summary><h3>📊 STATISTIQUES</h3></summary>
+        <div class="stats-top" id="statsTop"></div>
+        <div class="stats-letters" id="statsLetters"></div>
+        <div class="stats-foot" id="statsFoot"></div>
+      </details>
       <div class="clue-col finder">
         <h3>♻️ DÉJÀ UTILISÉ ?</h3>
         <div class="find-row">
@@ -787,6 +821,14 @@
     <button class="btn small" id="avisUidBtn" type="button" title="Identifiant à coller dans la règle Firestore">Mon identifiant</button>
   </div>
   <div id="avisList" class="avis-list"></div>
+
+  <div class="pub-bar">
+    <span class="audio-label">🏆 Ont terminé la grille</span>
+    <button class="btn small" id="finiBtn" type="button">Charger pour cette grille</button>
+    <button class="btn small" id="finiAllBtn" type="button">Toutes les grilles</button>
+    <span class="pub-state" id="finiState"></span>
+  </div>
+  <div id="finiList" class="avis-list"></div>
 
   <div class="actions">
     <button class="btn small" id="saveBtn">Enregistrer</button>
@@ -1341,6 +1383,84 @@
     renderOneList('downList', state.words.down, 'D');
     document.getElementById('rightCount').textContent = '(' + state.words.right.length + ')';
     document.getElementById('downCount').textContent = '(' + state.words.down.length + ')';
+    renderStats();
+  }
+
+  // Compte des mots et frequence de chaque lettre, recalcule a chaque frappe.
+  // Les 26 pastilles sont construites une seule fois : ensuite on ne touche
+  // qu au texte et a la hauteur de la barre. Reconstruire l innerHTML a chaque
+  // lettre ferait travailler le moteur de rendu pour rien.
+  const LETTRES_AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const statRefs = Object.create(null);
+  function construirePastilles(box, liste){
+    box.innerHTML = '';
+    liste.forEach(L => {
+      const d = document.createElement('div');
+      d.className = 'stat-let';
+      const bar = document.createElement('span'); bar.className = 'bar';
+      const lt = document.createElement('span'); lt.className = 'lt'; lt.textContent = L;
+      const nb = document.createElement('span'); nb.className = 'nb'; nb.textContent = '0';
+      d.appendChild(bar); d.appendChild(lt); d.appendChild(nb);
+      box.appendChild(d);
+      statRefs[L] = {boite:d, bar, nb};
+    });
+  }
+
+  function renderStats(){
+    const top = document.getElementById('statsTop');
+    const box = document.getElementById('statsLetters');
+    const foot = document.getElementById('statsFoot');
+    if(!top || !box || !foot) return;
+    let cases = 0, remplies = 0, defs = 0, noires = 0;
+    const compte = Object.create(null);
+    for(let r=0;r<state.rows;r++){
+      for(let c=0;c<state.cols;c++){
+        const cell = get(r,c);
+        if(cell.type === 'letter'){
+          cases++;
+          const L = String(cell.letter || '').trim().toUpperCase();
+          if(L){ remplies++; compte[L] = (compte[L] || 0) + 1; }
+        } else if(cell.type === 'def'){ defs++; }
+        else { noires++; }
+      }
+    }
+    const nH = state.words.right.length, nV = state.words.down.length;
+    const chip = (gros, label) => '<span class="stat-chip"><b>' + gros + '</b>' + label + '</span>';
+    const parts = [
+      chip(nH + nV, 'mot' + (nH+nV>1?'s':'') + ' (\u2192 ' + nH + ' \u00B7 \u2193 ' + nV + ')'),
+      chip(remplies + '/' + cases, 'case' + (cases>1?'s':'') + ' \u00E0 lettre'),
+      chip(defs, 'case' + (defs>1?'s':'') + ' d\u00E9finition')
+    ];
+    if(noires) parts.push(chip(noires, 'case' + (noires>1?'s':'') + ' noire' + (noires>1?'s':'')));
+    top.innerHTML = parts.join('');
+
+    // A-Z d abord, puis tout caractere exotique reellement present
+    const alpha = LETTRES_AZ.slice();
+    Object.keys(compte).forEach(k => { if(alpha.indexOf(k) === -1) alpha.push(k); });
+    // on ne reconstruit que si la liste des touches a change (caractere exotique)
+    if(alpha.length !== Object.keys(statRefs).length || alpha.some(L => !statRefs[L])){
+      Object.keys(statRefs).forEach(k => { delete statRefs[k]; });
+      construirePastilles(box, alpha);
+    }
+    let maxi = 0;
+    alpha.forEach(L => { if((compte[L]||0) > maxi) maxi = compte[L]; });
+    alpha.forEach(L => {
+      const n = compte[L] || 0, ref = statRefs[L];
+      if(!ref) return;
+      const cls = 'stat-let' + (n === 0 ? ' zero' : '') + (n && n === maxi ? ' top' : '');
+      if(ref.boite.className !== cls) ref.boite.className = cls;
+      const h = (maxi ? Math.round(n / maxi * 100) : 0) + '%';
+      if(ref.bar.style.height !== h) ref.bar.style.height = h;
+      const t = String(n);
+      if(ref.nb.textContent !== t) ref.nb.textContent = t;
+      const ti = L + ' : ' + n;
+      if(ref.boite.title !== ti) ref.boite.title = ti;
+    });
+
+    const utilisees = alpha.filter(L => compte[L]).length;
+    const absentes = LETTRES_AZ.filter(L => !compte[L]);
+    foot.innerHTML = utilisees + ' lettre' + (utilisees>1?'s':'') + ' diff\u00E9rente' + (utilisees>1?'s':'') +
+      ' sur 26' + (absentes.length ? ' \u2014 jamais pos\u00E9es : <b>' + absentes.join(' ') + '</b>' : ' \u2014 pangramme complet \u2728');
   }
 
   // Updates just the letter previews in the side lists; called while typing so
@@ -1349,6 +1469,7 @@
     document.querySelectorAll('#rightList .preview, #downList .preview').forEach(el=>{
       if(el._word) el.textContent = wordPreview(el._word);
     });
+    renderStats();
   }
 
   function renderOneList(containerId, words, dir){
@@ -3708,6 +3829,144 @@
     }
   }
 
+  // ---------- joueurs ayant termine, lu depuis le classement ----------
+  // scores/{grille}/entries/{uid} : exactement la collection que le lecteur
+  // affiche dans son tableau des scores, deja lisible par tous. Aucune regle
+  // Firestore a ajouter. « Toutes les grilles » boucle sur le sommaire plutot
+  // que de lancer une requete de groupe, qui elle demanderait une regle de plus.
+  function scoresRefAtelier(gridId){
+    return fbDb.collection('scores').doc(gridId).collection('entries');
+  }
+
+  function dureeCourte(ms){
+    const t = Math.max(0, Math.round((parseInt(ms, 10) || 0) / 1000));
+    const m = Math.floor(t / 60), s = t % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function setFiniState(txt, ok){
+    const st = document.getElementById('finiState');
+    st.textContent = txt || '';
+    st.classList.toggle('on', !!ok);
+  }
+
+  function afficherFinisseurs(liste){
+    const el = document.getElementById('finiList');
+    el.innerHTML = '';
+    if(!liste.length){ el.classList.remove('on'); return; }
+    liste.sort((a, b) => (parseInt(a.ms, 10) || 0) - (parseInt(b.ms, 10) || 0));
+    const n = liste.length;
+    const sansAide = liste.filter(x => !((parseInt(x.hints, 10) || 0) + (parseInt(x.tips, 10) || 0))).length;
+    const avecSecret = liste.filter(x => x.secret).length;
+    const head = document.createElement('div');
+    head.className = 'avis-moy';
+    const bouts = [];
+    bouts.push('<b>' + n + '</b> joueur' + (n > 1 ? 's ont' : ' a') + ' termin\u00e9');
+    bouts.push('meilleur temps <b>' + dureeCourte(liste[0].ms) + '</b>');
+    if(sansAide) bouts.push(sansAide + ' sans aucune aide');
+    if(avecSecret) bouts.push(avecSecret + ' avec le mot myst\u00e8re');
+    head.innerHTML = bouts.join(' \u00b7 ');
+    el.appendChild(head);
+    liste.forEach((x, i) => {
+      const item = document.createElement('div');
+      item.className = 'avis-item fini-item' + (i === 0 ? ' or' : '');
+      const h = document.createElement('div');
+      h.className = 'avis-head';
+      const rang = document.createElement('span'); rang.className = 'fini-rang'; rang.textContent = (i + 1) + '.';
+      const nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = x.name || 'Anonyme';
+      const tps = document.createElement('span'); tps.className = 'fini-tps'; tps.textContent = dureeCourte(x.ms);
+      const meta = document.createElement('span'); meta.className = 'meta';
+      const m = [];
+      if(x.titre) m.push(x.titre);
+      const aides = (parseInt(x.hints, 10) || 0) + (parseInt(x.tips, 10) || 0);
+      m.push(aides ? (aides + ' aide' + (aides > 1 ? 's' : '')) : 'sans aide');
+      if(x.secret) m.push('mot myst\u00e8re \u2713');
+      const d = dateCourte(x.at); if(d) m.push(d);
+      meta.textContent = m.join(' \u00b7 ');
+      h.appendChild(rang); h.appendChild(nom); h.appendChild(tps); h.appendChild(meta);
+      item.appendChild(h);
+      el.appendChild(item);
+    });
+    el.classList.add('on');
+  }
+
+  function afficherFinisseursParGrille(lignes){
+    const el = document.getElementById('finiList');
+    el.innerHTML = '';
+    if(!lignes.length){ el.classList.remove('on'); return; }
+    lignes.sort((a, b) => b.n - a.n || (a.titre || '').localeCompare(b.titre || ''));
+    const total = lignes.reduce((s, x) => s + x.n, 0);
+    const head = document.createElement('div');
+    head.className = 'avis-moy';
+    head.innerHTML = '<b>' + total + '</b> fin' + (total > 1 ? 's' : '') +
+      ' au total sur ' + lignes.length + ' grille' + (lignes.length > 1 ? 's' : '');
+    el.appendChild(head);
+    lignes.forEach(x => {
+      const item = document.createElement('div');
+      item.className = 'avis-item fini-item';
+      const h = document.createElement('div');
+      h.className = 'avis-head';
+      const nb = document.createElement('span'); nb.className = 'fini-rang'; nb.textContent = x.n;
+      const nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = x.titre || x.id;
+      const tps = document.createElement('span'); tps.className = 'fini-tps'; tps.textContent = dureeCourte(x.best);
+      const meta = document.createElement('span'); meta.className = 'meta';
+      meta.textContent = x.noms.slice(0, 7).join(', ') +
+        (x.noms.length > 7 ? ' +' + (x.noms.length - 7) : '');
+      h.appendChild(nb); h.appendChild(nom); h.appendChild(tps); h.appendChild(meta);
+      item.appendChild(h);
+      el.appendChild(item);
+    });
+    el.classList.add('on');
+  }
+
+  async function chargerFinisseurs(tout){
+    const el = document.getElementById('finiList');
+    if(!currentUser || !fbDb){ setFiniState('Connecte-toi d\'abord.'); return; }
+    if(!tout){
+      if(!state.shareId){
+        setFiniState('Cette grille n\'a pas encore \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9e.');
+        el.classList.remove('on'); return;
+      }
+      setFiniState('Lecture du classement\u2026');
+      try{
+        const snap = await scoresRefAtelier(state.shareId).get();
+        const liste = snap.docs.map(d => d.data());
+        afficherFinisseurs(liste);
+        setFiniState(liste.length ? '' : 'Personne n\'a encore termin\u00e9 cette grille.');
+      }catch(err){
+        el.classList.remove('on');
+        setFiniState('Lecture refus\u00e9e (' + ((err && (err.code || err.message)) || 'inconnu') + ')');
+        try{ console.error('MAXI-FLECHES / classement:', err); }catch(e){}
+      }
+      return;
+    }
+    setFiniState('Lecture du sommaire\u2026');
+    let docs;
+    try{ docs = (await catalogueRef().get()).docs; }
+    catch(err){ setFiniState('Sommaire illisible (' + ((err && (err.code || err.message)) || 'inconnu') + ')'); return; }
+    const lignes = [];
+    for(let i = 0; i < docs.length; i++){
+      const info = docs[i].data() || {};
+      setFiniState('Classements\u2026 ' + (i + 1) + '/' + docs.length);
+      let snap;
+      try{ snap = await scoresRefAtelier(docs[i].id).get(); }
+      catch(err){ continue; }
+      const ent = snap.docs.map(d => d.data());
+      if(!ent.length) continue;
+      ent.sort((a, b) => (parseInt(a.ms, 10) || 0) - (parseInt(b.ms, 10) || 0));
+      lignes.push({
+        id: docs[i].id,
+        titre: info.title || info.titre || docs[i].id,
+        n: ent.length,
+        best: ent[0].ms,
+        bestNom: ent[0].name || 'Anonyme',
+        noms: ent.map(x => x.name || 'Anonyme')
+      });
+    }
+    afficherFinisseursParGrille(lignes);
+    setFiniState(lignes.length ? '' : 'Aucune grille n\'a encore \u00e9t\u00e9 termin\u00e9e.', !!lignes.length);
+  }
+
   // ---------- dates de mise en ligne, depuis l'historique GitHub ----------
   // L'API publique de GitHub donne tous les commits touchant un fichier ; le
   // dernier de la liste est le plus ancien, donc le depot initial. Une mise a
@@ -3799,6 +4058,8 @@
     if(dernierSnapGalerie) renderGalleryList(dernierSnapGalerie);
   });
 
+  document.getElementById('finiBtn').addEventListener('click', ()=> chargerFinisseurs(false));
+  document.getElementById('finiAllBtn').addEventListener('click', ()=> chargerFinisseurs(true));
   document.getElementById('avisBtn').addEventListener('click', ()=> chargerAvis(false));
   document.getElementById('avisAllBtn').addEventListener('click', ()=>{ avisParGrille = null; chargerResumeAvis(true); chargerAvis(true); });
   document.getElementById('avisUidBtn').addEventListener('click', ()=>{
@@ -4794,6 +5055,14 @@
       '</header>',
       '<div class="wrap">',
       '<div class="ptitle-row"><h1 id="pTitle"></h1><span class="ptimer" id="pTimer">⏱ 00:00</span><button id="pSoundBadge" class="psound" type="button"><span id="pSoundIcon">🔊</span><span id="pSoundLabel">Son activé</span></button><button id="pSfxBadge" class="psound psfx" type="button"><span id="pSfxIcon">💨</span><span id="pSfxLabel">Bonus activé</span></button></div>',
+      '<div class="pprog" id="pProg">',
+      '<div class="pprog-head">',
+      '<span class="pprog-nb"><b id="pProgNb">0</b> / <span id="pProgTot">0</span> cases</span>',
+      '<span class="pprog-mot" id="pProgMot"></span>',
+      '<span class="pprog-pct" id="pProgPct">0\u00A0%</span>',
+      '</div>',
+      '<div class="pprog-rail"><div class="pprog-fill" id="pProgFill"></div></div>',
+      '</div>',
       '<div class="board">',
       '<div class="gridwrap">',
       '<div class="clue-bar" id="pClueBar">',
@@ -4858,7 +5127,7 @@
       '</div>',
       '<footer class="psignature">DV Maxence Brossette et Claude-san</footer>',
       '</div>',
-      '<div class="pbonus" id="pBonus"><span class="pbonus-emo">🍺</span>',
+      '<div class="pbonus" id="pBonusToast"><span class="pbonus-emo">🍺</span>',
       '<b>BÉNÉDICTION DU ROT</b><span>Un indice offert&nbsp;!</span></div>',
       '<div class="pmodal-overlay" id="pAuthOverlay">',
       '<div class="pmodal pauth">',
@@ -4877,6 +5146,17 @@
       '<button class="pbtn pbtn-primary" id="pAuthGo">Se connecter</button>',
       '</div>',
       '<p class="pauth-note">Notez votre mot de passe : sans adresse e-mail, il n\'y a pas de récupération automatique. Au pire envoie-moi un message si t\'oublies, bouff…</p>',
+      '</div>',
+      '</div>',
+      '<div class="pmodal-overlay" id="pIntroOverlay">',
+      '<div class="pmodal pintro">',
+      '<div class="pintro-band">MAXI-FL\u00C9CH\u00C9S</div>',
+      '<div class="pintro-t" id="pIntroTitle"></div>',
+      '<div class="pintro-nums" id="pIntroNums"></div>',
+      '<ul class="pintro-list" id="pIntroList"></ul>',
+      '<div class="pmodal-row">',
+      '<button class="pbtn pbtn-primary" id="pIntroGo">C\'est parti</button>',
+      '</div>',
       '</div>',
       '</div>',
       '<div class="pmodal-overlay" id="pModalOverlay">',
@@ -4911,7 +5191,17 @@
       '.mag-force b{font-size:13px;letter-spacing:0;}',
       '.mag-strip{display:flex;flex-wrap:wrap;gap:6px 18px;background:var(--ink);color:var(--mag-yellow);padding:6px 24px;font-size:10.5px;letter-spacing:1.4px;}',
       '.mag-strip span::before{content:"\\2605 ";color:var(--mag-red);}',
-      '.ptitle-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;}',
+      '.ptitle-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;}',
+      '.pprog{margin:0 0 18px;}',
+      '.pprog-head{display:flex;align-items:baseline;gap:10px;margin:0 0 6px;font-size:12.5px;color:var(--ink-soft);}',
+      '.pprog-nb b{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:16px;color:var(--ink);}',
+      '.pprog-nb span{font-family:ui-monospace,"SF Mono",Consolas,monospace;}',
+      '.pprog-mot{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;transition:color .5s ease;}',
+      '.pprog-pct{margin-left:auto;font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:16px;font-weight:700;transition:color .5s ease;}',
+      '.pprog-rail{height:10px;background:#DCE2E9;border-radius:3px;overflow:hidden;}',
+      '.pprog-fill{height:100%;width:0;border-radius:3px;background:#425067;',
+      '  transition:width .4s cubic-bezier(.22,.9,.3,1),background-color .5s ease;}',
+      '@media (max-width:560px){ .pprog-mot{display:none;} }',
       '.psound{display:none;align-items:center;gap:6px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}',
       '.psound.show{display:inline-flex;}',
       '.psound:hover{filter:brightness(0.97);}',
@@ -5094,6 +5384,18 @@
       '.pmodal{background:var(--panel);border-radius:8px;padding:20px 22px;max-width:320px;box-shadow:0 12px 32px rgba(0,0,0,0.25);}',
       '.pmodal p{margin:0 0 16px;font-size:14px;color:var(--ink);}',
       '.pmodal-row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}',
+      '.pintro{max-width:360px;width:min(360px,92vw);padding:0 0 18px;overflow:hidden;text-align:center;}',
+      '.pintro-band{background:var(--mag-red);color:#fff;font-weight:700;letter-spacing:3px;font-size:12px;padding:9px 0;}',
+      '.pintro-t{font-size:15px;font-weight:700;color:var(--ink);padding:14px 18px 0;line-height:1.3;}',
+      '.pintro-nums{display:flex;justify-content:center;gap:8px;padding:14px 18px 0;}',
+      '.pintro-num{flex:1;max-width:104px;background:var(--paper);border:2px solid var(--ink);border-radius:6px;padding:8px 4px;}',
+      '.pintro-num b{display:block;font-size:21px;line-height:1;color:var(--mag-red);font-family:ui-monospace,"SF Mono",Consolas,monospace;}',
+      '.pintro-num span{display:block;margin-top:3px;font-size:9.5px;letter-spacing:1px;color:var(--ink-soft);text-transform:uppercase;}',
+      '.pintro-list{list-style:none;margin:14px 0 0;padding:0 20px;text-align:left;}',
+      '.pintro-list li{font-size:12.5px;color:var(--ink-soft);line-height:1.45;padding:5px 0 5px 24px;position:relative;}',
+      '.pintro-list li::before{content:attr(data-emo);position:absolute;left:0;top:4px;font-size:14px;}',
+      '.pintro-list li b{color:var(--ink);}',
+      '.pintro .pmodal-row{justify-content:center;padding:16px 18px 0;}',
       '.pauth{max-width:330px;width:92vw;text-align:left;}',
       '.pauth-t{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;letter-spacing:1.6px;color:var(--ink-soft);}',
       '.pauth-sous{margin:6px 0 12px !important;font-size:12.5px;color:var(--muted) !important;}',
@@ -5409,7 +5711,7 @@
       '  var dr=dir==="R"?0:1, dc=dir==="R"?1:0; var nr=r+dr, nc=c+dc;',
       '  if(v){ if(nr<rows && nc<cols && data.types[idx(nr,nc)]==="letter"){ moveTo(nr,nc); } }',
       '  tStartClock();',
-      '  if(typeof majPool === "function") majPool();',
+      '  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();',
       '  if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }',
       '  checkCompletion();',
       '}',
@@ -5524,6 +5826,7 @@
       '  if(solvedAlready || solutionRevealed) return;',
       '  if(!isGridComplete()) return;',
       '  solvedAlready = true;',
+      '  if(typeof majProgres === "function") majProgres();',
       '  if(typeof majBonusBtn === "function") majBonusBtn();',
       '  if(typeof rattraperProgres === "function") setTimeout(rattraperProgres, 0);',
       '  if(nudgeTimer){ clearTimeout(nudgeTimer); nudgeTimer = null; }',
@@ -5864,7 +6167,7 @@
       '  });',
       '  bonusLeft = 2;',
       '  majBonusBtn();',
-      '  if(typeof majPool === "function") majPool();',
+      '  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();',
       '  document.getElementById("pStatus").textContent =',
       '    (n ? n + " case" + (n>1?"s":"") + " en valeur remplie" + (n>1?"s":"") + " · " : "") +',
       '    "2 révélations offertes, gratuites";',
@@ -5901,7 +6204,7 @@
       '      return;',
       '    }',
       '    bonusLeft--;',
-      '    if(typeof majPool === "function") majPool();',
+      '    if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();',
       '    if(bonusLeft <= 0) desarmerBonus();',
       '    majBonusBtn();',
       '    document.getElementById("pStatus").textContent = bonusLeft',
@@ -5913,6 +6216,65 @@
       '    checkCompletion();',
       '  }, true);',
       '})();',
+      '// ---------- progression ----------',
+      '// On compte les cases REMPLIES, pas les cases justes : verifier la',
+      '// solution au fil de la frappe reviendrait a dire au joueur ou il se',
+      '// trompe sans qu il ait demande. La barre ne passe au vert que lorsque',
+      '// la grille est reellement validee.',
+      'var PROG_GAMME = [',
+      '  [0.00, [66, 80, 103],  "on d\\u00E9marre"],',
+      '  [0.15, [122, 58, 92],  "\\u00E7a commence"],',
+      '  [0.33, [200, 16, 46],  "un tiers"],',
+      '  [0.50, [201, 122, 43], "la moiti\\u00E9"],',
+      '  [0.70, [227, 168, 31], "dernier tiers"],',
+      '  [0.88, [142, 154, 51], "presque"],',
+      '  [1.00, [63, 125, 92],  "termin\\u00E9 !"]',
+      '];',
+      'function progTeinte(p){',
+      '  if(p <= 0) return {rgb: PROG_GAMME[0][1], mot: PROG_GAMME[0][2]};',
+      '  if(p >= 1) return {rgb: PROG_GAMME[PROG_GAMME.length-1][1], mot: PROG_GAMME[PROG_GAMME.length-1][2]};',
+      '  for(var i=1;i<PROG_GAMME.length;i++){',
+      '    if(p <= PROG_GAMME[i][0]){',
+      '      var a = PROG_GAMME[i-1], b = PROG_GAMME[i];',
+      '      var t = (p - a[0]) / (b[0] - a[0]);',
+      '      var rgb = [0,1,2].map(function(k){ return Math.round(a[1][k] + (b[1][k] - a[1][k]) * t); });',
+      '      return {rgb: rgb, mot: t < 0.5 ? a[2] : b[2]};',
+      '    }',
+      '  }',
+      '  return {rgb: PROG_GAMME[PROG_GAMME.length-1][1], mot: PROG_GAMME[PROG_GAMME.length-1][2]};',
+      '}',
+      'var progTotal = 0;',
+      'function majProgres(){',
+      '  var fill = document.getElementById("pProgFill");',
+      '  if(!fill) return;',
+      '  if(!progTotal){',
+      '    for(var i=0;i<data.types.length;i++){ if(data.types[i] === "letter") progTotal++; }',
+      '    document.getElementById("pProgTot").textContent = progTotal;',
+      '  }',
+      '  var faits = 0;',
+      '  for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){',
+      '    if(data.types[idx(r,c)] !== "letter") continue;',
+      '    var el = cellRefs[r] && cellRefs[r][c];',
+      '    if(el && el.value) faits++;',
+      '  } }',
+      '  var p = progTotal ? faits / progTotal : 0;',
+      '  var pct = Math.round(p * 100);',
+      '  // plein mais pas valide : on reste en ocre, le vert est reserve a la victoire',
+      '  var fini = (typeof solvedAlready !== "undefined" && solvedAlready) ||',
+      '             (typeof solutionRevealed !== "undefined" && solutionRevealed);',
+      '  var col = progTeinte(p >= 1 && !fini ? 0.93 : p);',
+      '  if(p >= 1 && !fini) col.mot = "tout est rempli";',
+      '  var teinte = "rgb(" + col.rgb.join(",") + ")";',
+      '  fill.style.width = pct + "%";',
+      '  fill.style.background = teinte;',
+      '  document.getElementById("pProgNb").textContent = faits;',
+      '  var pc = document.getElementById("pProgPct");',
+      '  pc.textContent = pct + "\\u00A0%";',
+      '  pc.style.color = teinte;',
+      '  var mo = document.getElementById("pProgMot");',
+      '  mo.textContent = col.mot;',
+      '  mo.style.color = teinte;',
+      '}',
       'function playSfx(list){',
       '  if(soundMuted || sfxMuted || !list || !list.length) return;',
       '  var src = list[Math.floor(Math.random()*list.length)];',
@@ -5929,7 +6291,8 @@
       '  }catch(e){}',
       '}',
       'function showBonus(){',
-      '  var el = document.getElementById("pBonus");',
+      '  var el = document.getElementById("pBonusToast");',
+      '  if(!el) return;',
       '  el.classList.remove("show");',
       '  void el.offsetWidth;',
       '  el.classList.add("show");',
@@ -5968,6 +6331,7 @@
       '  tStartClock();',
       '  if(typeof armerRappel === "function"){ cacherRappel(); armerRappel(); }',
       '  try{ cell.focus(); }catch(e){}',
+      '  majProgres();',
       '  checkCompletion();',
       '});',
       'document.getElementById("pSolve").addEventListener("click", function(){',
@@ -5983,6 +6347,7 @@
       '    cacherRappel();',
       '    for(var r=0;r<rows;r++){ for(var c=0;c<cols;c++){ if(data.types[idx(r,c)]!=="letter") continue; var el=cellRefs[r][c]; el.value = data.solution[idx(r,c)]; el.disabled = true; el.parentElement.classList.remove("incorrect"); el.parentElement.classList.add("correct"); } }',
       '    tStop(); tFrozen = true;',
+      '    majProgres();',
       '    document.getElementById("pStatus").textContent = "Solution affichée";',
       '  }',
       '  function onCancel(){ cleanup(); }',
@@ -6001,7 +6366,7 @@
       '  [].forEach.call(document.querySelectorAll("#pSecretBoxes input"), function(i){ i.value = ""; });',
       '  var sb = document.getElementById("pSecret"); if(sb) sb.classList.remove("trouve");',
       '  var sm = document.getElementById("pSecretMsg"); if(sm){ sm.textContent = ""; sm.className = "psecret-msg"; }',
-      '  if(typeof majPool === "function") majPool();',
+      '  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();',
       '  data.rightWords.concat(data.downWords).forEach(function(w){',
       '    if(w._tipBtn){ w._tipBtn.style.display = "inline-block"; }',
       '    if(w._tipTxt){ w._tipTxt.style.display = "none"; w._tipTxt.textContent = ""; }',
@@ -6330,7 +6695,7 @@
       '    }',
       '    if(typeof verifierSecret === "function") verifierSecret(true);',
       '  }',
-      '  if(typeof majPool === "function") majPool();',
+      '  if(typeof majPool === "function") majPool(); if(typeof majProgres === "function") majProgres();',
       '  tAcc = parseInt(g.ms, 10) || 0;',
       '  var st = document.getElementById("pStatus");',
       '  if(g.etat === "solution"){',
@@ -6363,7 +6728,41 @@
       '  document.getElementById("pWin").classList.remove("show");',
       '});',
       'armerRappel();',
-      'tRender();'
+      'tRender();',
+      'majProgres();',
+      '// Fenetre d accueil : une seule fois par grille et par navigateur. Une',
+      '// sauvegarde deja presente signifie qu on n en est pas a la premiere ouverture.',
+      '(function intro(){',
+      '  var ov = document.getElementById("pIntroOverlay");',
+      '  if(!ov) return;',
+      '  var CLE = SAVE_KEY + "-vu";',
+      '  var deja = false;',
+      '  try{ deja = !!localStorage.getItem(CLE) || !!localStorage.getItem(SAVE_KEY); }catch(e){ deja = false; }',
+      '  var nMots = (data.rightWords || []).length + (data.downWords || []).length;',
+      '  var nCases = 0;',
+      '  for(var i=0;i<data.types.length;i++){ if(data.types[i] === "letter") nCases++; }',
+      '  document.getElementById("pIntroTitle").textContent = data.title || "";',
+      '  document.getElementById("pIntroNums").innerHTML =',
+      '    \'<div class="pintro-num"><b>\' + nMots + \'</b><span>mot\' + (nMots>1?"s":"") + \'</span></div>\' +',
+      '    \'<div class="pintro-num"><b>\' + nCases + \'</b><span>cases</span></div>\' +',
+      '    \'<div class="pintro-num"><b>\' + data.rows + "\\u00D7" + data.cols + \'</b><span>format</span></div>\';',
+      '  var items = [];',
+      '  if(data.secret){',
+      '    items.push(["\\uD83D\\uDD12", "Les cases color\\u00E9es cachent un <b>mot myst\\u00E8re</b>. Trouve-le avant la fin et tu gagnes des <b>cases offertes</b>."]);',
+      '  }',
+      '  items.push(["\\uD83D\\uDCA1", "Chaque indice co\\u00FBte 15\\u00A0s au chrono, une seule fois par d\\u00E9finition."]);',
+      '  items.push(["\\uD83C\\uDFC6", "Ton temps part au classement une fois la grille termin\\u00E9e."]);',
+      '  document.getElementById("pIntroList").innerHTML = items.map(function(it){',
+      '    return \'<li data-emo="\' + it[0] + \'">\' + it[1] + "</li>";',
+      '  }).join("");',
+      '  function fermer(){',
+      '    ov.classList.remove("show");',
+      '    try{ localStorage.setItem(CLE, "1"); }catch(e){}',
+      '  }',
+      '  document.getElementById("pIntroGo").addEventListener("click", fermer);',
+      '  ov.addEventListener("click", function(ev){ if(ev.target === ov) fermer(); });',
+      '  if(!deja) ov.classList.add("show");',
+      '})();'
     ].join('\n');
   }
 
