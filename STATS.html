@@ -280,6 +280,12 @@
   .tri select { color-scheme: dark; font: 600 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
     border-radius: 10px; padding: 8px 10px; backdrop-filter: blur(8px); }
   .tri select option { color: #111; background: #fff; }
+  .tri { flex-wrap: wrap; }
+  #recherche { flex: 1 1 280px; min-width: 0; font: 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 10px; padding: 9px 12px; backdrop-filter: blur(8px); color-scheme: dark; }
+  #recherche:focus { outline: none; border-color: #b7a6ff; box-shadow: 0 0 0 3px rgba(122,92,255,.3); }
+  #compteRecherche { width: 100%; font-size: 12px; color: #a8a8c0; }
+  .deja { font-size: 12px; color: #7ee2a8; margin-left: 6px; }
   small { color: #a8a8c0; }
   .pastille :where(small) { color: #666; }
 </style>
@@ -405,6 +411,7 @@
 <!-- ===== VUE CATALOGUE ===== -->
 <section id="vue-catalogue" class="vue" hidden>
   <div class="tri">
+    <input type="search" id="recherche" placeholder="🔍 Rechercher un jeu, un studio, un genre, une console…" autocomplete="off">
     <label for="triCle">Trier par</label>
     <select id="triCle">
       <option value="titre">Nom</option>
@@ -415,6 +422,7 @@
       <option value="console">Console</option>
     </select>
     <button type="button" id="triSens" class="mini"></button>
+    <span id="compteRecherche" hidden></span>
   </div>
   <div id="liste"></div>
   <p id="vide"><small>Aucun jeu pour l'instant.</small></p>
@@ -767,17 +775,44 @@ $('btnRawg').addEventListener('click', async () => {
     const data = await rawg('games', { search: titre, page_size: 8 });
     if (!data.results.length) { $('rawgMsg').textContent = 'Aucun résultat.'; return; }
     $('rawgMsg').textContent = 'Clique sur le bon jeu :';
-    $('resultats').innerHTML = data.results.map(r =>
-      `<li><button type="button" data-rawg="${r.id}">${esc(r.name)} (${r.released ? r.released.slice(0,4) : '?'})</button></li>`
-    ).join('');
+    $('resultats').innerHTML = data.results.map(r => {
+      const deja = ficheExistante(r.id, r.name);
+      return `<li><button type="button" data-rawg="${r.id}" data-nom="${esc(r.name)}">${esc(r.name)} (${r.released ? r.released.slice(0,4) : '?'})` +
+        (deja ? `<span class="deja">✓ déjà dans ton catalogue</span>` : '') + `</button></li>`;
+    }).join('');
   } catch (err) {
     $('rawgMsg').textContent = 'Erreur : ' + (err.message || 'réseau');
   }
 });
 
+/* Fiche déjà créée pour ce jeu RAWG ? D'abord par identifiant RAWG, sinon par titre identique
+   (pour les anciennes fiches jamais liées à RAWG). La fiche en cours de modification est ignorée. */
+function ficheExistante(idRawg, nom) {
+  const enCours = $('id').value;
+  const autres = jeux.filter(g => g.id !== enCours);
+  return autres.find(g => g.idRawg != null && String(g.idRawg) === String(idRawg))
+      || (nom ? autres.find(g => !g.idRawg && sansAccents(g.titre).trim() === sansAccents(nom).trim()) : null)
+      || null;
+}
+/* Le formulaire contient-il autre chose que le titre ? (pour ne pas écraser une saisie sans prévenir) */
+function saisieEnCours() {
+  return !!($('description').value.trim() || $('note').value || $('statut').value || $('console').value ||
+    $('tempsNR').checked || lireLignesTemps().length || typeof jaquetteEnCours === 'string');
+}
+
 $('resultats').addEventListener('click', async e => {
-  const idRawg = e.target.dataset.rawg;
+  const bouton = e.target.closest('[data-rawg]');
+  const idRawg = bouton && bouton.dataset.rawg;
   if (!idRawg) return;
+  const existe = ficheExistante(idRawg, bouton.dataset.nom);
+  if (existe) {
+    const enEdition = !!$('id').value;
+    if ((enEdition || saisieEnCours()) &&
+        !confirm(`« ${existe.titre} » est déjà dans ton catalogue.\nOuvrir sa fiche ? Ce que tu as saisi ici sera perdu.`)) return;
+    await editer(existe.id);
+    $('rawgMsg').textContent = `« ${existe.titre} » est déjà dans ton catalogue : voici sa fiche.`;
+    return;
+  }
   $('rawgMsg').textContent = 'Chargement…';
   try {
     const d = await rawg('games/' + idRawg, {});
@@ -941,12 +976,29 @@ $('triCle').addEventListener('change', () => { tri = { cle: $('triCle').value, d
 $('triSens').addEventListener('click', () => { tri.desc = !tri.desc; majTriUI(); afficher(); });
 majTriUI();
 
+/* Recherche : insensible aux accents et à la casse ; tous les mots tapés doivent être trouvés
+   (dans le titre, le nom RAWG, le studio, le genre, la console, le compositeur ou la description) */
+const sansAccents = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+function correspond(g, requete) {
+  const mots = sansAccents(requete).split(/\s+/).filter(Boolean);
+  if (!mots.length) return true;
+  const texte = sansAccents([g.titre, g.nomRawg, g.studio, g.genre, g.console, g.compositeur, g.description].join(' '));
+  return mots.every(m => texte.includes(m));
+}
+let minuterieRecherche;
+$('recherche').addEventListener('input', () => { clearTimeout(minuterieRecherche); minuterieRecherche = setTimeout(afficher, 120); });
+
 async function afficher() {
   majCompteur();
-  $('vide').hidden = jeux.length > 0;
+  const requete = $('recherche').value.trim();
+  const visibles = jeux.filter(g => correspond(g, requete));
+  $('vide').hidden = visibles.length > 0;
+  $('vide').innerHTML = jeux.length ? `<small>Aucun jeu ne correspond à « ${esc(requete)} ».</small>` : `<small>Aucun jeu pour l'instant.</small>`;
+  $('compteRecherche').hidden = !requete;
+  $('compteRecherche').textContent = `${visibles.length} jeu${visibles.length > 1 ? 'x' : ''} sur ${jeux.length}`;
   const ouverts = new Set([...document.querySelectorAll('.pastille[open]')].map(d => d.dataset.id));
   const tiret = v => (v === null || v === undefined || v === '') ? '—' : esc(v);
-  const cartes = await Promise.all(trier([...jeux]).map(async g => {
+  const cartes = await Promise.all(trier(visibles).map(async g => {
     const img = await imgGet(g.id);
     const annee = g.sortie ? String(g.sortie).slice(0, 4) : (g.annee ?? '');
     const champ = (label, val) => `<dt>${label}</dt><dd>${val}</dd>`;
