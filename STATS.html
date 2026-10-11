@@ -281,7 +281,12 @@
     border-radius: 10px; padding: 8px 10px; backdrop-filter: blur(8px); }
   .tri select option { color: #111; background: #fff; }
   .tri { flex-wrap: wrap; }
-  #recherche { flex: 1 1 280px; min-width: 0; font: 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  .champRecherche { position: relative; flex: 1 1 280px; min-width: 0; display: flex; }
+  #recherche::-webkit-search-cancel-button { display: none; }
+  #effacerRecherche { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); padding: 4px 10px; font-size: 12px;
+    border-radius: 7px; background: rgba(255,255,255,.14); }
+  #effacerRecherche:hover { background: rgba(255,42,109,.35); border-color: rgba(255,42,109,.6); }
+  #recherche { flex: 1; min-width: 0; padding-right: 96px !important; font: 14px Inter, sans-serif; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
     border-radius: 10px; padding: 9px 12px; backdrop-filter: blur(8px); color-scheme: dark; }
   #recherche:focus { outline: none; border-color: #b7a6ff; box-shadow: 0 0 0 3px rgba(122,92,255,.3); }
   #compteRecherche { width: 100%; font-size: 12px; color: #a8a8c0; }
@@ -411,7 +416,10 @@
 <!-- ===== VUE CATALOGUE ===== -->
 <section id="vue-catalogue" class="vue" hidden>
   <div class="tri">
-    <input type="search" id="recherche" placeholder="🔍 Rechercher un jeu, un studio, un genre, une console…" autocomplete="off">
+    <span class="champRecherche">
+      <input type="search" id="recherche" placeholder="🔍 Rechercher un jeu, un studio, un genre, une console…" autocomplete="off">
+      <button type="button" id="effacerRecherche" title="Effacer la recherche (Échap)" aria-label="Effacer la recherche" hidden>✕ Effacer</button>
+    </span>
     <label for="triCle">Trier par</label>
     <select id="triCle">
       <option value="titre">Nom</option>
@@ -986,7 +994,19 @@ function correspond(g, requete) {
   return mots.every(m => texte.includes(m));
 }
 let minuterieRecherche;
-$('recherche').addEventListener('input', () => { clearTimeout(minuterieRecherche); minuterieRecherche = setTimeout(afficher, 120); });
+$('recherche').addEventListener('input', () => {
+  $('effacerRecherche').hidden = !$('recherche').value;
+  clearTimeout(minuterieRecherche); minuterieRecherche = setTimeout(afficher, 120);
+});
+function effacerRecherche() {
+  $('recherche').value = '';
+  $('effacerRecherche').hidden = true;
+  clearTimeout(minuterieRecherche);
+  afficher();
+  $('recherche').focus();
+}
+$('effacerRecherche').addEventListener('click', effacerRecherche);
+$('recherche').addEventListener('keydown', e => { if (e.key === 'Escape' && $('recherche').value) { e.preventDefault(); effacerRecherche(); } });
 
 async function afficher() {
   majCompteur();
