@@ -272,7 +272,7 @@
   /* Bands that carry a side arrow are positioned so the marker can hang off
      their own edge; the bottom/top ones stay unpositioned so their marker
      resolves against the whole cell instead. */
-  .cell.def .rc, .cell.def .sc, .cell.def .lc{position:relative;}
+  .cell.def .rc, .cell.def .sc, .cell.def .lc, .cell.def .gc{position:relative;}
   .mf-ar{position:absolute;width:calc(var(--cell)*0.24);height:calc(var(--cell)*0.24);
          pointer-events:none;z-index:3;overflow:visible;}
   .mf-ar .mf-fill{fill:var(--ink);}
@@ -280,7 +280,7 @@
   .cell.def.selected .mf-ar .mf-fill{fill:#fff;}
   .cell.def.selected .mf-ar .mf-line{stroke:#fff;}
   .mf-ar-right, .mf-ar-beside{right:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}
-  .mf-ar-left{left:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}
+  .mf-ar-left, .mf-ar-leftdown{left:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}
   .mf-ar-down{bottom:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}
   .mf-ar-up{top:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}
   .mf-ar-below{bottom:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}
@@ -290,7 +290,7 @@
   .cell.def{z-index:2;}
   .cell.def.selected{z-index:3;}
 
-  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc, .cell.def .lc, .cell.def .uc, .cell.def .ac{
+  .cell.def .rc, .cell.def .dc, .cell.def .bc, .cell.def .sc, .cell.def .lc, .cell.def .uc, .cell.def .ac, .cell.def .gc{
     flex:1 1 0;
     min-height:0;
     min-width:0;
@@ -309,7 +309,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   }
   .cell.def > span:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}
-  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc, .cell.def.selected .lc, .cell.def.selected .uc, .cell.def.selected .ac{color:#fff;}
+  .cell.def.selected .rc, .cell.def.selected .dc, .cell.def.selected .bc, .cell.def.selected .sc, .cell.def.selected .lc, .cell.def.selected .uc, .cell.def.selected .ac, .cell.def.selected .gc{color:#fff;}
   .cell.def.selected > *:not(:first-child){border-top-color:rgba(255,255,255,0.35);}
 
   .clues-panel{
@@ -521,6 +521,7 @@
     font-size:13px;background:var(--paper);color:var(--ink);
   }
   #winTitleInput{width:150px;}
+  .mirx{display:inline-block;transform:scaleX(-1);}
   #introTitleInput{width:150px;}
   #introMsgInput{flex:1;min-width:180px;}
   #introTitleInput:disabled, #introMsgInput:disabled{
@@ -658,6 +659,7 @@
           <button type="button" class="cb-pick" data-dir="Beside" title="Vertical, part de la case de droite">⤵</button>
           <button type="button" class="cb-pick" data-dir="Down"   title="Vertical, part de la case du dessous">↓</button>
           <button type="button" class="cb-pick" data-dir="Below"  title="Horizontal, part de la case du dessous">↳</button>
+          <button type="button" class="cb-pick" data-dir="LeftDown" title="Vertical, part de la case de gauche"><span class="mirx">⤵</span></button>
           <button type="button" class="cb-pick" data-dir="Left"   title="Le mot à gauche, lu normalement">←</button>
           <button type="button" class="cb-pick" data-dir="Up"     title="Le mot au-dessus, lu normalement">↑</button>
           <button type="button" class="cb-pick" data-dir="Above"  title="Horizontal, part de la case du dessus">↱</button>
@@ -689,6 +691,13 @@
           <span class="cb-warn" id="cbBelowWarn"></span>
           <button type="button" class="cb-del" data-dir="Below" title="Supprimer cette définition">✕</button>
           <span class="cb-tip">💡<input type="text" id="cbBelowHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
+        </div>
+        <div class="cb-row" id="cbRowLeftDown">
+          <span class="cb-arrow"><span class="mirx">⤵</span></span>
+          <textarea id="cbLeftDownInput" class="cb-input" rows="1" placeholder="Définition (vertical, part de la case de gauche)"></textarea>
+          <span class="cb-warn" id="cbLeftDownWarn"></span>
+          <button type="button" class="cb-del" data-dir="LeftDown" title="Supprimer cette définition">✕</button>
+          <span class="cb-tip">💡<input type="text" id="cbLeftDownHint" class="cb-tip-input" maxlength="120" placeholder="Indice facultatif (coûte 15 s au joueur)" autocomplete="off"></span>
         </div>
         <div class="cb-row" id="cbRowLeft">
           <span class="cb-arrow">←</span>
@@ -970,7 +979,7 @@
 
   function newCells(rows, cols){
     const arr = [];
-    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', hyR:false, hyD:false});
+    for(let i=0;i<rows*cols;i++) arr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', leftDownClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', leftDownHint:'', hyR:false, hyD:false});
     return arr;
   }
 
@@ -1035,6 +1044,16 @@
             while(cc<cols && get(r-1,cc).type==='letter'){ wcells.push({r:r-1,c:cc}); cc++; }
           }
           right.push({r, c, cells:wcells, clue:cell.aboveClue, field:'aboveClue'});
+        }
+        // Miroir de « beside » : le mot est vertical, dans la colonne de
+        // gauche, et demarre sur la ligne de la definition.
+        if(cell.leftDownClue && cell.leftDownClue.trim() !== ''){
+          const wcells = [];
+          if(c-1>=0 && get(r,c-1).type==='letter'){
+            let rr=r;
+            while(rr<rows && get(rr,c-1).type==='letter'){ wcells.push({r:rr,c:c-1}); rr++; }
+          }
+          down.push({r, c, cells:wcells, clue:cell.leftDownClue, field:'leftDownClue'});
         }
         if(cell.upClue && cell.upClue.trim() !== ''){
           const wcells = []; let rr=r-1;
@@ -1113,6 +1132,8 @@
     up:     '<polygon class="mf-fill" points="2,10 10,10 6,1"/>',
     // elbow: leaves the right edge, turns downwards
     beside: '<path class="mf-line" d="M0 3 H8 V7"/><polygon class="mf-fill" points="5,7 11,7 8,12"/>',
+    // coude miroir de « beside » : sort par le bord gauche, puis descend
+    leftdown: '<path class="mf-line" d="M12 3 H4 V7"/><polygon class="mf-fill" points="1,7 7,7 4,12"/>',
     // elbow: leaves the bottom edge, turns to the right
     below:  '<path class="mf-line" d="M3 0 V8 H7"/><polygon class="mf-fill" points="7,5 7,11 12,8"/>',
     // depuis la case du dessus, puis vers la droite
@@ -1218,7 +1239,7 @@
       for(let c=0;c<state.cols;c++){
         if(r>=newRows || c>=newCols){
           const cell = get(r,c);
-          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.type!=='letter') return true;
+          if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.leftDownClue || cell.type!=='letter') return true;
         }
       }
     }
@@ -1233,7 +1254,7 @@
     for(let r=0;r<newRows;r++){
       for(let c=0;c<newCols;c++){
         if(r<oldRows && c<oldCols) newCellsArr.push(oldGet(r,c));
-        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', hyR:false, hyD:false});
+        else newCellsArr.push({type:'letter', letter:'', rightClue:'', downClue:'', belowClue:'', besideClue:'', leftClue:'', upClue:'', aboveClue:'', leftDownClue:'', rightHint:'', downHint:'', belowHint:'', besideHint:'', leftHint:'', upHint:'', aboveHint:'', leftDownHint:'', hyR:false, hyD:false});
       }
     }
     state.rows = newRows; state.cols = newCols;
@@ -1280,6 +1301,7 @@
           const hasL = cell.leftClue && cell.leftClue.trim()!=='';
           const hasU = cell.upClue && cell.upClue.trim()!=='';
           const hasA = cell.aboveClue && cell.aboveClue.trim()!=='';
+          const hasG = cell.leftDownClue && cell.leftDownClue.trim()!=='';
           const maxPx = currentCellPx * 0.32;
           const minPx = 3.8;
           const slots = [];
@@ -1295,6 +1317,7 @@
           if(hasA){ slots.push(addBand(div, 'ac', cell.aboveClue)); addArrow(div, 'above'); }
           if(hasR){ const b = addBand(div, 'rc', cell.rightClue);  slots.push(b); addArrow(b, 'right'); }
           if(hasS){ const b = addBand(div, 'sc', cell.besideClue); slots.push(b); addArrow(b, 'beside'); }
+          if(hasG){ const b = addBand(div, 'gc', cell.leftDownClue); slots.push(b); addArrow(b, 'leftdown'); }
           if(hasL){ const b = addBand(div, 'lc', cell.leftClue);   slots.push(b); addArrow(b, 'left'); }
           if(hasD){ slots.push(addBand(div, 'dc', cell.downClue));  addArrow(div, 'down'); }
           if(hasB){ slots.push(addBand(div, 'bc', cell.belowClue)); addArrow(div, 'below'); }
@@ -1304,8 +1327,8 @@
           // final space between them (fitting too early sizes against a
           // temporary single-child layout that shrinks once siblings are added)
           slots.forEach(el => fitDefText(el, maxPx, minPx));
-          if(hasR || hasD || hasB || hasS || hasL || hasU || hasA){
-            div.title = [hasU ? ('\u2191 ' + cell.upClue) : null, hasA ? ('\u21B1 ' + cell.aboveClue) : null, hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null].filter(Boolean).join('  |  ');
+          if(hasR || hasD || hasB || hasS || hasL || hasU || hasA || hasG){
+            div.title = [hasU ? ('\u2191 ' + cell.upClue) : null, hasA ? ('\u21B1 ' + cell.aboveClue) : null, hasR ? ('\u2192 ' + cell.rightClue) : null, hasS ? ('\u2935 ' + cell.besideClue) : null, hasL ? ('\u2190 ' + cell.leftClue) : null, hasG ? ('\u2B10 ' + cell.leftDownClue) : null, hasD ? ('\u2193 ' + cell.downClue) : null, hasB ? ('\u21B3 ' + cell.belowClue) : null].filter(Boolean).join('  |  ');
           }
         }
         div.addEventListener('click', onCellClick);
@@ -1388,6 +1411,7 @@
           if(cell.leftClue && cell.leftClue.trim()!=='' && !hasCellsLeft(r,c)) dangling++;
           if(cell.upClue && cell.upClue.trim()!=='' && !hasCellsUp(r,c)) dangling++;
           if(cell.aboveClue && cell.aboveClue.trim()!=='' && !hasCellsUp(r,c)) dangling++;
+          if(cell.leftDownClue && cell.leftDownClue.trim()!=='' && !hasCellsLeft(r,c)) dangling++;
         }
       }
     }
@@ -1523,7 +1547,7 @@
 
       const text = document.createElement('span');
       text.className = 'clue-text' + (w.clue ? '' : ' empty');
-      const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 '};
+      const markers = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 ', leftDownClue:'\u2B10 '};
       const marker = markers[w.field] || '';
       text.textContent = marker + (w.clue || '(pas de définition)');
       // l'indice payant se lit sous la definition, sinon on ne sait pas
@@ -1542,7 +1566,7 @@
       editBtn.addEventListener('click', ()=>{
         setMode('def');
         selectCellRaw(w.r, w.c);
-        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput', leftClue:'cbLeftInput', upClue:'cbUpInput', aboveClue:'cbAboveInput'};
+        const inputIds = {rightClue:'cbRightInput', downClue:'cbDownInput', belowClue:'cbBelowInput', besideClue:'cbBesideInput', leftClue:'cbLeftInput', upClue:'cbUpInput', aboveClue:'cbAboveInput', leftDownClue:'cbLeftDownInput'};
         document.getElementById(inputIds[w.field]).focus();
       });
 
@@ -1618,6 +1642,7 @@
   const CB_DIRS = [
     {nom:'Right',  champ:'rightClue',  input:'cbRightInput'},
     {nom:'Beside', champ:'besideClue', input:'cbBesideInput'},
+    {nom:'LeftDown', champ:'leftDownClue', input:'cbLeftDownInput'},
     {nom:'Down',   champ:'downClue',   input:'cbDownInput'},
     {nom:'Below',  champ:'belowClue',  input:'cbBelowInput'},
     {nom:'Left',   champ:'leftClue',   input:'cbLeftInput'},
@@ -1678,6 +1703,7 @@
     const rowD = document.getElementById('cbRowDown');
     const rowB = document.getElementById('cbRowBelow');
     const rowS = document.getElementById('cbRowBeside');
+    const rowG = document.getElementById('cbRowLeftDown');
     const rowL = document.getElementById('cbRowLeft');
     const rowU = document.getElementById('cbRowUp');
     const rowA = document.getElementById('cbRowAbove');
@@ -1685,6 +1711,7 @@
     const downInput = document.getElementById('cbDownInput');
     const belowInput = document.getElementById('cbBelowInput');
     const besideInput = document.getElementById('cbBesideInput');
+    const leftDownInput = document.getElementById('cbLeftDownInput');
     const leftInput = document.getElementById('cbLeftInput');
     const upInput = document.getElementById('cbUpInput');
     const aboveInput = document.getElementById('cbAboveInput');
@@ -1694,6 +1721,7 @@
     const downWarn = document.getElementById('cbDownWarn');
     const belowWarn = document.getElementById('cbBelowWarn');
     const besideWarn = document.getElementById('cbBesideWarn');
+    const leftDownWarn = document.getElementById('cbLeftDownWarn');
     const leftWarn = document.getElementById('cbLeftWarn');
     const upWarn = document.getElementById('cbUpWarn');
     const aboveWarn = document.getElementById('cbAboveWarn');
@@ -1751,12 +1779,13 @@
         btn.classList.toggle('filled', !!(cell[d.champ] || '').trim());
         btn.classList.remove('active');
       });
-      const lignes = {Right:rowR, Down:rowD, Below:rowB, Beside:rowS, Left:rowL, Up:rowU, Above:rowA};
+      const lignes = {Right:rowR, Down:rowD, Below:rowB, Beside:rowS, LeftDown:rowG, Left:rowL, Up:rowU, Above:rowA};
       Object.keys(lignes).forEach(nom => { lignes[nom].style.display = (cbOuverts.indexOf(nom) !== -1) ? 'flex' : 'none'; });
       rightInput.readOnly = false;
       downInput.readOnly = false;
       belowInput.readOnly = false;
       besideInput.readOnly = false;
+      leftDownInput.readOnly = false;
       leftInput.readOnly = false;
       upInput.readOnly = false;
       aboveInput.readOnly = false;
@@ -1764,6 +1793,7 @@
       downInput.value = cell.downClue || '';
       belowInput.value = cell.belowClue || '';
       besideInput.value = cell.besideClue || '';
+      leftDownInput.value = cell.leftDownClue || '';
       leftInput.value = cell.leftClue || '';
       upInput.value = cell.upClue || '';
       aboveInput.value = cell.aboveClue || '';
@@ -1773,12 +1803,13 @@
         t.input.value = cell[t.champ.replace('Clue','Hint')] || '';
         t.bloc.style.display = (cbOuverts.indexOf(t.nom) !== -1) ? 'flex' : 'none';
       });
-      [rightInput, downInput, belowInput, besideInput, leftInput, upInput, aboveInput].forEach(autoGrow);
+      [rightInput, downInput, belowInput, besideInput, leftDownInput, leftInput, upInput, aboveInput].forEach(autoGrow);
       delBtn.style.display = 'inline-block';
       rightWarn.textContent = (cell.rightClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
       downWarn.textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       belowWarn.textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       besideWarn.textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      leftDownWarn.textContent = (cell.leftDownClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       leftWarn.textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       upWarn.textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
       aboveWarn.textContent = (cell.aboveClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
@@ -1790,7 +1821,7 @@
     const dw = wordContaining(r,c,'D');
     rightInput.readOnly = true;
     downInput.readOnly = true;
-    const MARK = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 '};
+    const MARK = {belowClue:'\u21B3 ', besideClue:'\u2935 ', leftClue:'\u2190 ', upClue:'\u2191 ', aboveClue:'\u21B1 ', leftDownClue:'\u2B10 '};
     if(rw){ rowR.style.display='flex'; rightInput.value = (MARK[rw.field] || '') + (rw.clue || '(pas de définition)'); autoGrow(rightInput); }
     if(dw){ rowD.style.display='flex'; downInput.value = (MARK[dw.field] || '') + (dw.clue || '(pas de définition)'); autoGrow(downInput); }
     if(!rw && !dw){ emptyMsg.textContent = 'Case isolée : aucune définition ne mène ici.'; }
@@ -1824,6 +1855,7 @@
       document.getElementById('cbDownWarn').textContent = (cell.downClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       document.getElementById('cbBelowWarn').textContent = (cell.belowClue && !hasCellsDown(r,c)) ? '⚠ pas de case en dessous' : '';
       document.getElementById('cbBesideWarn').textContent = (cell.besideClue && !hasCellsRight(r,c)) ? '⚠ pas de case à droite' : '';
+      document.getElementById('cbLeftDownWarn').textContent = (cell.leftDownClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       document.getElementById('cbLeftWarn').textContent = (cell.leftClue && !hasCellsLeft(r,c)) ? '⚠ pas de case à gauche' : '';
       document.getElementById('cbUpWarn').textContent = (cell.upClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
       document.getElementById('cbAboveWarn').textContent = (cell.aboveClue && !hasCellsUp(r,c)) ? '⚠ pas de case au-dessus' : '';
@@ -1866,6 +1898,15 @@
     cell.besideClue = e.target.value;
     refreshAfterClueEdit();
   });
+  document.getElementById('cbLeftDownInput').addEventListener('input', (e)=>{
+    autoGrow(e.target);
+    if(!state.selected) return;
+    const {r,c} = state.selected;
+    const cell = get(r,c);
+    if(cell.type !== 'def') return;
+    cell.leftDownClue = e.target.value;
+    refreshAfterClueEdit();
+  });
   document.getElementById('cbLeftInput').addEventListener('input', (e)=>{
     autoGrow(e.target);
     if(!state.selected) return;
@@ -1876,11 +1917,11 @@
     refreshAfterClueEdit();
   });
   // Un indice par definition : meme table pour l'affichage et la saisie.
-  ['cbRightInput','cbDownInput','cbBelowInput','cbBesideInput','cbLeftInput','cbUpInput','cbAboveInput',
-   'cbRightHint','cbDownHint','cbBelowHint','cbBesideHint','cbLeftHint','cbUpHint','cbAboveHint']
+  ['cbRightInput','cbDownInput','cbBelowInput','cbBesideInput','cbLeftDownInput','cbLeftInput','cbUpInput','cbAboveInput',
+   'cbRightHint','cbDownHint','cbBelowHint','cbBesideHint','cbLeftDownHint','cbLeftHint','cbUpHint','cbAboveHint']
     .forEach(id => { const el = document.getElementById(id); if(el) el.addEventListener('blur', flushClueRedraw); });
 
-  const CB_TIPS = [{nom:'Right', champ:'rightClue', input:document.getElementById('cbRightHint'), bloc:document.getElementById('cbRightHint').parentElement}, {nom:'Down', champ:'downClue', input:document.getElementById('cbDownHint'), bloc:document.getElementById('cbDownHint').parentElement}, {nom:'Below', champ:'belowClue', input:document.getElementById('cbBelowHint'), bloc:document.getElementById('cbBelowHint').parentElement}, {nom:'Beside', champ:'besideClue', input:document.getElementById('cbBesideHint'), bloc:document.getElementById('cbBesideHint').parentElement}, {nom:'Left', champ:'leftClue', input:document.getElementById('cbLeftHint'), bloc:document.getElementById('cbLeftHint').parentElement}, {nom:'Up', champ:'upClue', input:document.getElementById('cbUpHint'), bloc:document.getElementById('cbUpHint').parentElement}, {nom:'Above', champ:'aboveClue', input:document.getElementById('cbAboveHint'), bloc:document.getElementById('cbAboveHint').parentElement}];
+  const CB_TIPS = [{nom:'Right', champ:'rightClue', input:document.getElementById('cbRightHint'), bloc:document.getElementById('cbRightHint').parentElement}, {nom:'Down', champ:'downClue', input:document.getElementById('cbDownHint'), bloc:document.getElementById('cbDownHint').parentElement}, {nom:'Below', champ:'belowClue', input:document.getElementById('cbBelowHint'), bloc:document.getElementById('cbBelowHint').parentElement}, {nom:'Beside', champ:'besideClue', input:document.getElementById('cbBesideHint'), bloc:document.getElementById('cbBesideHint').parentElement}, {nom:'LeftDown', champ:'leftDownClue', input:document.getElementById('cbLeftDownHint'), bloc:document.getElementById('cbLeftDownHint').parentElement}, {nom:'Left', champ:'leftClue', input:document.getElementById('cbLeftHint'), bloc:document.getElementById('cbLeftHint').parentElement}, {nom:'Up', champ:'upClue', input:document.getElementById('cbUpHint'), bloc:document.getElementById('cbUpHint').parentElement}, {nom:'Above', champ:'aboveClue', input:document.getElementById('cbAboveHint'), bloc:document.getElementById('cbAboveHint').parentElement}];
   CB_TIPS.forEach(t => {
     t.input.addEventListener('input', (e)=>{
       if(!state.selected) return;
@@ -1917,12 +1958,12 @@
     const {r,c} = state.selected;
     const cell = get(r,c);
     if(cell.type !== 'def') return;
-    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue;
+    const hasContent = cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.leftDownClue;
     if(hasContent){
       const ok = await confirmModal('Effacer toutes les définitions de cette case et la rendre à lettre ?');
       if(!ok) return;
     }
-    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.letter='';
+    cell.type = 'letter'; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.leftDownClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.leftDownHint=''; cell.letter='';
     recomputeWords();
     renderGrid();
     renderClueLists();
@@ -1959,7 +2000,7 @@
     if(cell.type === 'block') return;
     markDirty();
     if(cell.type === 'letter'){
-      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint='';
+      cell.type = 'def'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.leftDownClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.leftDownHint='';
       recomputeWords();
       renderGrid();
       renderClueLists();
@@ -1970,7 +2011,7 @@
     }
     if(cell.type === 'def'){
       const wasSelected = state.selected && state.selected.r===r && state.selected.c===c;
-      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue && !cell.leftClue && !cell.upClue && !cell.aboveClue;
+      const isEmpty = !cell.rightClue && !cell.downClue && !cell.belowClue && !cell.besideClue && !cell.leftClue && !cell.upClue && !cell.aboveClue && !cell.leftDownClue;
       if(wasSelected && isEmpty){
         // quick undo: clicking an already-selected, still-empty definition cell
         // reverts it straight back to a letter cell (fixes an accidental misclick)
@@ -2000,11 +2041,11 @@
       updateClueBar();
       return;
     }
-    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue)){
+    if(cell.type === 'def' && (cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.leftDownClue)){
       const ok = await confirmModal('Cette case contient une définition. La transformer en case neutre l\u2019effacera. Continuer ?');
       if(!ok) return;
     }
-    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint='';
+    cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue=''; cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.leftDownClue=''; cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.leftDownHint='';
     state.selected = null;
     recomputeWords();
     renderGrid();
@@ -2141,7 +2182,7 @@
     let contenu = false;
     for(let i=r0;i<r0+h;i++) for(let j=c0;j<c0+w;j++){
       const cell = get(i,j);
-      if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue) contenu = true;
+      if(cell.letter || cell.rightClue || cell.downClue || cell.belowClue || cell.besideClue || cell.leftClue || cell.upClue || cell.aboveClue || cell.leftDownClue) contenu = true;
     }
     if(contenu){
       const ok = await confirmModal('Cette zone contient des lettres ou des définitions. Elles seront effacées. Continuer ?');
@@ -2190,8 +2231,8 @@
     for(let i=zone.r;i<zone.r+zone.h;i++) for(let j=zone.c;j<zone.c+zone.w;j++){
       const cell = get(i,j);
       cell.type = 'block'; cell.letter=''; cell.rightClue=''; cell.downClue=''; cell.belowClue='';
-      cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue='';
-      cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint='';
+      cell.besideClue=''; cell.leftClue=''; cell.upClue=''; cell.aboveClue=''; cell.leftDownClue='';
+      cell.rightHint=''; cell.downHint=''; cell.belowHint=''; cell.besideHint=''; cell.leftHint=''; cell.upHint=''; cell.aboveHint=''; cell.leftDownHint='';
     }
     state.images.push({r:zone.r, c:zone.c, h:zone.h, w:zone.w, data});
     state.selected = null;
@@ -2759,7 +2800,7 @@
     function defPour(r,c,horizontal){
       const cand = horizontal
         ? [[r, c-1, ['rightClue']], [r-1, c, ['belowClue']], [r+1, c, ['aboveClue']], [r, c+0, []]]
-        : [[r-1, c, ['downClue']], [r, c-1, ['besideClue']], [r, c+1, ['downClue']], [r, c+0, []]];
+        : [[r-1, c, ['downClue']], [r, c-1, ['besideClue']], [r, c+1, ['leftDownClue']], [r, c+1, ['downClue']], [r, c+0, []]];
       for(const [i,j,champs] of cand){
         if(i<0 || j<0 || i>=rows || j>=cols) continue;
         const cell = at(i,j);
@@ -3040,6 +3081,7 @@
     return (state.title || '').trim() !== '' ||
            state.cells.some(c => c.letter || c.rightClue || c.downClue ||
                                  c.belowClue || c.besideClue || c.leftClue || c.upClue ||
+                                 c.aboveClue || c.leftDownClue ||
                                  c.type !== 'letter');
   }
 
@@ -3263,7 +3305,7 @@
     const data = doc.data();
     const cells = JSON.parse(data.cellsJson);
     state.rows = data.rows; state.cols = data.cols;
-    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||'', aboveClue:c.aboveClue||'', rightHint:c.rightHint||'', downHint:c.downHint||'', belowHint:c.belowHint||'', besideHint:c.besideHint||'', leftHint:c.leftHint||'', upHint:c.upHint||'', aboveHint:c.aboveHint||'', hyR:!!c.hyR, hyD:!!c.hyD}));
+    state.cells = cells.map(c=>({type:c.type||'letter', letter:c.letter||'', rightClue:c.rightClue||'', downClue:c.downClue||'', belowClue:c.belowClue||'', besideClue:c.besideClue||'', leftClue:c.leftClue||'', upClue:c.upClue||'', aboveClue:c.aboveClue||'', leftDownClue:c.leftDownClue||'', rightHint:c.rightHint||'', downHint:c.downHint||'', belowHint:c.belowHint||'', besideHint:c.besideHint||'', leftHint:c.leftHint||'', upHint:c.upHint||'', aboveHint:c.aboveHint||'', leftDownHint:c.leftDownHint||'', hyR:!!c.hyR, hyD:!!c.hyD}));
     state.title = data.title || '';
     try{ state.images = JSON.parse(data.imagesJson || '[]'); }catch(err){ state.images = []; }
     try{ state.hl = JSON.parse(data.hlJson || '[]'); }catch(err){ state.hl = []; }
@@ -3320,7 +3362,7 @@
       hlColor: state.hlColor || 'jaune',
       secretWord: state.secretWord || '',
       secretClue: state.secretClue || '',
-      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue, aboveClue:c.aboveClue, rightHint:c.rightHint, downHint:c.downHint, belowHint:c.belowHint, besideHint:c.besideHint, leftHint:c.leftHint, upHint:c.upHint, aboveHint:c.aboveHint, hyR:!!c.hyR, hyD:!!c.hyD}))),
+      cellsJson: JSON.stringify(state.cells.map(c=>({type:c.type, letter:c.letter, rightClue:c.rightClue, downClue:c.downClue, belowClue:c.belowClue, besideClue:c.besideClue, leftClue:c.leftClue, upClue:c.upClue, aboveClue:c.aboveClue, leftDownClue:c.leftDownClue, rightHint:c.rightHint, downHint:c.downHint, belowHint:c.belowHint, besideHint:c.besideHint, leftHint:c.leftHint, upHint:c.upHint, aboveHint:c.aboveHint, leftDownHint:c.leftDownHint, hyR:!!c.hyR, hyD:!!c.hyD}))),
       difficulty: state.difficulty || 2,
       shareId: state.shareId || null,
       sfxEnabled: state.sfxEnabled !== false,
@@ -4894,6 +4936,7 @@
         if(cellData.aboveClue)  bands.push({t: cellData.aboveClue,  a: 'above'});
         if(cellData.rightClue)  bands.push({t: cellData.rightClue,  a: 'right'});
         if(cellData.besideClue) bands.push({t: cellData.besideClue, a: 'beside'});
+        if(cellData.leftDownClue) bands.push({t: cellData.leftDownClue, a: 'leftdown'});
         if(cellData.leftClue)   bands.push({t: cellData.leftClue,   a: 'left'});
         if(cellData.downClue)   bands.push({t: cellData.downClue,   a: 'down'});
         if(cellData.belowClue)  bands.push({t: cellData.belowClue,  a: 'below'});
@@ -4924,6 +4967,12 @@
             b.poly([[x + cell + ARROW * 0.7, midY + ARROW * 1.3],
                     [x + cell + ARROW * 2.5, midY + ARROW * 1.3],
                     [x + cell + ARROW * 1.6, midY + ARROW * 2.8]], INK);
+          } else if(bd.a === 'leftdown'){
+            b.line(x - 1, midY, x - ARROW * 1.6, midY, INK, 1.2);
+            b.line(x - ARROW * 1.6, midY, x - ARROW * 1.6, midY + ARROW * 1.3, INK, 1.2);
+            b.poly([[x - ARROW * 0.7, midY + ARROW * 1.3],
+                    [x - ARROW * 2.5, midY + ARROW * 1.3],
+                    [x - ARROW * 1.6, midY + ARROW * 2.8]], INK);
           } else if(bd.a === 'down'){
             b.poly([[x + cell / 2 - ARROW, y + cell + 1], [x + cell / 2 + ARROW, y + cell + 1],
                     [x + cell / 2, y + cell + 1 + ARROW * 1.5]], INK);
@@ -5035,6 +5084,7 @@
     const downClue = state.cells.map(c=>c.type==='def' ? (c.downClue||'') : '');
     const belowClue = state.cells.map(c=>c.type==='def' ? (c.belowClue||'') : '');
     const besideClue = state.cells.map(c=>c.type==='def' ? (c.besideClue||'') : '');
+    const leftDownClue = state.cells.map(c=>c.type==='def' ? (c.leftDownClue||'') : '');
     const leftClue = state.cells.map(c=>c.type==='def' ? (c.leftClue||'') : '');
     const upClue = state.cells.map(c=>c.type==='def' ? (c.upClue||'') : '');
     const aboveClue = state.cells.map(c=>c.type==='def' ? (c.aboveClue||'') : '');
@@ -5061,7 +5111,7 @@
       hl: (state.hl || []).slice().sort((a,b)=>a-b),
       hlColor: state.hlColor || 'jaune',
       secret: secret || '',
-      secretClue: state.secretClue || '', rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
+      secretClue: state.secretClue || '', rightClue, downClue, belowClue, besideClue, leftClue, upClue, aboveClue, leftDownClue, solution, rightWords, downWords, difficulty: state.difficulty || 2, audioData: effectiveAudio() || null,
       sfx: (state.sfxEnabled !== false) ? SFX : null,
       secretSfx: secret ? SECRET_SFX : null,
       nudge: state.nudge !== false,
@@ -5371,18 +5421,18 @@
       '.pgrid.pick .pcell:not(.def):not(.block):not(.correct){box-shadow:inset 0 0 0 2px rgba(63,125,92,0.55);}',
       '.pcell.incorrect input{background:#FBEAE8;}',
       '.pcell.def .mf-text{max-width:100%;min-width:0;overflow:hidden;overflow-wrap:break-word;word-break:normal;white-space:pre-wrap;}',
-      '.pcell.def .rc,.pcell.def .sc,.pcell.def .lc{position:relative;}',
+      '.pcell.def .rc,.pcell.def .sc,.pcell.def .lc,.pcell.def .gc{position:relative;}',
       '.mf-ar{position:absolute;width:calc(var(--cell)*0.24);height:calc(var(--cell)*0.24);pointer-events:none;z-index:3;overflow:visible;}',
       '.mf-ar .mf-fill{fill:var(--ink);}',
       '.mf-ar .mf-line{stroke:var(--ink);stroke-width:1.8;fill:none;}',
       '.mf-ar-right,.mf-ar-beside{right:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}',
-      '.mf-ar-left{left:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}',
+      '.mf-ar-left,.mf-ar-leftdown{left:calc(var(--cell)*-0.27);top:50%;transform:translateY(-50%);}',
       '.mf-ar-down{bottom:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}',
       '.mf-ar-up{top:calc(var(--cell)*-0.27);left:50%;transform:translateX(-50%);}',
       '.mf-ar-below{bottom:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}',
       '.mf-ar-above{top:calc(var(--cell)*-0.27);left:calc(var(--cell)*0.04);}',
       '.pcell.def{z-index:2;}',
-      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc,.pcell.def .lc,.pcell.def .uc,.pcell.def .ac{flex:1 1 0;min-height:0;min-width:0;overflow:visible;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
+      '.pcell.def .rc,.pcell.def .dc,.pcell.def .bc,.pcell.def .sc,.pcell.def .lc,.pcell.def .uc,.pcell.def .ac,.pcell.def .gc{flex:1 1 0;min-height:0;min-width:0;overflow:visible;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.08;color:var(--ink);font-weight:600;word-break:normal;overflow-wrap:break-word;-webkit-hyphens:auto;hyphens:auto;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;}',
       '.pcell.def > span:not(:first-child){border-top:1px dashed rgba(27,42,65,0.28);}',
       '.pclues{flex:1;min-width:240px;display:flex;flex-direction:column;gap:16px;}',
       '.pcol{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;}',
@@ -5557,6 +5607,7 @@
       'function wordAt(r,c,d){ var list = d==="R"?data.rightWords:data.downWords; for(var k=0;k<list.length;k++){ var w=list[k]; for(var j=0;j<w.cells.length;j++){ if(w.cells[j][0]===r && w.cells[j][1]===c) return w; } } return null; }',
       'function canDir(r,c,d){ return !!wordAt(r,c,d); }',
       'var ARROW_SHAPES = {',
+      '  leftdown: \'<path class="mf-line" d="M12 3 H4 V7"/><polygon class="mf-fill" points="1,7 7,7 4,12"/>\',',
       '  right:  \'<polygon class="mf-fill" points="2,2 11,6 2,10"/>\',',
       '  left:   \'<polygon class="mf-fill" points="10,2 1,6 10,10"/>\',',
       '  down:   \'<polygon class="mf-fill" points="2,2 10,2 6,11"/>\',',
@@ -5702,6 +5753,7 @@
       '    var hasD = data.downClue[i] && data.downClue[i].trim()!=="";',
       '    var hasB = data.belowClue[i] && data.belowClue[i].trim()!=="";',
       '    var hasS = data.besideClue[i] && data.besideClue[i].trim()!=="";',
+      '    var hasG = data.leftDownClue && data.leftDownClue[i] && data.leftDownClue[i].trim()!=="";',
       '    var hasL = data.leftClue && data.leftClue[i] && data.leftClue[i].trim()!=="";',
       '    var hasU = data.upClue && data.upClue[i] && data.upClue[i].trim()!=="";',
       '    var hasA = data.aboveClue && data.aboveClue[i] && data.aboveClue[i].trim()!=="";',
@@ -5712,13 +5764,14 @@
       '    if(hasA){ slots.push(addBand("ac", data.aboveClue[i])); addArrow(div,"above"); }',
       '    if(hasR){ var bR=addBand("rc", data.rightClue[i]);  slots.push(bR); addArrow(bR,"right"); }',
       '    if(hasS){ var bS=addBand("sc", data.besideClue[i]); slots.push(bS); addArrow(bS,"beside"); }',
+      '    if(hasG){ var bG=addBand("gc", data.leftDownClue[i]); slots.push(bG); addArrow(bG,"leftdown"); }',
       '    if(hasL){ var bL=addBand("lc", data.leftClue[i]);   slots.push(bL); addArrow(bL,"left"); }',
       '    if(hasD){ slots.push(addBand("dc", data.downClue[i]));  addArrow(div,"down"); }',
       '    if(hasB){ slots.push(addBand("bc", data.belowClue[i])); addArrow(div,"below"); }',
       '    if(hasD || hasB) div.classList.add("pad-bottom");',
       '    if(hasU || hasA) div.classList.add("pad-top");',
       '    slots.forEach(function(el){ fitDefText(el, maxPx, minPx); });',
-      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\\u2191 "+data.upClue[i]); if(hasA) titleParts.push("\\u21B1 "+data.aboveClue[i]);',
+      '    var titleParts=[]; if(hasR) titleParts.push("\\u2192 "+data.rightClue[i]); if(hasS) titleParts.push("\\u2935 "+data.besideClue[i]); if(hasD) titleParts.push("\\u2193 "+data.downClue[i]); if(hasB) titleParts.push("\\u21B3 "+data.belowClue[i]); if(hasL) titleParts.push("\\u2190 "+data.leftClue[i]); if(hasU) titleParts.push("\\u2191 "+data.upClue[i]); if(hasA) titleParts.push("\\u21B1 "+data.aboveClue[i]); if(hasG) titleParts.push("\\u2B10 "+data.leftDownClue[i]);',
       '    if(titleParts.length) div.title = titleParts.join("  |  ");',
       '    row.push(null);',
       '  } else { row.push(null); }',
@@ -5731,7 +5784,7 @@
       '  var rowR=document.getElementById("pRowRight"), rowD=document.getElementById("pRowDown"), emptyMsg=document.getElementById("pEmptyMsg");',
       '  rowR.style.display = rw ? "flex" : "none";',
       '  rowD.style.display = dw ? "flex" : "none";',
-      '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "};',
+      '  var MARK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 ", leftDownClue:"\\u2B10 "};',
       '  if(rw) document.getElementById("pRightText").textContent = (MARK[rw.field]||"") + (rw.clue || "(pas de définition)");',
       '  if(dw) document.getElementById("pDownText").textContent = (MARK[dw.field]||"") + (dw.clue || "(pas de définition)");',
       '  paintTip(rw, document.getElementById("pRightTip"), document.getElementById("pRightTipText"));',
@@ -5944,7 +5997,7 @@
       '  data.rightWords.forEach(function(w){ rEl.appendChild(clueRow(w,"R")); });',
       '  data.downWords.forEach(function(w){ dEl.appendChild(clueRow(w,"D")); });',
       '}',
-      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); if(w.hint){ var tb=document.createElement("button"); tb.type="button"; tb.className="pclue-tip"; tb.textContent="💡 +15 s"; tb.title="Afficher l\'indice (coûte 15 secondes)"; tb.addEventListener("click", function(ev){ ev.stopPropagation(); useTip(w); }); var tt=document.createElement("span"); tt.className="pclue-tiptext"; tt.style.display="none"; w._tipBtn=tb; w._tipTxt=tt; t.appendChild(tb); row.appendChild(tt); } row.addEventListener("click", function(){ var r0=w.cells[0][0], c0=w.cells[0][1]; dir=d; moveTo(r0,c0); curR=r0; curC=c0; highlight(r0,c0); updateClueBar(r0,c0); }); return row; }',
+      'function clueRow(w,d){ var row=document.createElement("div"); row.className="pclue"; row.dataset.key=d+"_"+w.cells[0][0]+"_"+w.cells[0][1]; var n=document.createElement("span"); n.className="pw"; n.textContent = "("+w.cells.length+")"; var t=document.createElement("span"); var MK = {belowClue:"\\u21B3 ", besideClue:"\\u2935 ", leftClue:"\\u2190 ", upClue:"\\u2191 ", aboveClue:"\\u21B1 ", leftDownClue:"\\u2B10 "}; var marker = MK[w.field] || ""; t.textContent = marker + (w.clue || "(pas de définition)"); row.appendChild(n); row.appendChild(t); if(w.hint){ var tb=document.createElement("button"); tb.type="button"; tb.className="pclue-tip"; tb.textContent="💡 +15 s"; tb.title="Afficher l\'indice (coûte 15 secondes)"; tb.addEventListener("click", function(ev){ ev.stopPropagation(); useTip(w); }); var tt=document.createElement("span"); tt.className="pclue-tiptext"; tt.style.display="none"; w._tipBtn=tb; w._tipTxt=tt; t.appendChild(tb); row.appendChild(tt); } row.addEventListener("click", function(){ var r0=w.cells[0][0], c0=w.cells[0][1]; dir=d; moveTo(r0,c0); curR=r0; curC=c0; highlight(r0,c0); updateClueBar(r0,c0); }); return row; }',
       '["pRightTip","pDownTip"].forEach(function(id){',
       '  document.getElementById(id).addEventListener("click", function(e){',
       '    e.stopPropagation();   // sinon la ligne changerait aussi l orientation',
