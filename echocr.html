@@ -116,6 +116,10 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
 .btn-retirer{border-color:var(--panel-line);color:var(--ink-soft);
   font-family:var(--font-mono);line-height:1;padding:3px 8px;margin-left:4px;}
 .btn-retirer:hover{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);}
+/* Remise à zéro : séparée des deux autres, et en teinte d'alerte au survol —
+   elle détruit, elle ne doit pas se cliquer par inadvertance. */
+.btn-raz{margin-left:10px;}
+.btn-raz:hover{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);}
 .stepper{display:inline-flex;align-items:stretch;border:1px solid var(--panel-line);
   border-radius:7px;overflow:hidden;background:var(--surface);}
 .fleche{border:none;background:var(--panel);color:var(--accent);font-family:var(--font-mono);
@@ -6574,6 +6578,49 @@ function dialogueCharger(){
   });
 }
 
+// ---------- REMISE À ZÉRO ----------
+// Efface le patient et tout l'examen, et RIEN d'autre. L'en-tête de clinique,
+// le dossier d'enregistrement choisi et la série en cours sont des réglages
+// de poste, pas des données du patient : les perdre à chaque animal ferait
+// de la RAZ un bouton qu'on évite d'utiliser.
+function remiseAZero(){
+  ORGANES_MODELE.forEach(([cle,modele])=>{
+    if(cle==='entete') return;              // réglage de clinique, conservé
+    S[cle]=modele();
+  });
+  S.espece=null; S.aorte=null; S.foieAnormal=false;
+  S.sexe=null; S.statut=null; S.poids=null; S.age=null; S.cycle=null;
+  S.prostateDepliee=false; S.testiculesDeplies=false;
+  S.images={}; S.notes={};
+  S.synthese={inclure:true, texte:null};
+  S.brut=false;
+  S.ouvert={entete:S.ouvert&&S.ouvert.entete||false, patient:true};
+  rendre();
+}
+function dialogueRAZ(){
+  const rempli=examenRempli();
+  modale('Nouvel examen',(b,fermer)=>{
+    const p=document.createElement('p'); p.className='aide'; p.style.margin='0 0 10px';
+    p.textContent = rempli
+      ? 'L’examen en cours va être effacé : patient, mesures, images et lignes libres. '+
+        'Cette action est irréversible.'
+      : 'Rien n’est saisi pour l’instant : il n’y a rien à effacer.';
+    b.appendChild(p);
+    const g=document.createElement('p'); g.className='aide'; g.style.margin='0 0 10px';
+    g.textContent='Conservés : en-tête de clinique, dossier d’enregistrement et série en cours.';
+    b.appendChild(g);
+    const act=document.createElement('div'); act.className='modale-actions';
+    boutonModale(act,'Annuler',fermer);
+    // La vraie sécurité n'est pas de redemander, c'est de proposer de sauver.
+    if(rempli) boutonModale(act,'Enregistrer d’abord…',()=>{ fermer(); dialogueEnregistrer(); });
+    boutonModale(act, rempli?'Effacer l’examen':'Repartir à zéro', ()=>{
+      fermer(); remiseAZero();
+      avisDossier('Examen effacé. En-tête de clinique et dossier conservés.', true);
+    }, true);
+    b.appendChild(act);
+  });
+}
+
 function rendreBarreDossier(){
   const z=document.getElementById('dossierZone'); if(!z) return;
   z.innerHTML='';
@@ -6587,6 +6634,11 @@ function rendreBarreDossier(){
   bc.title='Rouvre un examen enregistré pour le relire ou le modifier';
   bc.addEventListener('click',dialogueCharger);
   z.appendChild(bc);
+  const bz=document.createElement('button'); bz.type='button'; bz.className='pill btn-raz';
+  bz.textContent='Nouvel examen';
+  bz.title='Efface le patient et toutes les saisies ; demande confirmation avant';
+  bz.addEventListener('click',dialogueRAZ);
+  z.appendChild(bz);
   // « Changer de dossier » n'apparaît qu'une fois un dossier choisi : avant, le
   // premier enregistrement le demande lui-même, et le bouton n'aurait servi
   // qu'à faire douter de l'ordre des opérations.
