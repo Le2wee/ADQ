@@ -372,6 +372,12 @@
   .stat-let.zero{opacity:0.35;}
   .stat-let.top .lt{color:var(--accent);}
   .stats-foot{margin-top:9px;font-size:11.5px;color:var(--muted);line-height:1.45;}
+  .stats-sub{
+    margin:13px 0 7px;padding-top:11px;border-top:1px solid var(--line);
+    font-family:ui-monospace,"SF Mono",Consolas,monospace;
+    font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);
+  }
+  .stats-top + .stats-sub{margin-top:4px;padding-top:0;border-top:none;}
 
   .finder .find-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
   .finder .find-row label{font-size:12px;color:var(--muted);}
@@ -731,8 +737,12 @@
       <details class="clue-col" id="statsCol" open>
         <summary><h3>📊 STATISTIQUES</h3></summary>
         <div class="stats-top" id="statsTop"></div>
+        <div class="stats-sub">Lettres posées</div>
         <div class="stats-letters" id="statsLetters"></div>
         <div class="stats-foot" id="statsFoot"></div>
+        <div class="stats-sub">Longueur des mots</div>
+        <div class="stats-letters" id="statsTailles"></div>
+        <div class="stats-foot" id="statsTaillesFoot"></div>
       </details>
       <div class="clue-col finder">
         <h3>♻️ DÉJÀ UTILISÉ ?</h3>
@@ -1460,6 +1470,69 @@
     });
   }
 
+  // Memes pastilles que pour les lettres, mais indexees par longueur de mot.
+  const tailleRefs = Object.create(null);
+
+  function renderTailles(){
+    const box = document.getElementById('statsTailles');
+    const foot = document.getElementById('statsTaillesFoot');
+    if(!box || !foot) return;
+    const tous = state.words.right.concat(state.words.down).filter(w => w.cells.length > 0);
+    const parLongueur = Object.create(null);
+    let total = 0, somme = 0, maxLong = 0;
+    tous.forEach(w => {
+      const n = w.cells.length;
+      (parLongueur[n] = parLongueur[n] || []).push(w);
+      total++; somme += n;
+      if(n > maxLong) maxLong = n;
+    });
+    // de 2 jusqu au plus long ; on garde 1 seulement si un mot d une lettre existe
+    const cles = [];
+    const mini = parLongueur[1] ? 1 : 2;
+    for(let n = mini; n <= Math.max(maxLong, mini); n++) cles.push(String(n));
+    if(cles.length !== Object.keys(tailleRefs).length || cles.some(k => !tailleRefs[k])){
+      Object.keys(tailleRefs).forEach(k => { delete tailleRefs[k]; });
+      box.innerHTML = '';
+      cles.forEach(k => {
+        const d = document.createElement('div');
+        d.className = 'stat-let';
+        const bar = document.createElement('span'); bar.className = 'bar';
+        const lt = document.createElement('span'); lt.className = 'lt'; lt.textContent = k;
+        const nb = document.createElement('span'); nb.className = 'nb'; nb.textContent = '0';
+        d.appendChild(bar); d.appendChild(lt); d.appendChild(nb);
+        box.appendChild(d);
+        tailleRefs[k] = {boite:d, bar, nb};
+      });
+    }
+    let pic = 0;
+    cles.forEach(k => { const n = (parLongueur[k] || []).length; if(n > pic) pic = n; });
+    cles.forEach(k => {
+      const liste = parLongueur[k] || [], n = liste.length, ref = tailleRefs[k];
+      if(!ref) return;
+      const cls = 'stat-let' + (n === 0 ? ' zero' : '') + (n && n === pic ? ' top' : '');
+      if(ref.boite.className !== cls) ref.boite.className = cls;
+      const h = (pic ? Math.round(n / pic * 100) : 0) + '%';
+      if(ref.bar.style.height !== h) ref.bar.style.height = h;
+      const t = String(n);
+      if(ref.nb.textContent !== t) ref.nb.textContent = t;
+      // l infobulle liste les mots concernes : plus parlant qu un simple compte
+      const apercu = liste.slice(0, 12).map(wordPreview).join(', ') + (liste.length > 12 ? '\u2026' : '');
+      const ti = k + ' lettres : ' + n + (n ? ' \u2014 ' + apercu : '');
+      if(ref.boite.title !== ti) ref.boite.title = ti;
+    });
+
+    if(!total){ foot.textContent = 'Aucun mot pour l\u2019instant.'; return; }
+    const moy = somme / total;
+    const courts = (parLongueur[2] || []).length + (parLongueur[1] || []).length;
+    const bouts = [
+      total + ' mot' + (total > 1 ? 's' : ''),
+      'longueur moyenne <b>' + moy.toFixed(1).replace('.', ',') + '</b>',
+      'le plus long : <b>' + maxLong + '</b> lettres'
+    ];
+    if(courts) bouts.push('<b>' + courts + '</b> de 2 lettres ou moins (' + Math.round(courts / total * 100) + '\u00A0%)');
+    foot.innerHTML = bouts.join(' \u00B7 ');
+  }
+
   function renderStats(){
     const top = document.getElementById('statsTop');
     const box = document.getElementById('statsLetters');
@@ -1515,6 +1588,8 @@
     const absentes = LETTRES_AZ.filter(L => !compte[L]);
     foot.innerHTML = utilisees + ' lettre' + (utilisees>1?'s':'') + ' diff\u00E9rente' + (utilisees>1?'s':'') +
       ' sur 26' + (absentes.length ? ' \u2014 jamais pos\u00E9es : <b>' + absentes.join(' ') + '</b>' : ' \u2014 pangramme complet \u2728');
+
+    renderTailles();
   }
 
   // Updates just the letter previews in the side lists; called while typing so
