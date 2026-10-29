@@ -333,6 +333,8 @@
   .clue-col summary::after{content:"\25BE";font-size:14px;color:var(--ink-soft);transition:transform .15s;}
   .clue-col:not([open]) summary::after{transform:rotate(-90deg);}
   .clue-col[open] summary{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px;}
+  .clue-col summary:hover h3{color:var(--accent);}
+  .clue-col summary h3{flex:1;}
   .clue-count{font-weight:400;color:var(--muted);letter-spacing:0;}
   .clue-row{
     display:flex;align-items:flex-start;gap:8px;padding:6px 0;
@@ -751,8 +753,8 @@
         <div class="stats-letters" id="statsTailles"></div>
         <div class="stats-foot" id="statsTaillesFoot"></div>
       </details>
-      <div class="clue-col finder">
-        <h3>♻️ DÉJÀ UTILISÉ ?</h3>
+      <details class="clue-col finder" open>
+        <summary><h3>♻️ DÉJÀ UTILISÉ ?</h3></summary>
         <div class="find-row">
           <button class="btn small" id="dupBtn" type="button">Vérifier toute la grille</button>
           <input type="text" id="dupWord" placeholder="ou un mot précis" autocomplete="off" maxlength="24">
@@ -760,9 +762,9 @@
         </div>
         <div id="dupStatus" class="find-status"></div>
         <div id="dupResults" class="dup-results"></div>
-      </div>
-      <div class="clue-col finder">
-        <h3>🔍 CHERCHER UN MOT</h3>
+      </details>
+      <details class="clue-col finder" open>
+        <summary><h3>🔍 CHERCHER UN MOT</h3></summary>
         <div class="find-row">
           <label for="findLen">Longueur</label>
           <button class="btn small" id="findLenMinus" type="button">−</button>
@@ -776,7 +778,7 @@
         <p class="find-hint">Laisse vide les positions inconnues. Clique un résultat pour le poser dans la grille. Le bouton « Commence par / Se termine par » choisit le bord où les lettres restent collées quand tu changes la longueur.</p>
         <div id="findStatus" class="find-status"></div>
         <div id="findResults" class="find-results"></div>
-      </div>
+      </details>
       <details class="clue-col">
         <summary><h3>→ HORIZONTALES <span class="clue-count" id="rightCount"></span></h3></summary>
         <div id="rightList"></div>
@@ -6974,7 +6976,7 @@
   }
 
   // ---------- init ----------
-  // 36e version mise en ligne. En chiffres romains, parce qu'a ce stade ca
+  // 35e version mise en ligne. En chiffres romains, parce qu'a ce stade ca
   // tient plus de la suite de films que du logiciel. Une seule constante a
   // changer a la prochaine livraison.
   const VERSION_ATELIER = 36;
