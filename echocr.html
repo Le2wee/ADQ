@@ -116,7 +116,7 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
 .btn-retirer{border-color:var(--panel-line);color:var(--ink-soft);
   font-family:var(--font-mono);line-height:1;padding:3px 8px;margin-left:4px;}
 .btn-retirer:hover{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);}
-/* Remise à zéro : séparée des deux autres, et en teinte d'alerte au survol —
+/* Remise à zéro : détachée des deux autres, et en teinte d'alerte au survol —
    elle détruit, elle ne doit pas se cliquer par inadvertance. */
 .btn-raz{margin-left:10px;}
 .btn-raz:hover{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);}
@@ -238,6 +238,13 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
 .doc-corps .bloc-synthese{margin-top:16px;padding:11px 13px;background:#F0F4EC;
   border-left:3px solid var(--accent);border-radius:0 5px 5px 0;}
 .doc-corps .bloc-synthese .org{margin-top:0;border:none;padding:0;}
+/* Sources : plus discrètes que le corps du CR, mais lisibles. L'absence de
+   source se voit, elle ne se cache pas en bas de page. */
+.doc-sources{margin-top:14px;padding-top:9px;border-top:1px solid var(--panel-line);
+  font-size:10.5px;color:var(--ink-soft);}
+.doc-sources .org{margin-top:0;border:none;padding:0;font-size:11px;}
+.doc-sources p{margin:0 0 2px;}
+.doc-sources .sans-source{font-style:italic;}
 .doc-pied{margin-top:22px;padding-top:10px;border-top:1px solid #C6D0BE;
   display:flex;justify-content:space-between;align-items:flex-end;font-size:11.5px;gap:20px;}
 .doc-pied .sign{text-align:right;}
@@ -295,6 +302,7 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
   .doc-corps .org{break-after:avoid;page-break-after:avoid;}
   .doc-corps .bloc-organe{break-inside:avoid;page-break-inside:avoid;}
   .doc-corps .bloc-synthese{break-inside:avoid;page-break-inside:avoid;}
+  .doc-sources{break-inside:avoid;page-break-inside:avoid;}
   .doc-entete{break-inside:avoid;page-break-inside:avoid;break-after:avoid;page-break-after:avoid;}
   .doc-titre{break-after:avoid;page-break-after:avoid;}
   .doc-annexe .org{break-after:avoid;page-break-after:avoid;}
@@ -362,15 +370,15 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
   </div>
   <p class="serie-avis" id="serieAvis" hidden></p>
 
-  <div class="grid2" id="reins"></div>
+  <div id="vessieZone"></div>
 
-  <div id="vessieZone" style="margin-top:14px;"></div>
+  <div class="grid2" id="reins" style="margin-top:14px;"></div>
 
   <div id="prostateZone" style="margin-top:14px;"></div>
   <div class="grid2" id="testicules" style="margin-top:14px;"></div>
+  <div class="grid2" id="surrenales" style="margin-top:14px;"></div>
   <div id="foieZone2" style="margin-top:14px;"></div>
   <div id="vbZone" style="margin-top:14px;"></div>
-  <div class="grid2" id="surrenales" style="margin-top:14px;"></div>
   <div id="rateZone" style="margin-top:14px;"></div>
   <div id="estomacZone" style="margin-top:14px;"></div>
   <div id="intestinsZone" style="margin-top:14px;"></div>
@@ -511,6 +519,94 @@ const SERIES = [
   // exhaustif que rien ne vérifie.
 ];
 function serieCourante(){ return SERIES.find(s=>s.k===S.serie) || null; }
+
+// ============ ORGANES À MENTION PAR DÉFAUT ============
+// Pancréas, nœuds et vaisseaux font partie de tout balayage abdominal : leur
+// absence du compte-rendu se lit comme un oubli, pas comme un silence voulu.
+// Quand rien n'est saisi et que « non exploré » n'est pas coché, ils reçoivent
+// donc une mention par défaut — mais seulement si l'organe appartient à la
+// série déclarée, et seulement si l'examen a réellement commencé ailleurs.
+// Les formulations diffèrent parce que les faits diffèrent : un pancréas ou
+// des nœuds normaux sont souvent NON REPÉRABLES, alors que l'aorte et la cave
+// se voient toujours. Écrire « dans les limites de la normale » sur un pancréas
+// qu'on n'a pas individualisé reviendrait à affirmer l'avoir vu.
+const MENTIONS_DEFAUT = {
+  pancreas:{ titre:'PANCRÉAS',
+    texte:'Non individualisé, ce qui reste le constat habituel en l’absence d’anomalie.' },
+  nl:{ titre:'NŒUDS LYMPHATIQUES',
+    texte:'Non individualisés, ce qui reste le constat habituel en l’absence d’adénomégalie.' },
+  vasc:{ titre:'VAISSEAUX ET PÉRITOINE',
+    texte:'Aorte et veine cave caudale de calibre normal, péritoine sans particularité.' }
+};
+function mentionDefaut(cle, dejaDecrit){
+  if(!dejaDecrit) return null;                       // fiche encore vierge
+  if(!organeDansSerie(cle)) return null;             // hors du protocole déclaré
+  const m=MENTIONS_DEFAUT[cle]; if(!m) return null;
+  return m.titre+'\n'+m.texte;
+}
+
+// ============ SOURCES DES VALEURS DE RÉFÉRENCE ============
+// Une norme citée est une norme engagée. Le compte-rendu ne nomme donc une
+// source QUE pour les organes dont les valeurs ont été confrontées à cette
+// source — et il dit lesquelles ne l'ont pas été, plutôt que de laisser une
+// bibliographie de pied de page les couvrir en silence.
+// Basculer `verifie` à true organe par organe, une fois la table confrontée.
+const SOURCES = {
+  penninck:{
+    court:'Penninck & d’Anjou',
+    // Année volontairement absente tant qu'elle n'a pas été lue sur la page de
+    // garde : une citation avec une mauvaise année est une mauvaise citation.
+    long:'Penninck D, d’Anjou MA, éds. Atlas of Small Animal Ultrasonography. '+
+         '2ᵉ éd. Wiley-Blackwell.'
+  },
+  cours:{
+    court:'source non identifiée',
+    long:'Valeurs d’origine non identifiée.'
+  }
+};
+// src : d'où la valeur vient. verifie : TOUTES les valeurs de cet organe sont
+// rattachées à cette source. Un seul chiffre non rattaché suffit à laisser
+// l'organe à false — un CR ne peut pas citer un livre à moitié.
+// État au 03/11/2026 : Bébou rattache ses planches de cours à Penninck &
+// d'Anjou 2ᵉ éd. Les organes restés à false et pourquoi :
+//   reins, vb, nl, vasc  → valeurs antérieures, origine jamais tracée
+//   surrenale_G/D        → paliers rattachés, mais borne basse (3,0 mm) et
+//                          seuils tumoraux (20 / 10 mm) inventés par Claude
+//   vessie               → paliers rattachés, mais minimum chat (1,3 mm) non tracé
+//   prostate, génital    → aucune valeur chiffrée rattachée à ce jour
+const REF_ORGANE = {
+  rein_G:{src:'penninck', verifie:false}, rein_D:{src:'penninck', verifie:false},
+  vessie:{src:'penninck', verifie:false},
+  prostate:{src:'penninck', verifie:false},
+  testicule_G:{src:'penninck', verifie:false}, testicule_D:{src:'penninck', verifie:false},
+  uterus:{src:'penninck', verifie:false},
+  ovaire_G:{src:'penninck', verifie:false}, ovaire_D:{src:'penninck', verifie:false},
+  foie:{src:'penninck', verifie:false}, vb:{src:'penninck', verifie:false},
+  surrenale_G:{src:'penninck', verifie:false}, surrenale_D:{src:'penninck', verifie:false},
+  rate:{src:'penninck', verifie:false},
+  estomac:{src:'penninck', verifie:true}, intestins:{src:'penninck', verifie:true},
+  pancreas:{src:'penninck', verifie:true},
+  nl:{src:'penninck', verifie:false}, vasc:{src:'penninck', verifie:false}
+};
+// Construit le bloc « Valeurs de référence » à partir des organes RÉELLEMENT
+// décrits : citer le pancréas sur une urogénitale laisserait croire qu'on l'a
+// regardé. Les organes pairs ne comptent qu'une fois.
+function sourcesDuCR(blocs){
+  const citees=new Set(), sansSource=[];
+  (blocs||[]).forEach(b=>{
+    // Mention par défaut : rien n'a été mesuré, aucune norme n'a été appliquée.
+    if(b.defaut) return;
+    const r = b.cle && REF_ORGANE[b.cle];
+    if(!r) return;
+    if(r.verifie) citees.add(r.src);
+    else {
+      const n=(TITRE_BLOC[b.cle]||'').replace(/ (GAUCHE|DROITE?)$/,'');
+      if(n && sansSource.indexOf(n)<0) sansSource.push(n);
+    }
+  });
+  return {citees:[...citees].map(k=>SOURCES[k].long), nonVerifiees:sansSource};
+}
+
 // Phrase d'étendue, uniquement si l'opérateur l'a demandée. Elle n'affirme
 // rien sur les organes non examinés : elle dit simplement qu'ils ne l'ont pas
 // été, ce que le silence seul ne permet pas de distinguer d'un organe normal.
@@ -1435,28 +1531,30 @@ function phraseVessie(){
   else if(examine) L.push('Contenu anéchogène.');
 
   // --- 3. Paroi ---
-  if(p){
+  {
     if(toutNormal){
-      if(v.paroi!=null) L.push('Paroi de '+V(nb(v.paroi)+' mm')+
+      if(p && v.paroi!=null) L.push('Paroi de '+V(nb(v.paroi)+' mm')+
         ' (référence '+nb(p.ref.min)+'–'+nb(p.ref.max)+').');
-    } else if(p.verdict){
-      const a = p.verdict==='haut';
-      // Le caractère de l'épaississement se dit DANS la phrase de mesure :
-      // « épaissie de façon diffuse », plutôt qu'une seconde ligne qui répète
-      // ce que la première vient d'annoncer.
-      let verdict = a ? 'épaissie' : 'dans les limites de la normale';
-      if(a && v.paroiCaractere){
-        verdict += v.paroiCaractere==='diffus' ? ' de façon diffuse' : ' de façon focale';
-        if(v.paroiCaractere==='focal' && v.paroiSiege)
-          verdict += ' ' + {apex:'au niveau de l’apex', laterale:'sur une paroi latérale',
-            trigone:'au niveau du trigone'}[v.paroiSiege];
+    } else if(p){
+      if(p.verdict){
+        const a = p.verdict==='haut';
+        // Le caractère de l'épaississement se dit DANS la phrase de mesure :
+        // « épaissie de façon diffuse », plutôt qu'une seconde ligne qui répète
+        // ce que la première vient d'annoncer.
+        let verdict = a ? 'épaissie' : 'dans les limites de la normale';
+        if(a && v.paroiCaractere){
+          verdict += v.paroiCaractere==='diffus' ? ' de façon diffuse' : ' de façon focale';
+          if(v.paroiCaractere==='focal' && v.paroiSiege)
+            verdict += ' ' + {apex:'au niveau de l’apex', laterale:'sur une paroi latérale',
+              trigone:'au niveau du trigone'}[v.paroiSiege];
+        }
+        L.push('Paroi mesurée à '+(a? M(nb(v.paroi)+' mm',true) : V(nb(v.paroi)+' mm'))+
+          ' (référence '+nb(p.ref.min)+'–'+nb(p.ref.max)+') : '+Q(verdict,a)+'.');
+      } else {
+        // La réserve d'interprétation est portée par la synthèse, pas par le
+        // compte-rendu : ici on donne la mesure, rien de plus.
+        L.push('Paroi mesurée à '+nb(v.paroi)+' mm.');
       }
-      L.push('Paroi mesurée à '+(a? M(nb(v.paroi)+' mm',true) : V(nb(v.paroi)+' mm'))+
-        ' (référence '+nb(p.ref.min)+'–'+nb(p.ref.max)+') : '+Q(verdict,a)+'.');
-    } else {
-      // La réserve d'interprétation est portée par la synthèse, pas par le
-      // compte-rendu : ici on donne la mesure, rien de plus.
-      L.push('Paroi mesurée à '+nb(v.paroi)+' mm.');
     }
   }
   // Caractérisations restantes. L'épaississement n'est redit ici que si la
@@ -3254,7 +3352,8 @@ function syntheseFoieVB(items, lignes){
 // ===================== SURRÉNALES ET RATE =====================
 // ┌──────────────────────────────────────────────────────────────────────────┐
 // │ VALEURS DE RÉFÉRENCE SURRÉNALIENNES — un seul endroit à modifier.        │
-// │ Chien et chat : valeurs de Bébou (08/10/2026), épaisseur du pôle caudal. │
+// │ Chien et chat : valeurs de Bébou (08/10/2026), épaisseur du pôle caudal, │
+// │ rattachées par lui à Penninck & d'Anjou 2e éd. (03/11/2026).             │
 // │ Restent données de mémoire, non confirmées par lui : la borne basse      │
 // │ (hypocorticisme) et les deux seuils tumoraux.                            │
 // └──────────────────────────────────────────────────────────────────────────┘
@@ -3810,7 +3909,8 @@ function blocImages(parent, cle){
 // ┌──────────────────────────────────────────────────────────────────────────┐
 // │ VALEURS DE RÉFÉRENCE DIGESTIVES — un seul endroit à modifier.            │
 // └──────────────────────────────────────────────────────────────────────────┘
-// Valeurs de Bébou (planches de cours, 08/10/2026). Chien : paliers de poids
+// Valeurs de Bébou (planches de cours, 08/10/2026), rattachées par lui à
+// Penninck & d'Anjou 2e éd. (03/11/2026). Chien : paliers de poids
 // pour le duodénum et le jéjunum. L'épaisseur gastrique se mesure ENTRE les plis.
 // Les bornes basses sont documentées mais non utilisées : seul l'épaississement
 // est signalé, décision de Bébou.
@@ -3917,8 +4017,13 @@ function estomacVide(){
     nonVu:false,
     paroi:null,                 // mesurée ENTRE les plis
     strat:'conservee',          // conservee | perdue
+    // Étendue de l'épaississement. Reste null tant que la paroi n'est pas
+    // jugée épaissie : qualifier l'étendue d'un épaississement qui n'existe
+    // pas reviendrait à l'affirmer.
+    etendue:null,               // diffuse | focale
     couche:null,                // muqueuse | sousmuqueuse | musculeuse | toutes
     muq:null, mus:null,         // épaisseur mesurée des deux couches, en mm
+    ulcere:false, ulcereSiege:null,   // fundus | corps | antre_pylore
     // Un estomac peut être liquidien ET alimentaire : ensemble, pas valeur unique.
     // Vide s'exclut du reste ; vide = ensemble vide.
     contenu:new Set(),          // liquidien | alimentaire | gazeux
@@ -3950,7 +4055,7 @@ function estomacExamine(){
   if(e.nonVu) return false;
   return e.paroi!=null || horsDefaut(e.strat,'conservee') || e.couche!=null ||
     e.muq!=null || e.mus!=null ||
-    e.contenu.size>0 || e.corpsEtranger || e.peristaltismeN!=null ||
+    e.contenu.size>0 || e.corpsEtranger || e.ulcere || e.peristaltismeN!=null ||
     horsDefaut(e.peristaltisme,'normal') || horsDefaut(e.vidange,'normale');
 }
 function anomalieEstomac(){
@@ -3960,22 +4065,51 @@ function anomalieEstomac(){
   if(p && p.verdict==='haut') return true;
   const c=partsCouches('estomac', e);
   if(horsDefaut(e.strat,'conservee') || e.couche!=null || (c && c.ecart) ||
-     e.corpsEtranger) return true;
+     e.corpsEtranger || e.ulcere) return true;
   if(horsDefaut(peristaltismeEffectif(e,REF_PERISTALTISME.estomac),'normal')) return true;
   if(horsDefaut(e.vidange,'normale')) return true;
   return false;
 }
 
 // ---------- INTESTINS ----------
+function mesureSegVide(){ return {paroi:null, muq:null, mus:null}; }
 function segmentVide(){
-  return {paroi:null, strat:'conservee',
+  return {strat:'conservee',
+    // Diffus sur toute la longueur du segment, ou focal : la distinction
+    // sépare l'infiltratif et l'inflammatoire du tumoral et du réactionnel.
+    etendue:null,       // diffuse | focale
     couche:null,        // strate épaissie : muqueuse | sousmuqueuse | musculeuse | toutes
-    muq:null, mus:null  // épaisseur mesurée de la muqueuse et de la musculeuse, en mm
+    // On mesure un segment en plusieurs endroits. Les trois chiffres d'un même
+    // point vont ensemble : la part de la muqueuse n'a de sens que rapportée à
+    // l'épaisseur mesurée AU MÊME ENDROIT.
+    mesures:[mesureSegVide()]
   };
+}
+function mesuresSeg(sg){
+  if(!sg) return [];
+  if(!Array.isArray(sg.mesures) || !sg.mesures.length) sg.mesures=[mesureSegVide()];
+  return sg.mesures;
+}
+function mesureSegSaisie(m){ return m.paroi!=null || m.muq!=null || m.mus!=null; }
+// Mesure retenue pour le verdict du segment : la plus épaisse. Un seul point
+// au-dessus de la borne suffit à rendre le segment anormal — c'est tout
+// l'intérêt de mesurer en plusieurs endroits.
+function mesureRetenue(sg){
+  let r=null;
+  mesuresSeg(sg).forEach(m=>{
+    if(m.paroi==null) return;
+    if(!r || m.paroi>r.paroi) r=m;
+  });
+  return r;
 }
 // Part de chaque couche dans l'épaisseur pariétale mesurée.
 function partsCouches(seg, obj){
-  const sg = obj || S.intestins[seg];
+  const base = obj || S.intestins[seg];
+  // Un segment porte plusieurs mesures : les couches se calculent sur la
+  // mesure où elles ont été relevées, pas sur une épaisseur prise ailleurs.
+  const sg = base.mesures
+    ? (mesuresSeg(base).find(m=>m.muq!=null||m.mus!=null) || mesureRetenue(base) || {})
+    : base;
   if(sg.paroi==null || sg.paroi<=0) return null;
   if(sg.muq==null && sg.mus==null) return null;
   const a=couchesAttendues(seg);
@@ -4012,6 +4146,7 @@ function intestinsVide(){
     contenu:'normal',           // normal | liquidien | gazeux
     corpsEtranger:false, ceDesc:'',
     invagination:false, invaginationSiege:null,
+    ulcere:false, ulcereSeg:null,
     masse:false, masseSeg:null, masseL:null, masseH:null, masseEcho:null,
     masseHomo:null, masseContours:null, masseVasc:null
   };
@@ -4020,10 +4155,11 @@ function intestinsVide(){
 }
 function paroiSegment(k){
   const sg=S.intestins[k];
-  if(S.intestins.nonVu || sg.paroi==null) return null;
+  const r=mesureRetenue(sg);
+  if(S.intestins.nonVu || !r) return null;
   const b=borneDigestive(k);
   if(!b || b.max==null) return null;
-  return {v:sg.paroi, max:b.max, lib:b.lib, verdict: sg.paroi>b.max?'haut':'normal'};
+  return {v:r.paroi, max:b.max, lib:b.lib, verdict: r.paroi>b.max?'haut':'normal'};
 }
 function anoSegment(k){
   const sg=S.intestins[k], p=paroiSegment(k), c=partsCouches(k);
@@ -4052,19 +4188,28 @@ const PHRASE_PAROIS_NORMALES =
 const PHRASE_PAROIS_COURTE = 'Structure en couches conservée sur l’ensemble des segments.';
 // Paroi mesurée sans détail des couches : c'est que leur répartition n'avait
 // rien à signaler. Une strate cochée dit le contraire et bloque la phrase.
+// Une paroi mesurée sans détail des couches vaut répartition normale : c'est
+// que rien n'a attiré l'oeil. Avec plusieurs points, la règle ne tient que si
+// AUCUN d'eux n'a reçu de mesure de couche.
 function couchesImplicitementNormales(obj){
-  return obj.paroi!=null && obj.muq==null && obj.mus==null && obj.couche==null;
+  if(obj.couche!=null) return false;
+  if(obj.mesures){
+    const m=mesuresSeg(obj);
+    return m.some(x=>x.paroi!=null) && m.every(x=>x.muq==null && x.mus==null);
+  }
+  return obj.paroi!=null && obj.muq==null && obj.mus==null;
 }
 
 // Mesure brute d'un segment, même quand la borne n'est pas calculable
 // (chien dont le poids n'est pas renseigné) : le chiffre doit figurer au CR.
 function mesureSegment(k){
   const sg=S.intestins[k];
-  if(S.intestins.nonVu || sg.paroi==null) return null;
+  const r=mesureRetenue(sg);
+  if(S.intestins.nonVu || !r) return null;
   const p=paroiSegment(k);
   if(p) return p;
   const b=borneDigestive(k);
-  return {v:sg.paroi, max:null, lib:b?b.lib:'référence indisponible', verdict:null};
+  return {v:r.paroi, max:null, lib:b?b.lib:'référence indisponible', verdict:null};
 }
 // Un segment mesuré dont la borne n'est pas calculable ne peut pas être
 // déclaré normal : sans le poids, le duodénum et le jéjunum ne sont pas jugeables.
@@ -4075,8 +4220,8 @@ function segmentNonJugeable(k){
 function intestinsJugeables(){ return !SEGMENTS.some(s=>segmentNonJugeable(s.k)); }
 function segmentSaisi(k){
   const sg=S.intestins[k];
-  return sg.paroi!=null || horsDefaut(sg.strat,'conservee') || sg.couche!=null ||
-    sg.muq!=null || sg.mus!=null;
+  return mesuresSeg(sg).some(mesureSegSaisie) ||
+    horsDefaut(sg.strat,'conservee') || sg.couche!=null;
 }
 function intestinsExamines(){
   const i=S.intestins;
@@ -4084,7 +4229,8 @@ function intestinsExamines(){
   return SEGMENTS.some(s=>segmentSaisi(s.k)) ||
     horsDefaut(i.dilatation,'absente') || horsDefaut(i.peristaltisme,'normal') ||
     i.peristaltismeN!=null ||
-    horsDefaut(i.contenu,'normal') || i.corpsEtranger || i.invagination || i.masse;
+    horsDefaut(i.contenu,'normal') || i.corpsEtranger || i.invagination ||
+    i.masse || i.ulcere;
 }
 function anomalieIntestins(){
   const i=S.intestins;
@@ -4093,7 +4239,7 @@ function anomalieIntestins(){
   if(horsDefaut(i.dilatation,'absente') ||
      horsDefaut(peristaltismeEffectif(i,REF_PERISTALTISME.grele),'normal') ||
      horsDefaut(i.contenu,'normal')) return true;
-  if(i.corpsEtranger || i.invagination || i.masse) return true;
+  if(i.corpsEtranger || i.invagination || i.masse || i.ulcere) return true;
   return false;
 }
 
@@ -4213,6 +4359,24 @@ function ligneCouchesMesurees(parent, obj, seg){
 }
 // Ligne de pastilles « quelle strate est épaissie », commune à l'estomac
 // et aux segments intestinaux.
+// Étendue de l'épaississement. La ligne n'apparaît que si quelque chose est
+// effectivement épaissi — paroi au-dessus de la borne, ou strate désignée.
+// « Diffus » se coche alors d'office : c'est la lecture par défaut, le focal
+// est ce qu'on va chercher. Si rien n'est épaissi, le champ est remis à null
+// plutôt que de laisser traîner une étendue sans épaississement.
+function ligneEtendue(parent, obj, epaissi){
+  if(!epaissi){ obj.etendue=null; return null; }
+  if(obj.etendue==null) obj.etendue='diffuse';
+  const l=document.createElement('div'); l.className='ligne';
+  l.innerHTML='<span class="nom">Étendue</span>';
+  pastilles(l,[
+    {v:'diffuse',l:'Diffus',t:'Sur toute la longueur du segment : infiltratif ou inflammatoire'},
+    {v:'focale', l:'Focal', t:'Zone localisée : tumeur, réaction de voisinage, ulcère'}],
+    ()=>obj.etendue, x=>obj.etendue=x, ['focale'], 'diffuse');
+  parent.appendChild(l);
+  return l;
+}
+
 function ligneCouche(parent, obj){
   const l=document.createElement('div'); l.className='ligne';
   l.innerHTML='<span class="nom">Strate épaissie</span>';
@@ -4284,7 +4448,22 @@ function rendreEstomac(){
     ()=>e.strat,x=>e.strat=x,['perdue'],'conservee');
   b1.appendChild(ls);
   ligneCouche(b1, e);
+  ligneEtendue(b1, e, (p && p.verdict==='haut') || e.couche!=null);
   ligneCouchesMesurees(b1, e, 'estomac');
+  const lu=document.createElement('div'); lu.className='ligne';
+  interrupteur(lu,'Ulcère',()=>e.ulcere,x=>e.ulcere=x,
+    'Perte de substance de la muqueuse : cratère, souvent avec du gaz piégé '+
+    'et une interruption locale de la stratification');
+  b1.appendChild(lu);
+  if(e.ulcere){
+    const su=sousBloc(b1,'Ulcère',true);
+    const lsg=document.createElement('div'); lsg.className='ligne';
+    lsg.innerHTML='<span class="nom">Siège</span>';
+    pastilles(lsg,[{v:'fundus',l:'Fundus'},{v:'corps',l:'Corps'},
+      {v:'antre_pylore',l:'Antre / pylore'}],
+      ()=>e.ulcereSiege,x=>e.ulcereSiege=x,['fundus','corps','antre_pylore']);
+    su.appendChild(lsg);
+  } else e.ulcereSiege=null;
 
   const b2=bloc(box,'Contenu et motricité');
   const lc=document.createElement('div'); lc.className='ligne';
@@ -4363,18 +4542,44 @@ function rendreIntestins(){
     const seg=i[sg.k];
     const sb=sousBloc(b1, sg.l);
     const p=paroiSegment(sg.k), b=borneDigestive(sg.k);
-    const lp=champ(sb,'Épaisseur',()=>seg.paroi,x=>seg.paroi=x,'mm','0.1');
-    if(p) verdictTag(lp,p.lib, p.verdict==='haut'?'haut':'normal');
-    else if(b) verdictTag(lp,b.lib,'vide');
+    // Un segment se mesure en plusieurs points. Chaque point porte son
+    // Ã©paisseur et, facultativement, ses deux couches â mesurÃ©es lÃ , pas
+    // ailleurs. Le verdict du segment suit le point le plus Ã©pais.
+    const liste=mesuresSeg(seg);
+    liste.forEach((m, idx)=>{
+      const multi=liste.length>1;
+      const cible = multi ? sousBloc(sb, 'Mesure '+(idx+1)) : sb;
+      const lm=champ(cible,'Ãpaisseur',()=>m.paroi,x=>m.paroi=x,'mm','0.1');
+      if(m.paroi!=null && b && b.max!=null)
+        verdictTag(lm, b.lib, m.paroi>b.max?'haut':'normal');
+      else if(b) verdictTag(lm, b.lib, 'vide');
+      if(multi){
+        const x=document.createElement('button'); x.type='button';
+        x.className='pill mini btn-retirer'; x.textContent='×';
+        x.title='Retirer cette mesure';
+        x.setAttribute('aria-label','Retirer la mesure '+(idx+1)+' du '+sg.l.toLowerCase());
+        x.addEventListener('click',()=>{ liste.splice(idx,1); rendre(); });
+        lm.appendChild(x);
+      }
+      // Mesure des couches : facultative, mais c'est elle qui objective la part
+      // prise par la musculeuse quand l'épaisseur totale reste dans la norme.
+      ligneCouchesMesurees(cible, m, sg.k);
+    });
+    const la=document.createElement('div'); la.className='ligne';
+    const plus=document.createElement('button'); plus.type='button';
+    plus.className='pill mini btn-ajouter';
+    plus.textContent='＋ Ajouter une mesure';
+    plus.title='Mesurer le segment en un autre point : un seul point épaissi '+
+      'suffit à rendre le segment anormal';
+    plus.addEventListener('click',()=>{ liste.push(mesureSegVide()); rendre(); });
+    la.appendChild(plus); sb.appendChild(la);
     const ls=document.createElement('div'); ls.className='ligne';
     ls.innerHTML='<span class="nom">Stratification</span>';
     pastilles(ls,[{v:'conservee',l:'Conservée'},{v:'perdue',l:'Perdue'}],
       ()=>seg.strat,x=>seg.strat=x,['perdue'],'conservee');
     sb.appendChild(ls);
     ligneCouche(sb, seg);
-    // Mesure des couches : facultative, mais c'est elle qui objective la part
-    // prise par la musculeuse quand l'épaisseur totale reste dans la norme.
-    ligneCouchesMesurees(sb, seg, sg.k);
+    ligneEtendue(sb, seg, (p && p.verdict==='haut') || seg.couche!=null);
   });
 
   const b2=bloc(box,'Lumière et motricité');
@@ -4401,7 +4606,18 @@ function rendreIntestins(){
   interrupteur(lf,'Invagination',()=>i.invagination,x=>i.invagination=x,
     'Aspect en cible ou cocarde multicouches — elle se rate si on ne la cherche pas');
   interrupteur(lf,'Masse pariétale',()=>i.masse,x=>i.masse=x);
+  interrupteur(lf,'Ulcère',()=>i.ulcere,x=>i.ulcere=x,
+    'Perte de substance de la muqueuse : cratère, souvent avec du gaz piégé '+
+    'et une interruption locale de la stratification');
   b3.appendChild(lf);
+  if(i.ulcere){
+    const su=sousBloc(b3,'Ulcère',true);
+    const l=document.createElement('div'); l.className='ligne';
+    l.innerHTML='<span class="nom">Segment</span>';
+    pastilles(l, SEGMENTS.map(s=>({v:s.k, l:s.l})),
+      ()=>i.ulcereSeg, x=>i.ulcereSeg=x, SEGMENTS.map(s=>s.k));
+    su.appendChild(l);
+  } else i.ulcereSeg=null;
   if(i.corpsEtranger){
     const sc=sousBloc(b3,'Corps étranger',true);
     const l=document.createElement('div'); l.className='ligne';
@@ -4631,9 +4847,16 @@ function phraseEstomac(){
       (p.verdict ? ' : '+Q(p.verdict==='haut'?'épaissie':'dans les limites de la normale',
         p.verdict==='haut') : '')+
       (couchesImplicitementNormales(e)?', répartition des couches conservée':'')+'.');
-    if(e.couche) L.push('Épaississement portant sur '+
-      M(({muqueuse:'la muqueuse', sousmuqueuse:'la sous-muqueuse',
-          musculeuse:'la musculeuse', toutes:'l’ensemble des couches'})[e.couche],true)+'.');
+    // Étendue et strate dans la même phrase : « épaississement diffus portant
+    // sur la muqueuse », plutôt que deux lignes qui se répètent.
+    if(e.couche || e.etendue){
+      let t='Épaississement';
+      if(e.etendue) t+= e.etendue==='diffuse' ? ' diffus' : ' focal';
+      if(e.couche) t+=' portant sur '+({muqueuse:'la muqueuse',
+        sousmuqueuse:'la sous-muqueuse', musculeuse:'la musculeuse',
+        toutes:'l’ensemble des couches'})[e.couche];
+      L.push(M(t,true)+'.');
+    }
     const cE=partsCouches('estomac', e);
     if(cE){
       const b=[];
@@ -4647,6 +4870,12 @@ function phraseEstomac(){
     // L'anomalie porte sur le contenu ou la motricité : la paroi, elle, est muette.
     if(paroiEstomacMuette()) L.push(PHRASE_PAROI_NORMALE);
     if(horsDefaut(e.strat,'conservee')) L.push('Stratification pariétale '+M('perdue',true)+'.');
+  }
+  if(e.ulcere){
+    L.push(M('Perte de substance muqueuse'+
+      (e.ulcereSiege ? ' au niveau '+({fundus:'du fundus', corps:'du corps',
+        antre_pylore:'de l’antre et du pylore'})[e.ulcereSiege] : '')+
+      ', d’aspect ulcéré', true)+'.');
   }
   {
     const c=CONTENU_ESTOMAC.filter(o=>e.contenu.has(o.v)).map(o=>CONT[o.v]);
@@ -4680,8 +4909,13 @@ function phraseIntestins(){
   const COU={muqueuse:'la muqueuse', sousmuqueuse:'la sous-muqueuse',
              musculeuse:'la musculeuse', toutes:'l’ensemble des couches'};
   if(!anomalieIntestins()){
-    const d=SEGMENTS.filter(s=>i[s.k].paroi!=null)
-      .map(s=>s.l.toLowerCase()+' '+nb(i[s.k].paroi)+' mm');
+    // Plusieurs points par segment : on les liste tous, le CR doit refléter
+    // ce qui a été mesuré, pas seulement la valeur retenue pour le verdict.
+    const d=SEGMENTS.filter(s=>mesuresSeg(i[s.k]).some(m=>m.paroi!=null))
+      .map(s=>{
+        const v=mesuresSeg(i[s.k]).filter(m=>m.paroi!=null).map(m=>nb(m.paroi));
+        return s.l.toLowerCase()+' '+v.join(' / ')+' mm';
+      });
     const jug=intestinsJugeables();
     L.push((jug?'Examen dans les limites de la normale.':'')+
       (d.length?(jug?' Parois : ':'Parois : ')+(jug?V(d.join(', ')):d.join(', '))+'.':'')+
@@ -4711,11 +4945,24 @@ function phraseIntestins(){
     SEGMENTS.forEach(sg=>{
       const seg=i[sg.k], p=mesureSegment(sg.k), c=partsCouches(sg.k);
       const parts=[];
-      if(p) parts.push('paroi '+(p.verdict==='haut' ? M(nb(p.v)+' mm',true)
-          : (p.verdict==='normal' ? V(nb(p.v)+' mm') : nb(p.v)+' mm'))+
-        ' ('+p.lib+')');
+      if(p){
+        // Toutes les mesures du segment, la plus épaisse étant celle jugée.
+        const vals=mesuresSeg(seg).filter(m=>m.paroi!=null).map(m=>m.paroi);
+        const rendu=vals.map(x=>{
+          const haut = p.max!=null && x>p.max;
+          const t=nb(x);
+          return haut ? M(t,true) : (p.verdict==null ? t : V(t));
+        }).join(' / ');
+        parts.push('paroi '+rendu+' mm'+(vals.length>1?' ('+vals.length+' mesures, '+p.lib+')':' ('+p.lib+')'));
+      }
       if(horsDefaut(seg.strat,'conservee')) parts.push(M('stratification perdue',true));
-      if(seg.couche) parts.push(M('épaississement de '+COU[seg.couche],true));
+      // Étendue et strate réunies : « épaississement focal de la muqueuse ».
+      if(seg.couche || seg.etendue){
+        let te='épaississement';
+        if(seg.etendue) te+= seg.etendue==='diffuse' ? ' diffus' : ' focal';
+        if(seg.couche) te+=' de '+COU[seg.couche];
+        parts.push(M(te,true));
+      }
       if(couchesImplicitementNormales(seg)) parts.push('répartition des couches conservée');
       if(c){
         const b=[];
@@ -4752,6 +4999,11 @@ function phraseIntestins(){
   }
 
   if(i.corpsEtranger) L.push(M('Corps étranger intestinal'+(i.ceDesc?' — '+i.ceDesc:''),true)+'.');
+  if(i.ulcere){
+    const su=SEGMENTS.find(s=>s.k===i.ulcereSeg);
+    L.push(M('Perte de substance muqueuse'+(su?' au niveau du '+su.l.toLowerCase():'')+
+      ', d’aspect ulcéré', true)+'.');
+  }
   if(i.invagination){
     const SI={jejunale:'jéjuno-jéjunale', ileocolique:'iléo-colique', autre:''};
     L.push(M('Image en cocarde multicouches compatible avec une invagination'+
@@ -4885,9 +5137,24 @@ function syntheseDigestive(items, lignes){
     }
     if(p && p.verdict==='haut'){
       items.push({t:'paroi gastrique épaissie', c:e.strat==='perdue'?'alerte':''});
-      lignes.push('Paroi gastrique épaissie'+(e.strat==='perdue'
-        ? ' avec perte de stratification : infiltration néoplasique — adénocarcinome, lymphome, mastocytose'
-        : ' avec stratification conservée : gastrite')+'.');
+      lignes.push('Paroi gastrique épaissie'+
+        (e.etendue==='focale' ? ', de façon focale' : '')+
+        (e.strat==='perdue'
+          ? ' avec perte de stratification : infiltration néoplasique — adénocarcinome, lymphome, mastocytose'
+          : ' avec stratification conservée : gastrite')+'.');
+    }
+    // L'ulcère ne se lit pas seul : c'est son association à un épaississement
+    // qui fait basculer du médical vers le tumoral.
+    if(e.ulcere){
+      const epais = p && p.verdict==='haut';
+      items.push({t:'ulcère gastrique', c:'alerte'});
+      lignes.push('Perte de substance muqueuse gastrique'+
+        (epais
+          ? ' sur paroi épaissie : ulcère tumoral jusqu’à preuve du contraire — adénocarcinome, '+
+            'lymphome, mastocytose. Un gastrinome reste possible si le siège est antro-pylorique.'
+          : ' sans épaississement pariétal : ulcère médical — anti-inflammatoires, '+
+            'urémie, hypoadrénocorticisme, stress. Le mastocytome reste à écarter.')+
+        ' Risque de perforation : à confronter à l’état général et à la douleur.');
     }
     const cE=partsCouches('estomac', e);
     if(e.couche==='musculeuse' || (cE && cE.musHaut)){
@@ -4928,10 +5195,31 @@ function syntheseDigestive(items, lignes){
         (stratPerdue.length<SEGMENTS.length?' ('+stratPerdue.map(s=>s.l.toLowerCase()).join(', ')+')':'')+
         ' : infiltration néoplasique — lymphome, adénocarcinome, mastocytose.');
     } else if(epaissis.length){
-      items.push({t:'parois épaissies', c:''});
-      lignes.push('Parois épaissies avec stratification conservée'+
-        (epaissis.length<SEGMENTS.length?' ('+epaissis.map(s=>s.l.toLowerCase()).join(', ')+')':'')+
-        ' : entéropathie inflammatoire.');
+      // Un épaississement focal ne se lit pas comme un épaississement diffus :
+      // le diffus est infiltratif ou inflammatoire, le focal est une lésion.
+      const focaux=epaissis.filter(s=>i[s.k].etendue==='focale');
+      if(focaux.length===epaissis.length){
+        items.push({t:'épaississement focal', c:''});
+        lignes.push('Épaississement focal avec stratification conservée'+
+          (epaissis.length<SEGMENTS.length?' ('+epaissis.map(s=>s.l.toLowerCase()).join(', ')+')':'')+
+          ' : lésion localisée — réaction de voisinage, cicatrice, processus tumoral débutant. '+
+          'Une entéropathie diffuse rend mal compte d’une atteinte limitée à un segment.');
+      } else {
+        items.push({t:'parois épaissies', c:''});
+        lignes.push('Parois épaissies avec stratification conservée'+
+          (epaissis.length<SEGMENTS.length?' ('+epaissis.map(s=>s.l.toLowerCase()).join(', ')+')':'')+
+          ' : entéropathie inflammatoire.'+
+          (focaux.length?' Atteinte focale sur '+focaux.map(s=>s.l.toLowerCase()).join(', ')+
+            ' : y rechercher une lésion propre.':''));
+      }
+    }
+    if(i.ulcere){
+      const su=SEGMENTS.find(s=>s.k===i.ulcereSeg);
+      items.push({t:'ulcère intestinal', c:'alerte'});
+      lignes.push('Perte de substance muqueuse'+(su?' du '+su.l.toLowerCase():' intestinale')+
+        ' : ulcération — corps étranger, anti-inflammatoires, processus tumoral, '+
+        'mastocytome. Risque de perforation et de péritonite : à confronter à '+
+        'l’épanchement et à l’état général.');
     }
     if(muscle.length){
       items.push({t:'musculeuse épaissie', c:''});
@@ -5048,7 +5336,8 @@ function syntheseDigestive(items, lignes){
 
 // ===================== PANCRÉAS =====================
 // ┌──────────────────────────────────────────────────────────────────────────┐
-// │ VALEURS DE RÉFÉRENCE PANCRÉATIQUES — valeurs de Bébou (08/10/2026).      │
+// │ VALEURS DE RÉFÉRENCE PANCRÉATIQUES — valeurs de Bébou (08/10/2026),      │
+// │ rattachées par lui à Penninck & d'Anjou 2e éd. (03/11/2026).             │
 // │ Épaisseur par lobe. Chez le chat, les bornes changent avec l'âge, et le  │
 // │ lobe gauche est plus épais que le droit — c'est aussi le plus accessible.│
 // │ Le corps et le canal du chien sont donnés en valeur unique dans la       │
@@ -5962,6 +6251,22 @@ function rendreDocument(blocs, synth){
 
   z.appendChild(docCorps(blocs, synth));
 
+  // Sources des valeurs de référence, limitées aux organes décrits.
+  const src=sourcesDuCR(blocs);
+  if(src.citees.length || src.nonVerifiees.length){
+    const bs=document.createElement('div'); bs.className='doc-sources';
+    const h=document.createElement('div'); h.className='org'; h.textContent='Valeurs de référence';
+    bs.appendChild(h);
+    src.citees.forEach(l=>{ const q=document.createElement('p'); q.textContent=l; bs.appendChild(q); });
+    if(src.nonVerifiees.length){
+      const q=document.createElement('p'); q.className='sans-source';
+      q.textContent='Non rapportées à une source publiée : '+
+        src.nonVerifiees.join(', ').toLowerCase()+'.';
+      bs.appendChild(q);
+    }
+    z.appendChild(bs);
+  }
+
   const pi=document.createElement('div'); pi.className='doc-pied';
   // Étendue de l'examen, si elle a été déclarée. Elle lève l'ambiguïté du
   // silence : un organe dont le CR ne dit rien n'est pas un organe normal.
@@ -6001,6 +6306,16 @@ function crTexteBrut(blocs, synth){
     T.push('');
   });
   if(synth && synth.length){ T.push('SYNTHÈSE'); synth.forEach(l=>T.push(l)); T.push(''); }
+  {
+    const src=sourcesDuCR(blocs);
+    if(src.citees.length || src.nonVerifiees.length){
+      T.push('VALEURS DE RÉFÉRENCE');
+      src.citees.forEach(l=>T.push(l));
+      if(src.nonVerifiees.length)
+        T.push('Non rapportées à une source publiée : '+src.nonVerifiees.join(', ').toLowerCase()+'.');
+      T.push('');
+    }
+  }
   { const prot=mentionProtocole(); if(prot){ T.push(prot); T.push(''); } }
   // Même ordre que le document : les images ferment le compte-rendu.
   const groupes=blocs.filter(x=>(x.img||[]).length);
@@ -6203,28 +6518,46 @@ function genererCR(lignesSynth){
   // Ordre de remplissage : gauche puis droit, comme à l'écran.
   const pTG=phraseTesticule('G'), pTD=phraseTesticule('D');
   const blocs=[
-    {t:avecNote(pG,'rein_G'), img:imagesDe('rein_G')},
-    {t:avecNote(pD,'rein_D'), img:imagesDe('rein_D')},
+    {cle:'vessie', t:avecNote(pV,'vessie'), img:imagesDe('vessie')},
+    {cle:'rein_G', t:avecNote(pG,'rein_G'), img:imagesDe('rein_G')},
+    {cle:'rein_D', t:avecNote(pD,'rein_D'), img:imagesDe('rein_D')},
     {t:phraseEcartReins()},
-    {t:avecNote(pV,'vessie'), img:imagesDe('vessie')},
-    {t:avecNote(pP,'prostate'), img:imagesDe('prostate')},
-    {t:avecNote(pTG,'testicule_G'), img:imagesDe('testicule_G')},
-    {t:avecNote(pTD,'testicule_D'), img:imagesDe('testicule_D')},
+    {cle:'prostate', t:avecNote(pP,'prostate'), img:imagesDe('prostate')},
+    {cle:'testicule_G', t:avecNote(pTG,'testicule_G'), img:imagesDe('testicule_G')},
+    {cle:'testicule_D', t:avecNote(pTD,'testicule_D'), img:imagesDe('testicule_D')},
     {t:phraseEcartTesticules()},
-    {t:avecNote(pU,'uterus'), img:imagesDe('uterus')},
-    {t:avecNote(pOG,'ovaire_G'), img:imagesDe('ovaire_G')},
-    {t:avecNote(pOD,'ovaire_D'), img:imagesDe('ovaire_D')},
-    {t:avecNote(phraseFoie(),'foie'), img:imagesDe('foie')},
-    {t:avecNote(phraseVB(),'vb'), img:imagesDe('vb')},
-    {t:avecNote(phraseSurrenale('G'),'surrenale_G'), img:imagesDe('surrenale_G')},
-    {t:avecNote(phraseSurrenale('D'),'surrenale_D'), img:imagesDe('surrenale_D')},
-    {t:avecNote(phraseRate(),'rate'), img:imagesDe('rate')},
-    {t:avecNote(phraseEstomac(),'estomac'), img:imagesDe('estomac')},
-    {t:avecNote(phraseIntestins(),'intestins'), img:imagesDe('intestins')},
-    {t:avecNote(phrasePancreas(),'pancreas'), img:imagesDe('pancreas')},
-    {t:avecNote(phraseNL(),'nl'), img:imagesDe('nl')},
-    {t:avecNote(phraseVasc(),'vasc'), img:imagesDe('vasc')}
-  ].filter(x=>x.t);
+    {cle:'uterus', t:avecNote(pU,'uterus'), img:imagesDe('uterus')},
+    {cle:'ovaire_G', t:avecNote(pOG,'ovaire_G'), img:imagesDe('ovaire_G')},
+    {cle:'ovaire_D', t:avecNote(pOD,'ovaire_D'), img:imagesDe('ovaire_D')},
+    {cle:'surrenale_G', t:avecNote(phraseSurrenale('G'),'surrenale_G'), img:imagesDe('surrenale_G')},
+    {cle:'surrenale_D', t:avecNote(phraseSurrenale('D'),'surrenale_D'), img:imagesDe('surrenale_D')},
+    {cle:'foie', t:avecNote(phraseFoie(),'foie'), img:imagesDe('foie')},
+    {cle:'vb', t:avecNote(phraseVB(),'vb'), img:imagesDe('vb')},
+    {cle:'rate', t:avecNote(phraseRate(),'rate'), img:imagesDe('rate')},
+    {cle:'estomac', t:avecNote(phraseEstomac(),'estomac'), img:imagesDe('estomac')},
+    {cle:'intestins', t:avecNote(phraseIntestins(),'intestins'), img:imagesDe('intestins')},
+    {cle:'pancreas', t:avecNote(phrasePancreas(),'pancreas'), img:imagesDe('pancreas')},
+    {cle:'nl', t:avecNote(phraseNL(),'nl'), img:imagesDe('nl')},
+    {cle:'vasc', t:avecNote(phraseVasc(),'vasc'), img:imagesDe('vasc')}
+  ];
+  // Pancréas, nœuds et vaisseaux : s'ils n'ont rien produit alors que l'examen
+  // a décrit d'autres organes, on les mentionne quand même — leur absence pure
+  // se lirait comme un oubli. La substitution se fait EN PLACE, pour que le
+  // bloc reste à son rang dans le document. Un organe qui a produit du texte,
+  // que l'opérateur a dit non exploré, ou qui porte une ligne libre, garde le
+  // sien : seule une case entièrement vide reçoit la mention.
+  {
+    const dejaDecrit = blocs.some(x=>x.t && !MENTIONS_DEFAUT[x.cle]);
+    blocs.forEach(x=>{
+      if(x.t || !MENTIONS_DEFAUT[x.cle]) return;
+      x.t = mentionDefaut(x.cle, dejaDecrit);
+      // Marqué : aucune valeur n'a été mesurée, donc aucune référence n'a
+      // servi. Le bloc des sources doit l'ignorer.
+      if(x.t) x.defaut = true;
+    });
+  }
+  // Seuls les blocs porteurs de texte partent au document.
+  const blocsRendus = blocs.filter(x=>x.t);
   const synth=[];
   if(lignesSynth.length) lignesSynth.forEach(l=>synth.push(l));
   else if(pD && pG && !lignesSynth.alerte && !S.D.nonVu && !S.G.nonVu)
@@ -6238,12 +6571,12 @@ function genererCR(lignesSynth){
 
   const synthFinale = syntheseEffective(synth);
   rendreReglageSynthese(synth);
-  rendreDocument(S.espece ? blocs : [], synthFinale);
+  rendreDocument(S.espece ? blocsRendus : [], synthFinale);
   // Le texte brut reste disponible pour le coller dans un logiciel métier.
   zb.hidden = !S.brut;
-  zb.className = blocs.length ? '' : 'cr-vide';
-  zb.textContent = blocs.length
-    ? crTexteBrut(blocs, synthFinale)
+  zb.className = blocsRendus.length ? '' : 'cr-vide';
+  zb.textContent = blocsRendus.length
+    ? crTexteBrut(blocsRendus, synthFinale)
     : 'Renseigner l’espèce et au moins un organe pour générer le compte-rendu.';
 }
 
@@ -6333,6 +6666,14 @@ function appliquerInstantane(doc){
   });
   SEGMENTS.forEach(s=>{
     if(!S.intestins[s.k] || typeof S.intestins[s.k]!=='object') S.intestins[s.k]=segmentVide();
+    const sg=S.intestins[s.k];
+    // Fichier antérieur aux mesures multiples : l'épaisseur unique devient la
+    // première mesure, plutôt que d'être perdue au rechargement.
+    if(!Array.isArray(sg.mesures) || !sg.mesures.length){
+      sg.mesures=[{paroi:(sg.paroi!=null?sg.paroi:null),
+                   muq:(sg.muq!=null?sg.muq:null), mus:(sg.mus!=null?sg.mus:null)}];
+      delete sg.paroi; delete sg.muq; delete sg.mus;
+    }
   });
   LOBES_PANCREAS.forEach(l=>{
     if(!S.pancreas[l.k] || typeof S.pancreas[l.k]!=='object')
@@ -6582,7 +6923,8 @@ function dialogueCharger(){
 // Efface le patient et tout l'examen, et RIEN d'autre. L'en-tête de clinique,
 // le dossier d'enregistrement choisi et la série en cours sont des réglages
 // de poste, pas des données du patient : les perdre à chaque animal ferait
-// de la RAZ un bouton qu'on évite d'utiliser.
+// de la RAZ un bouton qu'on évite d'utiliser, et un bouton qu'on évite ne
+// protège de rien.
 function remiseAZero(){
   ORGANES_MODELE.forEach(([cle,modele])=>{
     if(cle==='entete') return;              // réglage de clinique, conservé
@@ -6594,7 +6936,7 @@ function remiseAZero(){
   S.images={}; S.notes={};
   S.synthese={inclure:true, texte:null};
   S.brut=false;
-  S.ouvert={entete:S.ouvert&&S.ouvert.entete||false, patient:true};
+  S.ouvert={entete:(S.ouvert&&S.ouvert.entete)||false, patient:true};
   rendre();
 }
 function dialogueRAZ(){
@@ -6611,7 +6953,8 @@ function dialogueRAZ(){
     b.appendChild(g);
     const act=document.createElement('div'); act.className='modale-actions';
     boutonModale(act,'Annuler',fermer);
-    // La vraie sécurité n'est pas de redemander, c'est de proposer de sauver.
+    // La vraie sécurité n'est pas de redemander, c'est de proposer de sauver :
+    // on clique « oui » par réflexe, on ne perd pas un fichier enregistré.
     if(rempli) boutonModale(act,'Enregistrer d’abord…',()=>{ fermer(); dialogueEnregistrer(); });
     boutonModale(act, rempli?'Effacer l’examen':'Repartir à zéro', ()=>{
       fermer(); remiseAZero();
