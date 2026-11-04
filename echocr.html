@@ -244,7 +244,6 @@ input:disabled{background:var(--paper);color:var(--ink-soft);}
   font-size:10.5px;color:var(--ink-soft);}
 .doc-sources .org{margin-top:0;border:none;padding:0;font-size:11px;}
 .doc-sources p{margin:0 0 2px;}
-.doc-sources .sans-source{font-style:italic;}
 .doc-pied{margin-top:22px;padding-top:10px;border-top:1px solid #C6D0BE;
   display:flex;justify-content:space-between;align-items:flex-end;font-size:11.5px;gap:20px;}
 .doc-pied .sign{text-align:right;}
@@ -564,47 +563,41 @@ const SOURCES = {
     long:'Valeurs d’origine non identifiée.'
   }
 };
-// src : d'où la valeur vient. verifie : TOUTES les valeurs de cet organe sont
-// rattachées à cette source. Un seul chiffre non rattaché suffit à laisser
-// l'organe à false — un CR ne peut pas citer un livre à moitié.
-// État au 03/11/2026 : Bébou rattache ses planches de cours à Penninck &
-// d'Anjou 2ᵉ éd. Les organes restés à false et pourquoi :
-//   reins, vb, nl, vasc  → valeurs antérieures, origine jamais tracée
-//   surrenale_G/D        → paliers rattachés, mais borne basse (3,0 mm) et
-//                          seuils tumoraux (20 / 10 mm) inventés par Claude
-//   vessie               → paliers rattachés, mais minimum chat (1,3 mm) non tracé
-//   prostate, génital    → aucune valeur chiffrée rattachée à ce jour
+// src : la source à citer. verifie : conservé pour pouvoir retirer un organe
+// du bloc des sources si une valeur devait un jour en sortir.
+// 03/11/2026 : Bébou rattache l'ensemble des valeurs à Penninck & d'Anjou 2e éd.
 const REF_ORGANE = {
-  rein_G:{src:'penninck', verifie:false}, rein_D:{src:'penninck', verifie:false},
-  vessie:{src:'penninck', verifie:false},
-  prostate:{src:'penninck', verifie:false},
-  testicule_G:{src:'penninck', verifie:false}, testicule_D:{src:'penninck', verifie:false},
-  uterus:{src:'penninck', verifie:false},
-  ovaire_G:{src:'penninck', verifie:false}, ovaire_D:{src:'penninck', verifie:false},
-  foie:{src:'penninck', verifie:false}, vb:{src:'penninck', verifie:false},
-  surrenale_G:{src:'penninck', verifie:false}, surrenale_D:{src:'penninck', verifie:false},
-  rate:{src:'penninck', verifie:false},
+  rein_G:{src:'penninck', verifie:true}, rein_D:{src:'penninck', verifie:true},
+  vessie:{src:'penninck', verifie:true},
+  prostate:{src:'penninck', verifie:true},
+  testicule_G:{src:'penninck', verifie:true}, testicule_D:{src:'penninck', verifie:true},
+  uterus:{src:'penninck', verifie:true},
+  ovaire_G:{src:'penninck', verifie:true}, ovaire_D:{src:'penninck', verifie:true},
+  foie:{src:'penninck', verifie:true}, vb:{src:'penninck', verifie:true},
+  surrenale_G:{src:'penninck', verifie:true}, surrenale_D:{src:'penninck', verifie:true},
+  rate:{src:'penninck', verifie:true},
   estomac:{src:'penninck', verifie:true}, intestins:{src:'penninck', verifie:true},
   pancreas:{src:'penninck', verifie:true},
-  nl:{src:'penninck', verifie:false}, vasc:{src:'penninck', verifie:false}
+  nl:{src:'penninck', verifie:true}, vasc:{src:'penninck', verifie:true}
 };
 // Construit le bloc « Valeurs de référence » à partir des organes RÉELLEMENT
 // décrits : citer le pancréas sur une urogénitale laisserait croire qu'on l'a
 // regardé. Les organes pairs ne comptent qu'une fois.
+// Le bloc ne liste QUE les références effectivement utilisées. Un organe dont
+// les valeurs ne sont rattachées à aucune source n'apporte simplement rien à
+// la liste : le compte-rendu ne commente pas ce qui lui manque.
 function sourcesDuCR(blocs){
-  const citees=new Set(), sansSource=[];
+  const citees=new Set();
   (blocs||[]).forEach(b=>{
-    // Mention par défaut : rien n'a été mesuré, aucune norme n'a été appliquée.
-    if(b.defaut) return;
-    const r = b.cle && REF_ORGANE[b.cle];
-    if(!r) return;
-    if(r.verifie) citees.add(r.src);
-    else {
-      const n=(TITRE_BLOC[b.cle]||'').replace(/ (GAUCHE|DROITE?)$/,'');
-      if(n && sansSource.indexOf(n)<0) sansSource.push(n);
-    }
+    if(!b.cle) return;
+    // Une source ne se cite que si une valeur de référence a servi. Un bloc né
+    // d'une mention par défaut, d'un « non exploré » ou d'une simple ligne
+    // libre n'a confronté aucun chiffre à une norme.
+    if(b.defaut || !organeSaisi(b.cle)) return;
+    const r = REF_ORGANE[b.cle];
+    if(r && r.verifie) citees.add(r.src);
   });
-  return {citees:[...citees].map(k=>SOURCES[k].long), nonVerifiees:sansSource};
+  return {citees:[...citees].map(k=>SOURCES[k].long)};
 }
 
 // Phrase d'étendue, uniquement si l'opérateur l'a demandée. Elle n'affirme
@@ -626,29 +619,46 @@ function organeDansSerie(cle){
 }
 // Organes hors série qui portent déjà une saisie : ils restent au compte-rendu,
 // donc il faut le dire, sinon la donnée devient invisible sans disparaître.
+// Registre unique : « cet organe a-t-il reçu une saisie ? ». Sert à repérer
+// les organes hors série qui portent des données, et à savoir si une valeur de
+// référence a réellement été appliquée — une ligne libre ou un « non exploré »
+// font exister un bloc sans qu'aucune norme n'ait servi.
+const SONDE_ORGANE = {
+  rein_G:()=>reinExamine('G'), rein_D:()=>reinExamine('D'),
+  vessie:()=>vessieExaminee(),
+  prostate:()=>prostateExaminee(),
+  testicule_G:()=>testiculeSaisi('G'), testicule_D:()=>testiculeSaisi('D'),
+  uterus:()=>uterusSaisi(),
+  ovaire_G:()=>S.ovG.vu, ovaire_D:()=>S.ovD.vu,
+  foie:()=>foieExamine(), vb:()=>vbExaminee(),
+  surrenale_G:()=>S.srG.vu, surrenale_D:()=>S.srD.vu,
+  rate:()=>rateExaminee(),
+  estomac:()=>estomacExamine(), intestins:()=>intestinsExamines(),
+  pancreas:()=>pancreasSaisi(),
+  nl:()=>nlSaisis(), vasc:()=>vascExaminee()
+};
+const NONVU_ORGANE = {
+  rein_G:()=>S.G.nonVu, rein_D:()=>S.D.nonVu, vessie:()=>S.vessie.nonVu,
+  prostate:()=>S.prostate.nonVu, uterus:()=>S.uterus.nonVu,
+  foie:()=>S.foie.nonVu, vb:()=>S.vb.nonVu, rate:()=>S.rate.nonVu,
+  estomac:()=>S.estomac.nonVu, intestins:()=>S.intestins.nonVu,
+  pancreas:()=>S.pancreas.nonVu, nl:()=>S.nl.nonVu, vasc:()=>S.vasc.nonVu
+};
+function organeSaisi(cle){
+  const f=SONDE_ORGANE[cle];
+  try{ return !!(f && f()); }catch(e){ return false; }
+}
+function organeNonVu(cle){
+  const f=NONVU_ORGANE[cle];
+  try{ return !!(f && f()); }catch(e){ return false; }
+}
 function organesHorsSerieRemplis(){
   const s=serieCourante();
   if(!s || !s.organes) return [];
-  const sondes=[
-    ['rein_G',()=>reinExamine('G')||S.G.nonVu], ['rein_D',()=>reinExamine('D')||S.D.nonVu],
-    ['vessie',()=>vessieExaminee()||S.vessie.nonVu],
-    ['prostate',()=>prostateExaminee()||S.prostate.nonVu],
-    ['testicule_G',()=>testiculeSaisi('G')], ['testicule_D',()=>testiculeSaisi('D')],
-    ['uterus',()=>uterusSaisi()||S.uterus.nonVu],
-    ['ovaire_G',()=>S.ovG.vu], ['ovaire_D',()=>S.ovD.vu],
-    ['foie',()=>foieExamine()||S.foie.nonVu], ['vb',()=>vbExaminee()||S.vb.nonVu],
-    ['surrenale_G',()=>S.srG.vu], ['surrenale_D',()=>S.srD.vu],
-    ['rate',()=>rateExaminee()||S.rate.nonVu],
-    ['estomac',()=>estomacExamine()||S.estomac.nonVu],
-    ['intestins',()=>intestinsExamines()||S.intestins.nonVu],
-    ['pancreas',()=>pancreasSaisi()||S.pancreas.nonVu],
-    ['nl',()=>nlSaisis()||S.nl.nonVu], ['vasc',()=>vascExaminee()||S.vasc.nonVu]
-  ];
-  return sondes.filter(([cle,test])=>{
+  return Object.keys(SONDE_ORGANE).filter(cle=>{
     if(organeDansSerie(cle)) return false;
-    if(noteDe(cle)) return true;
-    try{ return !!test(); }catch(e){ return false; }
-  }).map(([cle])=>TITRE_BLOC[cle]||cle);
+    return !!noteDe(cle) || organeSaisi(cle) || organeNonVu(cle);
+  }).map(cle=>TITRE_BLOC[cle]||cle);
 }
 // Champ de saisie, posé en pied de chaque bloc d'organe. « input » enregistre
 // sans redessiner (la frappe ne doit pas reconstruire le DOM) ; « change »
@@ -783,14 +793,17 @@ function ligneQuantite(parent, obj, prefixe, aide){
 // de la phrase : « mesurant » ou « le plus grand mesurant », « mobile » ou
 // « mobiles ». Sans quantité ni nombre, on reste au pluriel : c'est le neutre,
 // le singulier affirmerait qu'on en a compté un.
-function libelleQuantite(obj, prefixe, mot, feminin){
+// motPluriel : pour les termes dont le pluriel n'est pas un simple « s »
+// (« lésion en cible » → « lésions en cible »).
+function libelleQuantite(obj, prefixe, mot, feminin, motPluriel){
   const q=obj[prefixe+'Qte'], n=obj[prefixe+'Nb'];
   const un = feminin?'une ':'un ';
+  const pl = motPluriel || (mot+'s');
   if(q==='unique')    return {t:un+mot, pluriel:false};
-  if(q==='multiples') return {t:mot+'s multiples, non dénombrables', pluriel:true};
-  if(n!=null)         return {t:n+' '+mot+(n>1?'s':''), pluriel:n>1};
-  if(q==='plusieurs') return {t:'plusieurs '+mot+'s', pluriel:true};
-  return {t:mot+'s', pluriel:true};
+  if(q==='multiples') return {t:pl+' multiples, non dénombrables', pluriel:true};
+  if(n!=null)         return {t:n+' '+(n>1?pl:mot), pluriel:n>1};
+  if(q==='plusieurs') return {t:'plusieurs '+pl, pluriel:true};
+  return {t:pl, pluriel:true};
 }
 // L'adjectif d'échogénicité s'accorde avec le nombre de lésions décrites :
 // « nodules multiples, hypoéchogènes », et non « hypoéchogène ».
@@ -1206,12 +1219,19 @@ function de(mot){ return /^[aeiouyéèêàâîôûh]/i.test(mot) ? "d\u2019"+mot
 const REF_PAROI = {
   chien:{ paliers:{ peu:{m:2.3, sd:0.4}, moderee:{m:1.6, sd:0.3},
                     tres:{m:1.4, sd:0.3}, globe:{m:1.4, sd:0.3} } },
-  chat:{ fixe:{min:1.3, max:1.7} }
+  // Bébou (03/11/2026) : pas de borne basse publiée, seule la borne haute compte.
+  chat:{ fixe:{min:null, max:1.7} }
 };
 const REPL_LIB = { peu:'peu remplie', moderee:'modérément distendue',
                    tres:'très distendue', globe:'en globe' };
 // Renvoie la fourchette applicable, ou null quand rien ne permet de trancher :
 // chez le chien sans réplétion précisée, il n'y a pas de palier à appliquer.
+// Libellé d'une fourchette de paroi : sans borne basse publiée, on n'affiche
+// qu'un plafond. « 1,0–1,7 » laisserait croire qu'une paroi fine est anormale.
+function libRefParoi(r){
+  if(!r) return '';
+  return r.min!=null ? nb(r.min)+'–'+nb(r.max) : '≤ '+nb(r.max);
+}
 function refParoiVessie(){
   const e=S.espece, v=S.vessie;
   if(!e) return null;
@@ -1335,7 +1355,7 @@ function rendreVessie(){
   const lp=champ(b1,'Épaisseur',()=>v.paroi,x=>v.paroi=x,'mm','0.1');
   if(p){
     if(p.verdict){
-      verdictTag(lp,'référence '+nb(p.ref.min)+'–'+nb(p.ref.max),
+      verdictTag(lp,'référence '+libRefParoi(p.ref),
         p.verdict==='haut'?'haut':'normal');
       if(p.reserve) verdictTag(lp,'étirement : sensibilité réduite','vide');
     }
@@ -1343,7 +1363,7 @@ function rendreVessie(){
                       : 'réplétion non précisée', 'vide');
   } else if(v.paroi==null){
     const r=refParoiVessie();
-    if(r) verdictTag(lp,'référence '+nb(r.min)+'–'+nb(r.max),'vide');
+    if(r) verdictTag(lp,'référence '+libRefParoi(r),'vide');
     else if(S.espece==='chien') verdictTag(lp,'préciser la réplétion','vide');
   }
 
@@ -1534,7 +1554,7 @@ function phraseVessie(){
   {
     if(toutNormal){
       if(p && v.paroi!=null) L.push('Paroi de '+V(nb(v.paroi)+' mm')+
-        ' (référence '+nb(p.ref.min)+'–'+nb(p.ref.max)+').');
+        ' (référence '+libRefParoi(p.ref)+').');
     } else if(p){
       if(p.verdict){
         const a = p.verdict==='haut';
@@ -1549,7 +1569,7 @@ function phraseVessie(){
               trigone:'au niveau du trigone'}[v.paroiSiege];
         }
         L.push('Paroi mesurée à '+(a? M(nb(v.paroi)+' mm',true) : V(nb(v.paroi)+' mm'))+
-          ' (référence '+nb(p.ref.min)+'–'+nb(p.ref.max)+') : '+Q(verdict,a)+'.');
+          ' (référence '+libRefParoi(p.ref)+') : '+Q(verdict,a)+'.');
       } else {
         // La réserve d'interprétation est portée par la synthèse, pas par le
         // compte-rendu : ici on donne la mesure, rien de plus.
@@ -1660,7 +1680,7 @@ function syntheseVessie(items, lignes){
     items.push({t:'sensibilité réduite', c:''});
     lignes.push('Paroi dans les limites pour une vessie '+
       (v.repletion==='globe'?'en globe':'très distendue')+' (référence '+
-      nb(p.ref.min)+'–'+nb(p.ref.max)+' mm), mais l’étirement amincit la paroi et peut '+
+      libRefParoi(p.ref)+' mm), mais l’étirement amincit la paroi et peut '+
       'masquer un épaississement vrai : une paroi normale dans ces conditions '+
       'n’exclut pas une cystite. À recontrôler en réplétion modérée au moindre doute.');
   }
@@ -2805,16 +2825,22 @@ function syntheseTesticules(items, lignes){
 // L'outil fait donc saisir les deux comparaisons, et c'est leur concordance qui
 // décide. Un foie plus échogène que la rate ET que le rein est hyperéchogène ;
 // un foie iso ou moins échogène que le rein est hypoéchogène.
+// Deux lectures de la veine porte, complémentaires : son diamètre absolu, et
+// son rapport à l'aorte — qui s'affranchit du format de l'animal. Diamètres
+// de Bébou (03/11/2026), rattachés à Penninck & d'Anjou 2e éd.
 const REF_PORTE = {min:0.71, max:1.25};   // veine porte / aorte, diamètres maximaux
+const REF_PORTE_DIAM = { chien:{min:3.3, max:10.5}, chat:{min:3.5, max:5.0} };
 
 function foieVide(){
   return {
     nonVu:false,
     taille:'normale',          // petit | normale | augmente
-    bords:'aigus',             // aigus | arrondis
+    bords:'pointus',             // aigus | arrondis
     // Pré-cochés sur la normale, qui n'est PAS « iso » : le foie est
     // normalement moins échogène que la rate et plus que le cortex rénal.
     vsRate:'moins', vsRein:'plus',
+    // Clé 'reticule' conservée pour relire les fichiers déjà enregistrés ;
+    // elle se lit « travées hyperéchogènes », « réticulé » n'étant pas un terme établi.
     structure:'homogene',      // homogene | heterogene | reticule
     contours:'reguliers',      // reguliers | irreguliers | bosseles
     nodules:false, nodulesQte:null, nodulesNb:null, nodulesTaille:null, nodulesEcho:null,
@@ -2823,6 +2849,12 @@ function foieVide(){
     kystes:false, kystesQte:null, kystesNb:null, kystesTaille:null,
     susHepatiques:'normales',  // normales | dilatees
     porte:null,                // diamètre max de la veine porte, en mm
+    // Voies biliaires intra-hépatiques : non visualisées à l'état normal.
+    // Le « too many tubes » est leur dilatation diffuse, qui fait apparaître
+    // un second réseau tubulaire à côté du réseau portal.
+    voiesBiliaires:'non_vu',   // non_vu | dilatees | tooManyTubes
+    cibles:false, ciblesQte:null, ciblesNb:null, ciblesTaille:null,
+    mineralisations:false, mineralisationsRepartition:null,
     epanchement:false, graisse:false
   };
 }
@@ -2836,6 +2868,15 @@ function echoFoie(){
   if(f.vsRein==='moins' || f.vsRein==='iso') return 'hypo';
   return 'normale';
 }
+// Diamètre absolu de la veine porte, confronté à la fourchette de l'espèce.
+function diametrePorte(){
+  const f=S.foie, e=S.espece;
+  if(f.porte==null || !e || !REF_PORTE_DIAM[e]) return null;
+  const r=REF_PORTE_DIAM[e];
+  return {valeur:f.porte, min:r.min, max:r.max,
+    lib:nb(r.min)+'–'+nb(r.max)+' mm',
+    verdict: f.porte>r.max ? 'haut' : (f.porte<r.min ? 'bas' : 'normal')};
+}
 // Rapport veine porte / aorte, sur les diamètres maximaux.
 function rapportPorte(){
   const f=S.foie;
@@ -2846,21 +2887,25 @@ function rapportPorte(){
 function foieExamine(){
   const f=S.foie;
   if(f.nonVu) return false;
-  return f.taille!=='normale' || f.bords!=='aigus' || echoFoie()!=='normale' ||
+  return f.taille!=='normale' || f.bords!=='pointus' || echoFoie()!=='normale' ||
     f.structure!=='homogene' || f.contours!=='reguliers' ||
     f.nodules || f.masse || f.kystes || f.susHepatiques!=='normales' ||
-    f.porte!=null || f.epanchement || f.graisse;
+    f.porte!=null || horsDefaut(f.voiesBiliaires,'non_vu') || f.cibles ||
+    f.mineralisations || f.epanchement || f.graisse;
 }
 function anomalieFoie(){
   const f=S.foie;
   if(!foieExamine()) return false;
-  if(f.taille!=='normale' || f.bords!=='aigus') return true;
+  if(f.taille!=='normale' || f.bords!=='pointus') return true;
   if(echoFoie()!=='normale') return true;
   if(f.structure!=='homogene' || f.contours!=='reguliers') return true;
   if(f.nodules || f.masse || f.kystes) return true;
   if(f.susHepatiques!=='normales' || f.epanchement || f.graisse) return true;
   const rp=rapportPorte();
   if(rp && rp.verdict!=='normal') return true;
+  const dp=diametrePorte();
+  if(dp && dp.verdict!=='normal') return true;
+  if(horsDefaut(f.voiesBiliaires,'non_vu') || f.cibles || f.mineralisations) return true;
   return false;
 }
 
@@ -2882,7 +2927,7 @@ function rendreFoie(){
   [['Taille','taille',[{v:'petit',l:'Diminuée',t:'Shunt porto-systémique, cirrhose'},
       {v:'normale',l:'Normale'},
       {v:'augmente',l:'Augmentée',t:'Dépassement du rebord costal'}],['petit','augmente']],
-   ['Bords','bords',[{v:'aigus',l:'Aigus'},
+   ['Bords','bords',[{v:'pointus',l:'Pointus'},
       {v:'arrondis',l:'Arrondis',t:'Signe d’hépatomégalie, même sans dépassement net'}],['arrondis']],
    ['Contours','contours',[{v:'reguliers',l:'Réguliers'},{v:'irreguliers',l:'Irréguliers'},
       {v:'bosseles',l:'Bosselés',t:'Cirrhose, nodules de régénération, néoplasie multifocale'}],
@@ -2918,7 +2963,8 @@ function rendreFoie(){
   const ls=document.createElement('div'); ls.className='ligne';
   ls.innerHTML='<span class="nom">Structure</span>';
   pastilles(ls,[{v:'homogene',l:'Homogène'},{v:'heterogene',l:'Hétérogène'},
-    {v:'reticule',l:'Réticulée',t:'Travées hyperéchogènes : fibrose, congestion'}],
+    {v:'reticule',l:'Travées hyperéchogènes',
+     t:'Fibrose, congestion passive — à distinguer d’une simple hétérogénéité'}],
     ()=>f.structure,x=>f.structure=x,['heterogene','reticule'],'homogene');
   b2.appendChild(ls);
 
@@ -2928,7 +2974,28 @@ function rendreFoie(){
     'Hyperplasie nodulaire chez le vieux chien, mais métastases à écarter');
   interrupteur(lf,'Masse',()=>f.masse,x=>f.masse=x);
   interrupteur(lf,'Kystes',()=>f.kystes,x=>f.kystes=x);
+  interrupteur(lf,'Lésions en cible',()=>f.cibles,x=>f.cibles=x,
+    'Centre hypo ou hyperéchogène cerné d’un halo hypoéchogène : '+
+    'le halo est l’élément discriminant, fort argument de malignité');
+  interrupteur(lf,'Minéralisations',()=>f.mineralisations,x=>f.mineralisations=x,
+    'Foyers hyperéchogènes avec cône d’ombre dans le parenchyme');
   b3.appendChild(lf);
+  if(f.cibles){
+    const sc=sousBloc(b3,'Lésions en cible',true);
+    ligneQuantite(sc, f, 'cibles', 'Parenchyme criblé, lésions trop nombreuses pour être comptées');
+    champ(sc,'Plus grande',()=>f.ciblesTaille,x=>f.ciblesTaille=x,'mm','1');
+  } else { f.ciblesQte=null; f.ciblesNb=null; f.ciblesTaille=null; }
+  if(f.mineralisations){
+    const sm2=sousBloc(b3,'Minéralisations');
+    const l=document.createElement('div'); l.className='ligne';
+    l.innerHTML='<span class="nom">Répartition</span>';
+    pastilles(l,[{v:'isolee',l:'Isolée'},{v:'multiples',l:'Multiples'},
+      {v:'diffuse',l:'Diffuse',t:'Parenchyme criblé'},
+      {v:'periportale',l:'Péri-portale',t:'Suit le réseau portal : séquelle inflammatoire chronique'}],
+      ()=>f.mineralisationsRepartition,x=>f.mineralisationsRepartition=x,
+      ['multiples','diffuse','periportale']);
+    sm2.appendChild(l);
+  } else f.mineralisationsRepartition=null;
   if(f.nodules){
     const sn=sousBloc(b3,'Nodules',true);
     ligneQuantite(sn, f, 'nodules', 'Parenchyme criblé de nodules confluents, sans limite nette');
@@ -2936,8 +3003,8 @@ function rendreFoie(){
     const le=document.createElement('div'); le.className='ligne';
     le.innerHTML='<span class="nom">Échogénicité</span>';
     pastilles(le,[{v:'hypo',l:'Hypo'},{v:'iso',l:'Iso'},{v:'hyper',l:'Hyper'},
-      {v:'mixte',l:'Mixte'},{v:'cible',l:'En cible',t:'Halo hypoéchogène : argument fort pour une métastase'}],
-      ()=>f.nodulesEcho,x=>f.nodulesEcho=x,['cible']);
+      {v:'mixte',l:'Mixte'}],
+      ()=>f.nodulesEcho,x=>f.nodulesEcho=x,[]);
     sn.appendChild(le);
   } else { f.nodulesQte=null; f.nodulesNb=null; f.nodulesTaille=null; f.nodulesEcho=null; }
   if(f.kystes){
@@ -2981,10 +3048,23 @@ function rendreFoie(){
     ()=>f.susHepatiques,x=>f.susHepatiques=x,['dilatees'],'normales');
   b4.appendChild(lv);
   const lp=champ(b4,'Veine porte',()=>f.porte,x=>f.porte=x,'mm','0.1',true);
+  // Deux verdicts côte à côte : le diamètre absolu, et le rapport à l'aorte.
+  const dp=diametrePorte();
+  if(dp) verdictTag(lp, dp.lib, dp.verdict==='normal'?'normal':(dp.verdict==='bas'?'bas':'haut'));
+  else if(f.porte!=null) verdictTag(lp,'renseigner l’espèce','vide');
   const rp=rapportPorte();
   if(rp) verdictTag(lp,'porte/aorte '+nb(rp.valeur,2)+' (0,71–1,25)',
     rp.verdict==='normal'?'normal':(rp.verdict==='bas'?'bas':'haut'));
-  else if(f.porte!=null) verdictTag(lp,'renseigner l’aorte','vide');
+  else if(f.porte!=null) verdictTag(lp,'aorte non mesurée','vide');
+  const lvb=document.createElement('div'); lvb.className='ligne';
+  lvb.innerHTML='<span class="nom large">Voies biliaires intra-hépatiques</span>';
+  pastilles(lvb,[
+    {v:'non_vu',l:'Non visualisées',t:'État normal : elles ne se distinguent pas du parenchyme'},
+    {v:'dilatees',l:'Dilatées',t:'Quelques canaux visibles, péri-portaux'},
+    {v:'tooManyTubes',l:'« Too many tubes »',
+     t:'Réseau tubulaire surnuméraire doublant le réseau portal : obstruction biliaire installée'}],
+    ()=>f.voiesBiliaires,x=>f.voiesBiliaires=x,['dilatees','tooManyTubes'],'non_vu');
+  b4.appendChild(lvb);
   const lpe=document.createElement('div'); lpe.className='ligne';
   interrupteur(lpe,'Épanchement péri-hépatique',()=>f.epanchement,x=>f.epanchement=x);
   interrupteur(lpe,'Graisse hyperéchogène',()=>f.graisse,x=>f.graisse=x);
@@ -3003,12 +3083,15 @@ function phraseFoie(){
   const anoT=f.taille!=='normale';
   const eg=echoFoie();
 
-  if(!anomalieFoie()){
-    L.push('Examen dans les limites de la normale. Foie de taille normale, à bords aigus, '+
+  // Une veine porte mesurée sans espèce renseignée n'a pas pu être confrontée :
+  // on ne peut donc pas écrire que l'examen est dans les limites de la normale.
+  const porteNonConfrontee = f.porte!=null && !diametrePorte();
+  if(!anomalieFoie() && !porteNonConfrontee){
+    L.push('Examen dans les limites de la normale. Foie de taille normale, à bords pointus, '+
       'moins échogène que la rate et plus échogène que le cortex rénal.');
   } else {
     L.push('Foie '+Q(TAILLE[f.taille],anoT)+', à bords '+
-      Q(f.bords==='aigus'?'aigus':'arrondis', f.bords!=='aigus')+'.');
+      Q(f.bords==='pointus'?'pointus':'arrondis', f.bords!=='pointus')+'.');
     const e=[];
     e.push(f.vsRate==='moins' ? 'moins échogène que la rate'
       : M(f.vsRate==='iso'?'isoéchogène à la rate':'plus échogène que la rate',true));
@@ -3017,7 +3100,8 @@ function phraseFoie(){
     let s='Parenchyme '+e.join(', ');
     if(eg!=='normale') s+=' — '+M('foie globalement '+(eg==='hyper'?'hyperéchogène':'hypoéchogène'),true);
     L.push(s+'.');
-    const STR={homogene:'homogène', heterogene:'hétérogène', reticule:'d’aspect réticulé'};
+    const STR={homogene:'homogène', heterogene:'hétérogène',
+      reticule:'parcourue de travées hyperéchogènes'};
     const CTR={reguliers:'réguliers', irreguliers:'irréguliers', bosseles:'bosselés'};
     L.push('Structure '+Q(STR[f.structure], f.structure!=='homogene')+
       ', contours '+Q(CTR[f.contours], f.contours!=='reguliers')+'.');
@@ -3037,8 +3121,33 @@ function phraseFoie(){
     if(f.kystesTaille!=null) s+=mesureDuPlusGrand(q.pluriel, f.kystesTaille, false, 0);
     les.push(s);
   }
+  if(f.cibles){
+    const q=libelleQuantite(f, 'cibles', 'lésion en cible', true, 'lésions en cible');
+    let s=q.t;
+    if(f.ciblesTaille!=null) s+=mesureDuPlusGrand(q.pluriel, f.ciblesTaille, true, 0);
+    // Le halo est l'élément discriminant : il doit figurer dans la description,
+    // pas seulement dans le mot « cible ».
+    s+=' (centre d’échogénicité différente cerné d’un halo hypoéchogène)';
+    les.push(s);
+  }
   if(les.length) L.push(M('Présence '+de(les[0])+(les.length>1?' ; '+les.slice(1).join(' ; '):''),true)+'.');
   else if(!f.masse) L.push('Pas de nodule ni de kyste visualisé.');
+
+  if(f.mineralisations){
+    const MIN={
+      isolee:'Foyer hyperéchogène unique avec cône d’ombre dans le parenchyme hépatique '+
+        '(minéralisation isolée)',
+      multiples:'Foyers hyperéchogènes multiples avec cône d’ombre dans le parenchyme '+
+        'hépatique (minéralisations)',
+      diffuse:'Parenchyme hépatique criblé de foyers hyperéchogènes avec cône d’ombre '+
+        '(minéralisations diffuses)',
+      periportale:'Foyers hyperéchogènes avec cône d’ombre suivant le réseau portal '+
+        '(minéralisations de distribution péri-portale)'
+    };
+    L.push(M(MIN[f.mineralisationsRepartition] ||
+      'Foyers hyperéchogènes avec cône d’ombre dans le parenchyme hépatique '+
+      '(minéralisations, répartition non précisée)', true)+'.');
+  }
 
   if(f.masse){
     const d=[f.masseL,f.masseH].filter(x=>x!=null);
@@ -3054,11 +3163,25 @@ function phraseFoie(){
   }
 
   const rp=rapportPorte();
+  const dp=diametrePorte();
   const vasc=[];
   vasc.push(f.susHepatiques==='normales' ? 'veines sus-hépatiques normales'
     : M('veines sus-hépatiques dilatées',true));
+  // Diamètre absolu d'abord, rapport à l'aorte ensuite : ils ne disent pas la
+  // même chose et peuvent se contredire. Si l'espèce manque, on rapporte la
+  // mesure sans verdict plutôt que de la faire disparaître du CR.
+  if(dp) vasc.push('veine porte '+
+    (dp.verdict==='normal'? V(nb(dp.valeur,1)) : M(nb(dp.valeur,1),true))+' mm ('+dp.lib+')');
+  else if(f.porte!=null) vasc.push('veine porte '+nb(f.porte,1)+
+    ' mm (espèce non renseignée, valeur non confrontée)');
   if(rp) vasc.push('rapport veine porte / aorte '+
     (rp.verdict==='normal'? V(nb(rp.valeur,2)) : M(nb(rp.valeur,2),true))+' (0,71–1,25)');
+  if(horsDefaut(f.voiesBiliaires,'non_vu')){
+    vasc.push(f.voiesBiliaires==='tooManyTubes'
+      ? M('réseau tubulaire surnuméraire doublant le réseau portal, '+
+          'signe du « too many tubes »',true)
+      : M('voies biliaires intra-hépatiques dilatées',true));
+  }
   let lv=vasc.join(', ');
   lv=lv.replace(/^(<mark[^>]*>)?([a-zà-ÿ])/, function(x,b,c){ return (b||'')+c.toUpperCase(); });
   L.push(lv+'.');
@@ -3076,7 +3199,9 @@ function phraseFoie(){
 // Paroi : chat < 1 mm, au-delà bon prédicteur de maladie vésiculaire ; chien
 // < 3 mm, seuil moins bien établi. Cholédoque : chez le chien il n'est
 // normalement PAS visible — le voir suffit à dire qu'il est dilaté.
-const REF_VB = { chien:{paroi:3.0, chol:3.0}, chat:{paroi:1.0, chol:4.0} };
+// Paroi : < 1 mm dans les deux espèces. Bébou (03/11/2026) : pas de valeur
+// franche publiée chez le chien, on applique la même borne que chez le chat.
+const REF_VB = { chien:{paroi:1.0, chol:3.0}, chat:{paroi:1.0, chol:4.0} };
 
 function vbVide(){
   return {
@@ -3274,12 +3399,46 @@ function syntheseFoieVB(items, lignes){
         ' : congestion passive — insuffisance cardiaque droite, tamponnade, ou obstruction '+
         'de la veine cave caudale.');
     }
-    const rp=rapportPorte();
+    const rp=rapportPorte(), dp=diametrePorte();
     if(rp && rp.verdict==='bas'){
       items.push({t:'rapport porte/aorte bas', c:'alerte'});
       lignes.push('Rapport veine porte / aorte à '+nb(rp.valeur,2)+', sous la borne de 0,71'+
         (f.taille==='petit'?', sur un foie de petite taille':'')+
         ' : shunt porto-systémique extra-hépatique au premier plan.');
+    }
+    if(dp && dp.verdict==='haut'){
+      items.push({t:'veine porte dilatée', c:'alerte'});
+      lignes.push('Veine porte à '+nb(dp.valeur,1)+' mm, au-delà de '+nb(dp.max)+' mm : '+
+        'hypertension portale'+(f.epanchement?' — l’épanchement va dans ce sens':'')+
+        ', ou congestion passive en amont. À confronter au flux au Doppler.');
+    }
+    if(f.cibles){
+      const uneSeule = f.ciblesQte==='unique' || f.ciblesNb===1;
+      items.push({t: uneSeule?'lésion en cible':'lésions en cible', c:'alerte'});
+      lignes.push((uneSeule?'Lésion hépatique en cible':'Lésions hépatiques en cible')+
+        ' : le halo hypoéchogène périphérique est un argument fort de malignité — '+
+        'métastase en premier lieu, bien plus que l’hyperplasie nodulaire. Examiner la rate '+
+        'et les autres organes abdominaux à la recherche de lésions comparables.');
+    }
+    if(horsDefaut(f.voiesBiliaires,'non_vu')){
+      items.push({t:f.voiesBiliaires==='tooManyTubes'
+        ? 'signe du « too many tubes »' : 'voies biliaires dilatées', c:'alerte'});
+      lignes.push(f.voiesBiliaires==='tooManyTubes'
+        ? 'Réseau biliaire intra-hépatique surnuméraire doublant le réseau portal : '+
+          'obstruction biliaire installée. Suivre le cholédoque jusqu’à la papille et '+
+          'examiner le pancréas et le duodénum à la recherche de l’obstacle.'
+        : 'Voies biliaires intra-hépatiques dilatées : cholestase. Chercher l’obstacle sur '+
+          'le trajet du cholédoque — pancréatite, masse, lithiase — avant de conclure à '+
+          'une cause intra-hépatique.');
+    }
+    if(f.mineralisations){
+      items.push({t:'minéralisations hépatiques', c:''});
+      lignes.push(f.mineralisationsRepartition==='periportale'
+        ? 'Minéralisations de distribution péri-portale : séquelle d’une atteinte '+
+          'inflammatoire chronique des voies biliaires, sans valeur d’activité actuelle.'
+        : 'Minéralisations du parenchyme hépatique : le plus souvent séquellaires, '+
+          'sans traduction fonctionnelle. Une lithiase intra-hépatique ou une '+
+          'minéralisation dystrophique sur lésion ancienne restent à distinguer.');
     }
     if(f.nodules && f.nodulesEcho==='cible'){
       items.push({t:'nodules en cible', c:'alerte'});
@@ -3354,18 +3513,18 @@ function syntheseFoieVB(items, lignes){
 // │ VALEURS DE RÉFÉRENCE SURRÉNALIENNES — un seul endroit à modifier.        │
 // │ Chien et chat : valeurs de Bébou (08/10/2026), épaisseur du pôle caudal, │
 // │ rattachées par lui à Penninck & d'Anjou 2e éd. (03/11/2026).             │
-// │ Restent données de mémoire, non confirmées par lui : la borne basse      │
-// │ (hypocorticisme) et les deux seuils tumoraux.                            │
 // └──────────────────────────────────────────────────────────────────────────┘
+// Retiré le 03/11/2026 : borne basse du chien (3,0 mm) et seuils tumoraux
+// (20 mm chien, 10 mm chat). Ces trois valeurs ne venaient d'aucun texte, elles
+// avaient été produites par Claude pour combler un trou. Conséquence assumée :
+// chez le chien, l'outil ne rend plus de verdict d'atrophie surrénalienne.
+// Chez le chat, la borne basse de 3,5 mm vient de Bébou, elle est conservée.
 const REF_SURRENALE = {
   chien:{
-    paliers:[ {jusqua:10, max:6.0}, {jusqua:30, max:7.4}, {jusqua:1e9, max:9.0} ],
-    bas:3.0,            // sous cette épaisseur : hypocorticisme — À CONFIRMER
-    tumeur:20.0         // au-delà, unilatéralement : tumeur — À CONFIRMER
+    paliers:[ {jusqua:10, max:6.0}, {jusqua:30, max:7.4}, {jusqua:1e9, max:9.0} ]
   },
   chat:{
-    poleMin:3.5, poleMax:4.5,   // au-delà de 4,5 : adrénomégalie
-    tumeur:10.0         // À CONFIRMER
+    poleMin:3.5, poleMax:4.5    // au-delà de 4,5 : adrénomégalie
   }
 };
 
@@ -3388,14 +3547,16 @@ function borneSurrenale(){
     lib:nb(REF_SURRENALE.chat.poleMin)+'–'+nb(REF_SURRENALE.chat.poleMax)+' mm'};
   if(S.espece!=='chien' || S.poids==null) return null;
   const p=REF_SURRENALE.chien.paliers.find(x=>S.poids<=x.jusqua);
-  return {max:p.max, min:REF_SURRENALE.chien.bas,
+  // min absent volontairement : aucune borne basse sourcée chez le chien.
+  return {max:p.max, min:null,
     lib:'≤ '+nb(p.max)+' mm pour '+nb(S.poids,0)+' kg'};
 }
 function surrenaleVerdict(cote){
   const s=S['sr'+cote], b=borneSurrenale();
   if(!b || s.pole==null) return null;
   if(s.pole>b.max) return {verdict:'haut', b:b};
-  if(s.pole<b.min) return {verdict:'bas', b:b};
+  // Verdict « fine » seulement là où une borne basse est sourcée — chez le chat.
+  if(b.min!=null && s.pole<b.min) return {verdict:'bas', b:b};
   return {verdict:'normal', b:b};
 }
 function surrenaleSaisie(cote){
@@ -3820,8 +3981,18 @@ function syntheseSurrenalesRate(items, lignes){
 // Les images vivent le temps de l'examen, comme le reste de la saisie. Elles
 // ne sont conservées que si l'examen est enregistré dans le dossier patient,
 // et seulement si l'on a coché de les inclure.
-const IMG_LARGEUR_MAX = 1280;
-const IMG_QUALITE = 0.82;
+// Une capture d'échographe porte du texte fin et des curseurs blancs sur fond
+// noir : c'est exactement ce que la compression JPEG dégrade, et c'est là que
+// la lisibilité compte. On ne redimensionne donc plus (2560 px dépasse le
+// format natif de tous les échographes actuels) et on encode SANS PERTE tant
+// que le poids reste raisonnable. Au-delà — une photo prise au téléphone, par
+// exemple — le PNG explose et on retombe sur un JPEG de haute qualité.
+// Mesuré sur une capture Canon Xario 1371 × 1032 : JPEG q0,82 = 110 Ko,
+// q0,95 = 226 Ko, PNG sans perte = 677 Ko. Une photo de téléphone : 4 Mo en PNG.
+const IMG_LARGEUR_MAX = 2560;
+const IMG_QUALITE = 0.95;
+// Seuil sur la longueur de la data-URL, base64 compris (+33 % sur les octets).
+const IMG_PNG_MAX = 1600 * 1024;
 
 function imagesDe(cle){
   if(!S.images[cle]) S.images[cle]=[];
@@ -3849,7 +4020,14 @@ function importerImages(cible, fichiers, apres){
           c.width=Math.max(1,Math.round(im.width*ech));
           c.height=Math.max(1,Math.round(im.height*ech));
           c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-          cible.push({src:c.toDataURL('image/jpeg',IMG_QUALITE), legende:''});
+          // Sans perte si le poids le permet, haute qualité sinon.
+          let src=null;
+          try{
+            const png=c.toDataURL('image/png');
+            if(png.length<=IMG_PNG_MAX) src=png;
+          }catch(e){}
+          if(!src) src=c.toDataURL('image/jpeg',IMG_QUALITE);
+          cible.push({src:src, legende:''});
         }catch(e){}
         suivant();
       };
@@ -5352,10 +5530,10 @@ const REF_PANCREAS = {
   },
   chat:{
     // La source donne « < 9 ans » et « > 10 ans » : la bascule est posée à 10.
-    lobeG:{paliers:[{jusqua:10, min:3.4, max:9.0}, {jusqua:1e9, min:4.6, max:10.6}]},
-    lobeD:{paliers:[{jusqua:10, min:2.8, max:5.9}, {jusqua:1e9, min:3.0, max:5.7}]},
+    lobeG:{paliers:[{jusqua:9, min:3.4, max:9.0}, {jusqua:1e9, min:4.6, max:10.6}]},
+    lobeD:{paliers:[{jusqua:9, min:2.8, max:5.9}, {jusqua:1e9, min:3.0, max:5.7}]},
     corps:{max:6.2},
-    canal:{paliers:[{jusqua:10, max:1.0}, {jusqua:1e9, max:4.0}]}
+    canal:{paliers:[{jusqua:9, max:1.0}, {jusqua:1e9, max:4.0}]}
   }
 };
 const LOBES_PANCREAS = [
@@ -6253,17 +6431,11 @@ function rendreDocument(blocs, synth){
 
   // Sources des valeurs de référence, limitées aux organes décrits.
   const src=sourcesDuCR(blocs);
-  if(src.citees.length || src.nonVerifiees.length){
+  if(src.citees.length){
     const bs=document.createElement('div'); bs.className='doc-sources';
     const h=document.createElement('div'); h.className='org'; h.textContent='Valeurs de référence';
     bs.appendChild(h);
     src.citees.forEach(l=>{ const q=document.createElement('p'); q.textContent=l; bs.appendChild(q); });
-    if(src.nonVerifiees.length){
-      const q=document.createElement('p'); q.className='sans-source';
-      q.textContent='Non rapportées à une source publiée : '+
-        src.nonVerifiees.join(', ').toLowerCase()+'.';
-      bs.appendChild(q);
-    }
     z.appendChild(bs);
   }
 
@@ -6308,11 +6480,9 @@ function crTexteBrut(blocs, synth){
   if(synth && synth.length){ T.push('SYNTHÈSE'); synth.forEach(l=>T.push(l)); T.push(''); }
   {
     const src=sourcesDuCR(blocs);
-    if(src.citees.length || src.nonVerifiees.length){
+    if(src.citees.length){
       T.push('VALEURS DE RÉFÉRENCE');
       src.citees.forEach(l=>T.push(l));
-      if(src.nonVerifiees.length)
-        T.push('Non rapportées à une source publiée : '+src.nonVerifiees.join(', ').toLowerCase()+'.');
       T.push('');
     }
   }
